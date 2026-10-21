@@ -1,0 +1,26 @@
+# portfolio2
+
+Leo Li's React and TypeScript portfolio, exported from [Figma Make](https://www.figma.com/make/WbYExogxExIsD3YYpaH9oa/Portfolio) and adapted to run independently with Vite.
+
+## Run locally
+
+Requires Node.js 22.12+ (or 24+) and pnpm.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+Open http://127.0.0.1:5173. To check and build the production version, run `pnpm build`; `pnpm preview` serves that build at http://127.0.0.1:4173.
+
+## Editing
+
+- `src/content/data.ts`: profile, contact destinations, experience, projects, and game clips.
+- `src/content/library.ts`: books and music; assets live in `public/books` and `public/music`.
+- `src/theme/palettes.ts`: palettes and scene colors.
+- `src/three`: interactive project planet, swimming scene, and color ASCII rendering.
+- `src/state`: preferences and the persistent audio player.
+
+Both Dynamic and ASCII modes, light/dark appearance, palette selection, motion settings, book dialogs, music playback, and the desktop page deck are retained. Unfilled biography, project, experience, and contact fields intentionally remain placeholders. Gameplay previews need clip files configured in `data.ts`.
+
+The original Figma build helpers are retained under `.figma/` for provenance; local commands use the standalone Vite configuration. No backend or hosting deployment is configured. The existing planning documents are under `docs/`.

@@ -1,0 +1,10 @@
+{
+  "description": "A responsive personal portfolio showcasing professional experience, projects, interests, and media with dynamic and ASCII display modes for engaging user interaction.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
