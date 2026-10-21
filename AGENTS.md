@@ -4,9 +4,9 @@ React + Vite + Tailwind CSS portfolio exported from Figma Make and adapted for l
 
 ## Development Server
 
-Run `pnpm install --frozen-lockfile`, then `pnpm dev` to start Vite at http://127.0.0.1:5173.
+Run `npm install`, then `npm run dev` to start Vite at http://127.0.0.1:5173. Use `npm.cmd` if PowerShell blocks the npm script wrapper. Dependencies are already installed in this checkout. pnpm is optional; the original export lockfile is retained.
 
-- Validation: `pnpm build` runs the TypeScript check and production build. `pnpm preview` serves the built output at http://127.0.0.1:4173.
+- Validation: `npm run build` runs the TypeScript check and production build. `npm run preview` serves the built output at http://127.0.0.1:4173.
 - Hot reload: Changes to source files are reflected immediately
 
 ## Project Structure

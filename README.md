@@ -4,14 +4,16 @@ Leo Li's React and TypeScript portfolio, exported from [Figma Make](https://www.
 
 ## Run locally
 
-Requires Node.js 22.12+ (or 24+) and pnpm.
+Requires Node.js 22.12+ (or 24+). npm is included with Node.js.
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm dev
+npm install
+npm run dev
 ```
 
-Open http://127.0.0.1:5173. To check and build the production version, run `pnpm build`; `pnpm preview` serves that build at http://127.0.0.1:4173.
+Open http://127.0.0.1:5173. To check and build the production version, run `npm run build`; `npm run preview` serves that build at http://127.0.0.1:4173.
+
+Dependencies are already installed in this checkout, so you can run `npm run dev` immediately. If PowerShell blocks `npm.ps1`, use `npm.cmd run dev`. The exported pnpm lockfile is retained for users who prefer `pnpm install --frozen-lockfile`.
 
 ## Editing
 

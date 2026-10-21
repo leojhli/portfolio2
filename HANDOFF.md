@@ -2,7 +2,7 @@
 
 ## Local export
 
-The Figma Make source is now in this folder as `portfolio2`. Run `pnpm dev`; `pnpm build` checks TypeScript and creates `dist/`. The Vite configuration and HTML metadata no longer depend on Figma. The source design and supplied books/music are retained. Dynamic book spines fit their available column at intermediate widths; ASCII shelves scroll within their column. See README.md for local setup.
+The Figma Make source is now in this folder as `portfolio2`. Run `npm run dev`; `npm run build` checks TypeScript and creates `dist/`. The Vite configuration and HTML metadata no longer depend on Figma. The source design and supplied books/music are retained. Dynamic book spines fit their available column at intermediate widths; ASCII shelves scroll within their column. See README.md for local setup.
 
 The original notes below describe the prototype; subsequent Figma versions added the 3D planet/pool, colored ASCII scenes, expanded palettes, and media listed in `src/content/library.ts`. The earlier missing-asset and not-built lists are historical.
 
