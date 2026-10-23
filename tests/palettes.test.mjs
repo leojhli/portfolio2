@@ -13,7 +13,7 @@ before(async () => {
 })
 after(async () => server?.close())
 
-test("the curated theme set has one neutral default and a safe saved-theme fallback", () => {
+test("minimal themes lead the complete restored colourful collection with a neutral default", () => {
   assert.deepEqual(
     themes.PALETTES.map(({ id, name }) => [id, name]),
     [
@@ -21,11 +21,47 @@ test("the curated theme set has one neutral default and a safe saved-theme fallb
       ["slate", "Slate"],
       ["sage", "Sage"],
       ["paper", "Paper"],
+      ["riso", "Riso Print"],
+      ["sunset", "Sunset Drive"],
+      ["harbor", "Harbor Flags"],
+      ["lagoon", "Deep Lagoon"],
+      ["regatta", "Regatta"],
+      ["candy", "Candy Shop"],
+      ["campfire", "Campfire"],
+      ["vapor", "Vaporwave"],
+      ["pitlane", "Pit Lane"],
+      ["mesa", "Mesa"],
+      ["reef", "Reef"],
+      ["peach", "Peach Fizz"],
+      ["citrus", "Citrus Grove"],
+      ["bubble", "Bubblegum"],
+      ["ember", "Ember"],
+      ["glacier", "Glacier"],
+      ["matcha", "Matcha"],
+      ["tropic", "Tropic"],
+      ["grape", "Grape Soda"],
+      ["arcade", "Arcade"],
     ],
   )
   assert.equal(themes.DEFAULT_PALETTE, "graphite")
-  assert.equal(themes.paletteById("candy").id, "graphite")
+  assert.deepEqual(
+    themes.PALETTE_GROUPS.map(({ name, palettes }) => [name, palettes.length]),
+    [
+      ["Minimal", 4],
+      ["Colorful", 20],
+    ],
+  )
+  assert.equal(new Set(themes.PALETTES.map(({ id }) => id)).size, 24)
+  assert.equal(themes.paletteById("candy").id, "candy")
+  assert.equal(themes.paletteById("missing").id, "graphite")
   assert.equal(themes.paletteById(null).id, "graphite")
+  assert.deepEqual(themes.paletteById("candy").colors, [
+    "#9b5de5",
+    "#f15bb5",
+    "#fee440",
+    "#00bbf9",
+    "#00f5d4",
+  ])
 })
 
 test("every curated light and dark theme keeps text and interactive fills readable", () => {

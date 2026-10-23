@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { usePrefs, type MotionPref } from "../state/preferences"
-import { PALETTES } from "../theme/palettes"
+import { PALETTES, PALETTE_GROUPS } from "../theme/palettes"
 import Icon from "./Icons"
 
 function Segmented<T extends string>({
@@ -177,34 +177,43 @@ export default function Controls() {
                   {PALETTES.length} sets · 5 colours each
                 </span>
               </legend>
-              <div className="grid max-h-[min(60vh,26rem)] grid-cols-1 gap-1 overflow-y-auto pr-1 sm:grid-cols-2">
-                {PALETTES.map((def) => (
-                  <label
-                    key={def.id}
-                    className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm has-[:checked]:bg-line has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus hover:bg-line/60"
-                  >
-                    <input
-                      type="radio"
-                      name="palette"
-                      value={def.id}
-                      checked={p.palette.id === def.id}
-                      onChange={() => p.setPalette(def.id)}
-                      className="sr-only"
-                    />
-                    <Swatches
-                      colors={def.colors}
-                      className="h-6 w-16 shrink-0"
-                    />
-                    <span className="flex-1 truncate">{def.name}</span>
-                    {p.palette.id === def.id && (
-                      <span
-                        aria-hidden="true"
-                        className="font-mono text-xs text-accent"
-                      >
-                        ●
-                      </span>
-                    )}
-                  </label>
+              <div className="max-h-[min(65vh,32rem)] space-y-4 overflow-y-auto pr-1">
+                {PALETTE_GROUPS.map((group) => (
+                  <fieldset key={group.name}>
+                    <legend className="mb-1 px-2 font-mono text-xs text-muted">
+                      {group.name}
+                    </legend>
+                    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                      {group.palettes.map((def) => (
+                        <label
+                          key={def.id}
+                          className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm has-[:checked]:bg-line has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus hover:bg-line/60"
+                        >
+                          <input
+                            type="radio"
+                            name="palette"
+                            value={def.id}
+                            checked={p.palette.id === def.id}
+                            onChange={() => p.setPalette(def.id)}
+                            className="sr-only"
+                          />
+                          <Swatches
+                            colors={def.colors}
+                            className="h-6 w-16 shrink-0"
+                          />
+                          <span className="flex-1 truncate">{def.name}</span>
+                          {p.palette.id === def.id && (
+                            <span
+                              aria-hidden="true"
+                              className="font-mono text-xs text-accent"
+                            >
+                              ●
+                            </span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
                 ))}
               </div>
             </fieldset>

@@ -89,6 +89,14 @@ html:not([data-mode='ascii']) :is(h1, h2, h3, h4) {
 }
 html[data-mode='ascii'] { --font-display: var(--font-mono); }
 
+/* The monogram inherits every palette, including both light and dark surfaces. */
+.brand-home {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 44px; height: 44px; border-radius: 10px; color: var(--c-fg);
+  transition: color 160ms ease, background-color 160ms ease;
+}
+.brand-home:hover { color: var(--c-accent); background-color: var(--c-surface); }
+
 /* ---------- Paged deck ---------- */
 html[data-layout='h'] body { overflow: hidden; }
 html[data-layout='h'] .deck { position: fixed; inset: 0; overflow: clip; }

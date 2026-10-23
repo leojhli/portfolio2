@@ -8,6 +8,7 @@ import Games from "./Games"
 import Projects from "./Projects"
 import Pool from "./Pool"
 import Deck from "./Deck"
+import Logo from "./Logo"
 import { AsciiArt, ContactLinks, Kinetic, Panel } from "./ui"
 
 const EffectsLayer = lazy(() => import("../effects/EffectsLayer"))
@@ -70,9 +71,9 @@ export default function Page() {
             <a
               href="#intro"
               aria-label={`${c.profile.displayName}, back to start`}
-              className="pop pop-accent size-11 justify-center !p-0 font-mono text-sm font-semibold"
+              className="brand-home"
             >
-              LL
+              <Logo />
             </a>
             <nav aria-label="Sections" className="hz:hidden">
               <ul className="flex flex-wrap">

@@ -617,6 +617,66 @@ test("real React tree preserves audio and text through rapid navigation, history
   }
 })
 
+test("restored colourful palettes are grouped, selectable and remembered without reviving the old default", async () => {
+  let f = fixture({
+    stored: {
+      "pf.v2.palette": "candy",
+      "pf.v2.appearance": "light",
+      "pf.v2.motion": "off",
+    },
+  })
+  let unmount = await mountApp(f)
+  try {
+    const trigger = document.querySelector('[aria-controls="palette-pop"]')
+    assert.ok(trigger.textContent.includes("Graphite"))
+    assert.equal(document.documentElement.dataset.theme, "light")
+    assert.equal(document.documentElement.dataset.motion, "off")
+    await click(trigger)
+    const picker = document.getElementById("palette-pop")
+    assert.deepEqual(
+      [...picker.querySelectorAll("fieldset fieldset > legend")].map(
+        (el) => el.textContent,
+      ),
+      ["Minimal", "Colorful"],
+    )
+    assert.equal(picker.querySelectorAll('input[name="palette"]').length, 24)
+    await click(picker.querySelector('input[value="candy"]'))
+    assert.ok(trigger.textContent.includes("Candy Shop"))
+    assert.equal(localStorage.getItem("pf.v3.palette"), "candy")
+    const visited = new Set()
+    for (let i = 0; i < 24; i++) {
+      visited.add(picker.querySelector('input[name="palette"]:checked').value)
+      await click(document.querySelector('[aria-label="Next palette"]'))
+    }
+    assert.equal(visited.size, 24, "cycling reaches both collections")
+    assert.equal(
+      picker.querySelector('input[name="palette"]:checked').value,
+      "candy",
+    )
+    assert.equal(localStorage.getItem("pf.v3.palette"), "candy")
+  } finally {
+    await unmount()
+  }
+  f = fixture({
+    stored: {
+      "pf.v3.palette": "candy",
+      "pf.v2.palette": "paper",
+      "pf.v2.motion": "off",
+    },
+  })
+  unmount = await mountApp(f)
+  try {
+    assert.ok(
+      document
+        .querySelector('[aria-controls="palette-pop"]')
+        .textContent.includes("Candy Shop"),
+      "a new explicit colourful choice takes precedence and survives reload",
+    )
+  } finally {
+    await unmount()
+  }
+})
+
 test("book dialogs reopen, close on cancel, and return focus without unmounting media", async () => {
   const f = fixture({
       width: 390,

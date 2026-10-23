@@ -21,14 +21,14 @@ The pointer canvas has no hit area and never rewrites semantic text. Selected te
 
 The screenshot's typography is Petrona for regular serif headings and Figtree for body text, identified from [Aaron Ye's portfolio](https://aaronye.dev/). Geist Mono and Chinese fallbacks remain available, and ASCII presentation keeps monospace typography.
 
-Four restrained palettes replace the earlier twenty colorful choices. They adapt the design language of portfolios actually listed in the Waterloo webrings:
+Four restrained palettes lead the theme picker. They adapt the design language of portfolios actually listed in the Waterloo webrings:
 
 - **Graphite**: near-black, gray and soft white, inspired by [Kelvin Zhang](https://www.kelvinzhang.ca/) and [Anthony Wang](https://anthonywang.dev/).
 - **Slate**: slate neutrals with one indigo accent, inspired by [Alex Zhu](https://probablyalex.com/).
 - **Sage**: green-gray and cream, drawing from [George Shao's portfolio](https://shao.zip/), [Aaron Ye's green/cream palette](https://aaronye.dev/) and the dark green/cream treatment on [Will Harris's portfolio](https://willharris.ca/).
 - **Paper**: warm paper, ink and a muted oxblood accent, also drawing from Will Harris's paper/red palette.
 
-All four work in light and dark appearance. Borders, shadows, background texture and ghost numerals are quieter. The arrival preset is **Dark + Graphite + Motion On**, including CSS before hydration. Appearance, palette and motion still use `pf.v2.*`; explicit choices remain remembered. Removed palette IDs fall back to Graphite. The existing Dynamic/ASCII preference is retained.
+All four work in light and dark appearance. The original twenty colorful palettes are also available in a separate Colorful group, and the full picker scrolls within the viewport. Borders, shadows, background texture and ghost numerals are quieter. The arrival preset is **Dark + Graphite + Motion On**, including CSS before hydration. Appearance and motion still use `pf.v2.*`; palette choices now use `pf.v3.palette`. Only legacy minimal choices migrate from v2, so a previously saved Candy Shop choice does not override the new minimal default. New explicit colorful choices are remembered normally. The existing Dynamic/ASCII preference is retained.
 
 ## Rendering and limits
 

@@ -11,6 +11,7 @@ import {
 } from "react"
 import {
   PALETTES,
+  MINIMAL_PALETTES,
   derive,
   paletteById,
   type Appearance,
@@ -21,9 +22,10 @@ import { morphPresentation } from "../effects/coordinator"
 export type Mode = "dynamic" | "ascii"
 export type MotionPref = "system" | "on" | "off"
 
-// Start existing and new visitors on the requested preset once. Subsequent
-// choices in this preference version are remembered without being reset.
+// Palette v3 keeps the minimal default even when an old colourful v2 choice
+// becomes available again. Explicit choices from this collection are remembered.
 const preferenceKey = (name: string) => `pf.v2.${name}`
+const paletteKey = "pf.v3.palette"
 
 // Storage may be unavailable (private mode, blocked); everything still works in memory.
 const store = {
@@ -83,9 +85,14 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     const v = store.get(preferenceKey("motion"))
     return v === "system" || v === "off" ? v : "on"
   })
-  const [paletteId, setPaletteId] = useState(
-    () => paletteById(store.get(preferenceKey("palette"))).id,
-  )
+  const [paletteId, setPaletteId] = useState(() => {
+    const saved = store.get(paletteKey)
+    if (saved) return paletteById(saved).id
+    const previous = store.get(preferenceKey("palette"))
+    return paletteById(
+      MINIMAL_PALETTES.some(({ id }) => id === previous) ? previous : null,
+    ).id
+  })
 
   const motion =
     motionPref === "on" ? true : motionPref === "off" ? false : !systemReduce
@@ -135,7 +142,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
   const choose = (id: string) => {
     setPaletteId(id)
-    store.set(preferenceKey("palette"), id)
+    store.set(paletteKey, id)
   }
 
   const value = useMemo<Prefs>(

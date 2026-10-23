@@ -17,7 +17,9 @@ Dependencies are already installed in this checkout, so you can run `npm run dev
 
 Run `npm test` for interaction and state-preservation checks (Node 22.22.2+, 24.15+, or 26+). See [interaction effects](docs/interaction-effects.md) for the local liquid cursor field, screen transitions, and visual verification limits.
 
-The arrival preset is **Dark / Graphite / Motion On**. Four curated themes—Graphite, Slate, Sage and Paper—draw from portfolios in the Waterloo webrings. Petrona headings and Figtree body text follow the supplied typography reference. Only pixels near the cursor flow around its circular barrier; horizontal page changes pixelate the whole viewport. Appearance, palette and motion choices remain saved locally.
+The arrival preset is **Dark / Graphite / Motion On**. Four minimal themes—Graphite, Slate, Sage and Paper—appear first, followed by the original twenty colorful themes. Petrona headings and Figtree body text follow the supplied typography reference. Only pixels near the cursor flow around its circular barrier; horizontal page changes pixelate the whole viewport. Appearance, palette and motion choices remain saved locally.
+
+The header and favicon share a custom nested-LL monogram. Reusable SVG/PNG assets and size previews are described in [brand assets](docs/brand/README.md).
 
 ## Editing
 
