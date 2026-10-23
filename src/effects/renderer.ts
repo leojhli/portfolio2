@@ -10,6 +10,7 @@ import {
 } from "./geometry"
 import { snapshot, type Fragment } from "./snapshot"
 import type { EffectDriver, EffectOptions } from "./coordinator"
+import { visiblePanel } from "./coordinator"
 
 type Dust = {
   source: Fragment
@@ -17,6 +18,7 @@ type Dust = {
   born: number
   life: number
   cover: string
+  gain: number
 }
 type Wave = Point & {
   born: number
@@ -38,6 +40,20 @@ type Sequence = {
   done?: () => void
 }
 const GLYPHS = "+*:#=%@"
+const REACTIVE =
+  "h1,h2,h3,h4,p,li,dt,dd,span,figcaption,button,a,input,textarea,select,svg,img,canvas,pre,.card,.box,.stage,.ghost-num,.palette-strip,.planet-label,[data-fx]"
+type Nearby = {
+  el: HTMLElement
+  x: number
+  y: number
+  strength: number
+  seen: number
+  translate: string
+  filter: string
+  baseX: string
+  baseY: string
+  baseFilter: string
+}
 
 /** One scheduler owns particles, ripples and temporary reveal animations. */
 export function createRenderer(
@@ -60,7 +76,32 @@ export function createRenderer(
     waves: Wave[] = [],
     sequence: Sequence | null = null
   let cursor: Point | null = null
+  let backdrop: {
+    x: number
+    y: number
+    at: number
+  } | null = null
   let animations: Animation[] = []
+  const nearby = new Map<HTMLElement, Nearby>()
+  const screenFilters = new Map<HTMLElement, string>()
+  let waveCache: {
+    root: HTMLElement
+    at: number
+    samples: Fragment[]
+  } | null = null
+  let candidates: HTMLElement[] = [],
+    candidatesAt = -Infinity
+  const backgroundPosition = document.body.style.backgroundPosition
+  const restoreNearby = (n: Nearby) => {
+    n.el.style.translate = n.translate
+    n.el.style.filter = n.filter
+    delete n.el.dataset.proximityActive
+  }
+  const clearNearby = () => {
+    nearby.forEach(restoreNearby)
+    nearby.clear()
+    document.body.style.backgroundPosition = backgroundPosition
+  }
   let springs: Array<{
     el: HTMLElement
     center: Point
@@ -99,6 +140,11 @@ export function createRenderer(
   const cleanAnimations = () => {
     animations.forEach((a) => a.cancel())
     animations = []
+    screenFilters.forEach((filter, el) => {
+      el.style.filter = filter
+      delete el.dataset.screenPixelation
+    })
+    screenFilters.clear()
   }
   const home = () => {
     const dialog = document.querySelector("dialog[open]")
@@ -114,10 +160,15 @@ export function createRenderer(
     dust = []
     waves = []
     cursor = null
+    backdrop = null
     cache.clear()
     seen.clear()
     resetSprings()
     springs = []
+    clearNearby()
+    candidates = []
+    candidatesAt = -Infinity
+    waveCache = null
     cleanAnimations()
     const done = sequence?.done
     sequence = null
@@ -154,17 +205,22 @@ export function createRenderer(
     const active = document.activeElement
     const selection = getSelection()
     return (
-      !el.closest("header,nav,dialog:not([open])") &&
+      !el.closest("[data-effect-canvas],dialog:not([open]),.sr-only") &&
       !(
         active &&
         active !== document.body &&
+        active.matches('input,textarea,select,[contenteditable="true"]') &&
         (el.contains(active) || active.contains(el))
       ) &&
       !(selection && !selection.isCollapsed && selection.containsNode(el, true))
     )
   }
-  const visuals = () =>
-    [...document.querySelectorAll<HTMLElement>("[data-fx]")]
+  const visuals = (now: number) => {
+    if (now - candidatesAt > 500) {
+      candidates = [...document.querySelectorAll<HTMLElement>(REACTIVE)]
+      candidatesAt = now
+    }
+    return candidates
       .filter((el) => {
         if (!safe(el)) return false
         const r = el.getBoundingClientRect()
@@ -177,27 +233,87 @@ export function createRenderer(
           r.bottom > 0
         )
       })
-      .slice(0, 24)
+      .slice(0, 500)
+  }
+  const reactTo = (
+    el: HTMLElement,
+    point: Point,
+    rect: DOMRect,
+    distance: number,
+    now: number,
+  ) => {
+    let n = nearby.get(el)
+    if (!n) {
+      const style = getComputedStyle(el)
+      const translate =
+        style.translate && style.translate !== "none"
+          ? style.translate.split(" ")
+          : ["0px", "0px"]
+      n = {
+        el,
+        x: 0,
+        y: 0,
+        strength: 0,
+        seen: now,
+        translate: el.style.translate,
+        filter: el.style.filter,
+        baseX: translate[0],
+        baseY: translate[1] || "0px",
+        baseFilter: style.filter === "none" ? "" : style.filter,
+      }
+      nearby.set(el, n)
+    }
+    const dx = rect.left + rect.width / 2 - point.x,
+      dy = rect.top + rect.height / 2 - point.y
+    const length = Math.hypot(dx, dy) || 1
+    const force =
+      (1 - distance / 140) *
+      (el.matches("button,a,input,select,textarea") ? 3 : 6)
+    n.x = (dx / length) * force
+    n.y = (dy / length) * force
+    n.seen = now
+  }
+  const updateNearby = (now: number) => {
+    for (const [el, n] of nearby) {
+      const target = now - n.seen < 100 && safe(el) ? 1 : 0
+      n.strength += (target - n.strength) * 0.24
+      if (!el.isConnected || (!target && n.strength < 0.015)) {
+        restoreNearby(n)
+        nearby.delete(el)
+        continue
+      }
+      el.style.translate = `calc(${n.baseX} + ${(n.x * n.strength).toFixed(2)}px) calc(${n.baseY} + ${(n.y * n.strength).toFixed(2)}px)`
+      el.style.filter =
+        n.strength > 0.1 ? `url(#px-2) ${n.baseFilter}`.trim() : n.filter
+      el.dataset.proximityActive = ""
+    }
+  }
   const samplesFor = (el: HTMLElement, now: number) => {
     const old = cache.get(el),
       rect = el.getBoundingClientRect()
     if (
       old &&
       now - old.at < 400 &&
-      Math.abs(old.rect.left - rect.left) < 1 &&
-      Math.abs(old.rect.top - rect.top) < 1
+      Math.abs(old.rect.left - rect.left) < 12 &&
+      Math.abs(old.rect.top - rect.top) < 12
     )
       return old.samples
     const spacing = ascii() ? 4 : 2
     const localBudget = Math.min(
       coarse() ? 8000 : 18000,
-      Math.ceil(rect.width * rect.height / (spacing * spacing)),
+      Math.ceil((rect.width * rect.height) / (spacing * spacing)),
     )
     const samples = snapshot(el, localBudget, false, spacing)
     cache.set(el, { samples, rect, at: now })
     return samples
   }
-  const emit = (sample: Fragment, center: Point, now: number, cover = "") => {
+  const emit = (
+    sample: Fragment,
+    center: Point,
+    now: number,
+    cover = "",
+    gain = 1,
+  ) => {
     if (dust.length >= Math.min(ascii() ? 2400 : 10000, budget())) return
     const key = `${Math.round(sample.x / 2)},${Math.round(sample.y / 2)}`
     if (now - (seen.get(key) ?? -1000) < 250) return
@@ -211,6 +327,7 @@ export function createRenderer(
       born: now,
       life: 350,
       cover,
+      gain,
     })
   }
   function frame(now: number) {
@@ -248,12 +365,20 @@ export function createRenderer(
       }
     } else {
       if (cursor && !getSelection()?.toString()) {
-        for (const el of visuals()) {
+        refreshColors()
+        const near: HTMLElement[] = []
+        for (const el of visuals(now)) {
           const r = el.getBoundingClientRect(),
             nearestX = clamp(cursor.x, r.left, r.right),
             nearestY = clamp(cursor.y, r.top, r.bottom)
-          if (Math.hypot(nearestX - cursor.x, nearestY - cursor.y) > 100)
-            continue
+          const distance = Math.hypot(nearestX - cursor.x, nearestY - cursor.y)
+          if (distance > 140) continue
+          reactTo(el, cursor, r, distance, now)
+          if (distance < 100) near.push(el)
+        }
+        for (const el of near.filter(
+          (el) => !near.some((other) => other !== el && other.contains(el)),
+        )) {
           const surface = getComputedStyle(el).backgroundColor
           for (const sample of samplesFor(el, now)) {
             const distance = Math.hypot(
@@ -272,12 +397,50 @@ export function createRenderer(
               )
           }
         }
+        // Empty page space has the same fine pixel field, with a quiet glow and
+        // background parallax rather than depending on a nearby marked visual.
+        for (
+          let x = Math.floor((cursor.x - 90) / 6) * 6;
+          x < cursor.x + 90;
+          x += 6
+        ) {
+          for (
+            let y = Math.floor((cursor.y - 90) / 6) * 6;
+            y < cursor.y + 90;
+            y += 6
+          ) {
+            const distance = Math.hypot(x - cursor.x, y - cursor.y)
+            if (
+              x >= 0 &&
+              y >= 0 &&
+              x < innerWidth &&
+              y < innerHeight &&
+              distance < 90 &&
+              noise(x * 3 + y) < (1 - distance / 90) * 0.35
+            )
+              emit(
+                { x, y, color: colors.fx, size: 1.5, rank: 1 },
+                cursor,
+                now,
+                "",
+                0.2,
+              )
+          }
+        }
+        backdrop = {
+          x: (cursor.x / innerWidth - 0.5) * 8,
+          y: (cursor.y / innerHeight - 0.5) * 8,
+          at: now,
+        }
         cursor = null
       }
       waves = waves.filter((w) => now - w.born < 900)
       for (const wave of waves) {
         const { radius, alpha } = rippleAt(now - wave.born, wave.reach)
-        const count = Math.min(ascii() ? 600 : 3000, Math.ceil((2 * Math.PI * radius) / (ascii() ? 7 : 3)))
+        const count = Math.min(
+          ascii() ? 600 : 3000,
+          Math.ceil((2 * Math.PI * radius) / (ascii() ? 7 : 3)),
+        )
         for (let i = 0; i < count; i++) {
           const a = (i / count) * Math.PI * 2
           draw(
@@ -313,6 +476,7 @@ export function createRenderer(
         }
       }
       for (const { el, center } of springs) {
+        if (nearby.has(el)) continue
         let x = 0,
           y = 0
         for (const w of waves) {
@@ -347,14 +511,45 @@ export function createRenderer(
           dustAt(d.source, d.direction, p),
           Math.max(0.8, d.source.size - 0.4),
           d.source.color,
-          opacity * 0.9,
+          opacity * 0.9 * d.gain,
           i,
         )
+      }
+      updateNearby(now)
+      if (backdrop) {
+        const strength = 1 - clamp((now - backdrop.at) / 350)
+        document.body.style.backgroundPosition = `${backdrop.x * strength}px ${backdrop.y * strength}px`
+        if (!strength) {
+          backdrop = null
+          document.body.style.backgroundPosition = backgroundPosition
+        }
       }
     }
     ctx.globalAlpha = 1
     if (seen.size > 50000) seen.clear()
-    if (sequence || dust.length || waves.length || cursor) kick()
+    if (
+      sequence ||
+      dust.length ||
+      waves.length ||
+      cursor ||
+      nearby.size ||
+      backdrop
+    )
+      kick()
+  }
+  const revealScreen = () => {
+    // Filter fixed layers themselves, not their zero-height ancestor: filtering
+    // #root would change the containing block of the horizontal fixed deck.
+    for (const el of document.querySelectorAll<HTMLElement>(
+      "header,.deck,[data-deck-status]",
+    )) {
+      screenFilters.set(el, el.style.filter)
+      const filter = getComputedStyle(el).filter
+      el.style.filter = `url(#px-2) ${
+        filter && filter !== "none" ? filter : ""
+      }`.trim()
+      el.dataset.screenPixelation = ""
+    }
   }
   const reveal = (root: HTMLElement, duration: number) => {
     // Never fade or mask a control/hit area. Only inert text and visual leaves soften.
@@ -416,7 +611,13 @@ export function createRenderer(
     duration = 1000,
   ) => {
     if (!enabled()) return
-    const to = snapshot(into, budget(), options.align, ascii() ? 4 : 2)
+    const to = snapshot(
+      into,
+      budget(),
+      options.align,
+      ascii() ? 4 : 2,
+      options.screen,
+    )
     if (!to.length) return
     refreshColors()
     home()
@@ -426,7 +627,8 @@ export function createRenderer(
       life: duration,
       exiting: false,
     }
-    reveal(into, duration)
+    if (options.screen) revealScreen()
+    else reveal(into, duration)
     kick()
   }
   const onMove = (e: PointerEvent) => {
@@ -454,9 +656,21 @@ export function createRenderer(
     const x = point ? point.left + point.width / 2 : e.clientX,
       y = point ? point.top + point.height / 2 : e.clientY
     const now = performance.now()
-    const samples = visuals()
-      .flatMap((el) => samplesFor(el, now))
-      .slice(0, 10000)
+    const root = visiblePanel() ?? document.body
+    if (!waveCache || waveCache.root !== root || now - waveCache.at > 400) {
+      waveCache = {
+        root,
+        at: now,
+        samples: snapshot(
+          root,
+          Math.min(10000, budget()),
+          false,
+          ascii() ? 4 : 2,
+          true,
+        ),
+      }
+    }
+    const samples = waveCache.samples
     waves.push({
       x,
       y,
@@ -508,7 +722,10 @@ export function createRenderer(
       cancel()
       if (!enabled()) return
       try {
-        start(snapshot(from, budget(), false, ascii() ? 4 : 2), into, options)
+        start(snapshot(from, budget(), false, ascii() ? 4 : 2, true), into, {
+          ...options,
+          screen: true,
+        })
       } catch {
         cancel()
       }
@@ -525,11 +742,12 @@ export function createRenderer(
       cancel()
       if (!enabled()) return
       try {
-        const from = snapshot(root, budget(), false, ascii() ? 4 : 2)
+        const screen = !root.closest("dialog")
+        const from = snapshot(root, budget(), false, ascii() ? 4 : 2, screen)
         pendingMorph = requestAnimationFrame(() => {
           pendingMorph = 0
           try {
-            start(from, root, {}, 560)
+            start(from, root, { screen }, 560)
           } catch {
             cancel()
           }
@@ -545,7 +763,12 @@ export function createRenderer(
         return
       }
       try {
-        const from = snapshot(root, Math.min(8000, budget()), false, ascii() ? 4 : 2)
+        const from = snapshot(
+          root,
+          Math.min(8000, budget()),
+          false,
+          ascii() ? 4 : 2,
+        )
         if (!from.length) {
           done()
           return

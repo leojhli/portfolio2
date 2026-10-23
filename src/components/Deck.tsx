@@ -365,7 +365,10 @@ export default function Deck({
           ? `Page ${index + 1} of ${pagesMeta.length}: ${current.label}`
           : ""}
       </p>
-      <div className="fixed inset-x-0 bottom-0 z-30 hidden h-14 items-center gap-6 border-t border-line bg-bg/85 px-8 font-mono text-xs text-muted backdrop-blur hz:flex">
+      <div
+        data-deck-status
+        className="fixed inset-x-0 bottom-0 z-30 hidden h-14 items-center gap-6 border-t border-line bg-bg/85 px-8 font-mono text-xs text-muted backdrop-blur hz:flex"
+      >
         <span className="w-16 shrink-0 tabular-nums text-fg">
           {pad(index + 1)}
           <span className="text-muted"> / {pad(pagesMeta.length || 1)}</span>

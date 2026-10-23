@@ -17,6 +17,8 @@ Dependencies are already installed in this checkout, so you can run `npm run dev
 
 Run `npm test` for interaction and state-preservation checks (Node 22.22.2+, 24.15+, or 26+). See [interaction effects](docs/interaction-effects.md) for the new pixel/ripple system, supported behavior, and visual verification limits.
 
+The arrival preset is **Dark / Candy Shop / Motion On**. Proximity effects apply across visible content and navigation; horizontal page changes pixelate the whole viewport. New appearance, palette and motion selections remain saved locally.
+
 ## Editing
 
 - `src/content/data.ts`: profile, contact destinations, experience, projects, and game clips.

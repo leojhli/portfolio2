@@ -3,6 +3,7 @@ import type { Point } from "./geometry"
 export type EffectOptions = {
   origin?: Point
   align?: boolean
+  screen?: boolean
 }
 export type EffectDriver = {
   transition(

@@ -9,7 +9,7 @@ export default function EffectsLayer() {
     canvas.setAttribute("aria-hidden", "true")
     canvas.dataset.effectCanvas = ""
     canvas.style.cssText =
-      "position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:25"
+      "position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:60"
     document.body.appendChild(canvas)
     const renderer = createRenderer(canvas)
     const disconnect = connectEffects(renderer)

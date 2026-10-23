@@ -20,7 +20,7 @@ after(async () => server?.close())
 
 // Layout/canvas are explicit test doubles. These exercise lifecycle and semantic
 // behavior without opening or controlling a browser; they do not certify visuals.
-function fixture({ width = 1280, reduced = false } = {}) {
+function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
   const dom = new JSDOM(
     '<!doctype html><style>* {font:16px sans-serif;writing-mode:horizontal-tb;opacity:1;visibility:visible} h1,h2{font-size:36px}</style><div id="root"></div>',
     { url: "http://localhost/", pretendToBeVisual: true },
@@ -28,6 +28,8 @@ function fixture({ width = 1280, reduced = false } = {}) {
   const w = dom.window,
     frames = new Map(),
     paintCalls = []
+  for (const [key, value] of Object.entries(stored))
+    w.localStorage.setItem(key, value)
   let nextFrame = 0,
     clock = performance.now(),
     currentWidth = width
@@ -249,17 +251,29 @@ test("scatter paths land exactly on targets; dust reconstructs at its origin", (
 })
 
 test("high-resolution snapshots keep 2px fragments and thousands of samples even at the pool limit", () => {
-  const f = fixture(), d = f.dom.window.document
+  const f = fixture(),
+    d = f.dom.window.document
   try {
-    d.body.insertAdjacentHTML('beforeend', '<section id="fine"><h2>Fine particles</h2></section>')
-    const root = d.getElementById('fine')
+    d.body.insertAdjacentHTML(
+      "beforeend",
+      '<section id="fine"><h2>Fine particles</h2></section>',
+    )
+    const root = d.getElementById("fine")
     const dense = snapshotModule.snapshot(root, 20000)
-    assert.ok(dense.length >= 10000, 'small visual supplies thousands of particles')
-    assert.ok(dense.every(sample => sample.size === 2))
+    assert.ok(
+      dense.length >= 10000,
+      "small visual supplies thousands of particles",
+    )
+    assert.ok(dense.every((sample) => sample.size === 2))
     const limited = snapshotModule.snapshot(root, 2000)
     assert.equal(limited.length, 2000)
-    assert.ok(limited.every(sample => sample.size === 2), 'budgeting does not enlarge fragments')
-  } finally { f.dom.window.close() }
+    assert.ok(
+      limited.every((sample) => sample.size === 2),
+      "budgeting does not enlarge fragments",
+    )
+  } finally {
+    f.dom.window.close()
+  }
 })
 
 test("renderer retargets, cancels work, and completes pending dialog closure on disposal", () => {
@@ -268,7 +282,7 @@ test("renderer retargets, cancels work, and completes pending dialog closure on 
   d.documentElement.dataset.motion = "on"
   d.body.insertAdjacentHTML(
     "beforeend",
-    '<section id="one"><h2>李嘉和 stays intact</h2></section><section id="two"><h2>Projects</h2></section>',
+    '<header>Navigation</header><div class="deck"><section id="one"><h2>李嘉和 stays intact</h2></section><section id="two"><h2>Projects</h2></section></div><footer data-deck-status>Pages</footer>',
   )
   const canvas = d.createElement("canvas")
   d.body.append(canvas)
@@ -277,6 +291,12 @@ test("renderer retargets, cancels work, and completes pending dialog closure on 
     two = d.getElementById("two"),
     text = one.textContent
   renderer.transition(one, two)
+  assert.equal(d.querySelectorAll("[data-screen-pixelation]").length, 3)
+  assert.ok(
+    [...d.querySelectorAll("header,.deck,[data-deck-status]")].every((el) =>
+      el.style.filter.includes("px-2"),
+    ),
+  )
   assert.equal(f.frames.size, 1)
   renderer.transition(two, one)
   assert.equal(
@@ -286,6 +306,7 @@ test("renderer retargets, cancels work, and completes pending dialog closure on 
   )
   f.advance()
   assert.equal(f.frames.size, 0)
+  assert.equal(d.querySelectorAll("[data-screen-pixelation]").length, 0)
   assert.equal(one.textContent, text)
   renderer.assemble(one)
   let closed = 0
@@ -295,6 +316,50 @@ test("renderer retargets, cancels work, and completes pending dialog closure on 
   assert.equal(f.frames.size, 0)
   d.body.click()
   assert.equal(f.frames.size, 0, "listeners are removed")
+  f.dom.window.close()
+})
+
+test("unmarked text and navigation react to proximity and restore their original styles", () => {
+  const f = fixture(),
+    d = f.dom.window.document
+  d.documentElement.dataset.motion = "on"
+  d.body.insertAdjacentHTML(
+    "beforeend",
+    '<header><a href="#example">Navigation</a></header><p style="filter:contrast(1.1)">Unmarked text</p><span>Metadata</span><button>Unmarked button</button>',
+  )
+  const canvas = d.createElement("canvas")
+  canvas.dataset.effectCanvas = ""
+  d.body.append(canvas)
+  const renderer = rendererModule.createRenderer(canvas)
+  const pointer = new Event("pointermove")
+  Object.defineProperties(pointer, {
+    clientX: { value: 100 },
+    clientY: { value: 250 },
+    pointerType: { value: "mouse" },
+    buttons: { value: 0 },
+  })
+  window.dispatchEvent(pointer)
+  f.advance(32)
+  for (const el of d.querySelectorAll("p,span,button,a")) {
+    assert.ok(
+      el.hasAttribute("data-proximity-active"),
+      `${el.tagName} reacts without data-fx`,
+    )
+    assert.match(el.style.filter, /px-2/)
+    assert.ok(el.style.translate.includes("calc("))
+  }
+  assert.ok(d.querySelector("p").style.filter.includes("contrast"))
+  f.advance(1200)
+  assert.equal(d.querySelectorAll("[data-proximity-active]").length, 0)
+  assert.equal(d.querySelector("p").style.filter, "contrast(1.1)")
+  assert.equal(f.frames.size, 0)
+  window.dispatchEvent(pointer)
+  f.advance(32)
+  renderer.cancel()
+  assert.equal(d.querySelectorAll("[data-proximity-active]").length, 0)
+  assert.equal(d.querySelector("p").style.filter, "contrast(1.1)")
+  assert.equal(f.frames.size, 0)
+  renderer.dispose()
   f.dom.window.close()
 })
 
@@ -394,6 +459,13 @@ test("real React tree preserves audio and text through rapid navigation, history
     unmount = await mountApp(f)
   try {
     assert.equal(document.documentElement.dataset.layout, "h")
+    assert.equal(document.documentElement.dataset.theme, "dark")
+    assert.equal(document.documentElement.dataset.motion, "on")
+    assert.ok(
+      document
+        .querySelector('[aria-controls="palette-pop"]')
+        .textContent.includes("Candy Shop"),
+    )
     assert.equal(document.querySelectorAll("[data-panel]").length, 7)
     assert.equal(f.audioInstances.length, 0, "audio does not autoplay")
     await click(document.querySelector('[aria-label="Play"]'))
@@ -445,7 +517,11 @@ test("real React tree preserves audio and text through rapid navigation, history
 })
 
 test("book dialogs reopen, close on cancel, and return focus without unmounting media", async () => {
-  const f = fixture({ width: 390, reduced: true }),
+  const f = fixture({
+      width: 390,
+      reduced: true,
+      stored: { "pf.v2.motion": "system" },
+    }),
     unmount = await mountApp(f)
   try {
     assert.equal(document.documentElement.dataset.layout, "v")
@@ -465,6 +541,50 @@ test("book dialogs reopen, close on cancel, and return focus without unmounting 
     assert.equal(dialog.open, false)
     assert.equal(document.activeElement, book)
     assert.equal(document.querySelector("[data-effect-canvas]"), null)
+  } finally {
+    await unmount()
+  }
+})
+
+test("new defaults replace legacy preferences once, while new explicit choices remain remembered", async () => {
+  let f = fixture({
+    reduced: true,
+    stored: {
+      "pf.appearance": "light",
+      "pf.palette": "riso",
+      "pf.motion": "off",
+    },
+  })
+  let unmount = await mountApp(f)
+  try {
+    assert.equal(document.documentElement.dataset.theme, "dark")
+    assert.equal(document.documentElement.dataset.motion, "on")
+    assert.ok(
+      document
+        .querySelector('[aria-controls="palette-pop"]')
+        .textContent.includes("Candy Shop"),
+    )
+    await click(byText("button", "Light"))
+    assert.equal(localStorage.getItem("pf.v2.appearance"), "light")
+  } finally {
+    await unmount()
+  }
+  f = fixture({
+    stored: {
+      "pf.v2.appearance": "light",
+      "pf.v2.palette": "riso",
+      "pf.v2.motion": "off",
+    },
+  })
+  unmount = await mountApp(f)
+  try {
+    assert.equal(document.documentElement.dataset.theme, "light")
+    assert.equal(document.documentElement.dataset.motion, "off")
+    assert.ok(
+      document
+        .querySelector('[aria-controls="palette-pop"]')
+        .textContent.includes("Riso Print"),
+    )
   } finally {
     await unmount()
   }

@@ -25,15 +25,40 @@
   --font-display: 'Geist', 'Noto Sans SC', system-ui, sans-serif;
 }
 
-/* "Riso Print" (light) before JS applies the active palette — see theme/palettes.ts */
+/* Dark Candy Shop before preferences hydrate. */
 :root {
-  --c-bg: #faf0ca; --c-surface: #fdf9ea; --c-fg: #1b1b1e; --c-muted: #706c5f; --c-line: #d2caab;
-  --c-accent: #b24430; --c-on-accent: #faf0ca; --c-focus: #b24430; --c-fx: #f95738;
-  --c-accent-fill: #f95738; --c-on-accent-fill: #1b1b1e;
-  --c-s1: #1b1b1e; --c-s2: #f95738; --c-s3: #ee964b; --c-s4: #f4d35e; --c-s5: #faf0ca;
-  --c-on-s1: #faf0ca; --c-on-s2: #1b1b1e; --c-on-s3: #1b1b1e; --c-on-s4: #1b1b1e; --c-on-s5: #1b1b1e;
-  --c-v1: #f95738; --c-v2: #ee964b; --c-v3: #f4d35e; --c-on-v1: #1b1b1e; --c-on-v2: #1b1b1e; --c-on-v3: #1b1b1e;
-  --c-ink: #1b1b1e; --c-on-ink: #faf0ca; --c-paper: #faf0ca; --c-on-paper: #1b1b1e;
+  color-scheme: dark;
+  --c-bg: #623b91;
+  --c-surface: #6e498b;
+  --c-fg: #fefbe0;
+  --c-accent: #88deeb;
+  --c-focus: #00f5d4;
+  --c-muted: #dbd0ce;
+  --c-line: #7e5e9f;
+  --c-on-accent: #000000;
+  --c-accent-fill: #00bbf9;
+  --c-on-accent-fill: #000000;
+  --c-fx: #00bbf9;
+  --c-ink: #9b5de5;
+  --c-on-ink: #000000;
+  --c-paper: #fee440;
+  --c-on-paper: #000000;
+  --c-s1: #9b5de5;
+  --c-on-s1: #000000;
+  --c-s2: #f15bb5;
+  --c-on-s2: #000000;
+  --c-s3: #fee440;
+  --c-on-s3: #000000;
+  --c-s4: #00bbf9;
+  --c-on-s4: #000000;
+  --c-s5: #00f5d4;
+  --c-on-s5: #000000;
+  --c-v1: #00bbf9;
+  --c-on-v1: #000000;
+  --c-v2: #00f5d4;
+  --c-on-v2: #000000;
+  --c-v3: #f15bb5;
+  --c-on-v3: #000000;
 }
 
 @layer base {

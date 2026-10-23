@@ -128,7 +128,7 @@ export const PALETTES: PaletteDef[] = [
     colors: ["#0b0c10", "#f72585", "#7209b7", "#4cc9f0", "#f8f9fa"],
   },
 ]
-export const DEFAULT_PALETTE = "riso"
+export const DEFAULT_PALETTE = "candy"
 
 const rgb = (hex: string) => {
   const n = parseInt(hex.slice(1), 16)

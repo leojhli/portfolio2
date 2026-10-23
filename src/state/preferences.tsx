@@ -21,6 +21,10 @@ import { morphPresentation } from "../effects/coordinator"
 export type Mode = "dynamic" | "ascii"
 export type MotionPref = "system" | "on" | "off"
 
+// Start existing and new visitors on the requested preset once. Subsequent
+// choices in this preference version are remembered without being reset.
+const preferenceKey = (name: string) => `pf.v2.${name}`
+
 // Storage may be unavailable (private mode, blocked); everything still works in memory.
 const store = {
   get(k: string) {
@@ -67,24 +71,22 @@ const Ctx = createContext<Prefs | null>(null)
 export const usePrefs = () => useContext(Ctx)!
 
 export function PreferencesProvider({ children }: { children: ReactNode }) {
-  const systemDark = useMedia("(prefers-color-scheme: dark)")
   const systemReduce = useMedia("(prefers-reduced-motion: reduce)")
   const [mode, setModeS] = useState<Mode>(() =>
     store.get("pf.mode") === "ascii" ? "ascii" : "dynamic",
   )
-  const [explicit, setExplicit] = useState<Appearance | null>(() => {
-    const v = store.get("pf.appearance")
-    return v === "light" || v === "dark" ? v : null
+  const [appearance, setExplicit] = useState<Appearance>(() => {
+    const v = store.get(preferenceKey("appearance"))
+    return v === "light" ? "light" : "dark"
   })
   const [motionPref, setMotionS] = useState<MotionPref>(() => {
-    const v = store.get("pf.motion")
-    return v === "on" || v === "off" ? v : "system"
+    const v = store.get(preferenceKey("motion"))
+    return v === "system" || v === "off" ? v : "on"
   })
   const [paletteId, setPaletteId] = useState(
-    () => paletteById(store.get("pf.palette")).id,
+    () => paletteById(store.get(preferenceKey("palette"))).id,
   )
 
-  const appearance: Appearance = explicit ?? (systemDark ? "dark" : "light")
   const motion =
     motionPref === "on" ? true : motionPref === "off" ? false : !systemReduce
   const palette = useMemo<Palette>(
@@ -133,7 +135,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
   const choose = (id: string) => {
     setPaletteId(id)
-    store.set("pf.palette", id)
+    store.set(preferenceKey("palette"), id)
   }
 
   const value = useMemo<Prefs>(
@@ -151,12 +153,12 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         capture()
         animateTheme()
         setExplicit(a)
-        store.set("pf.appearance", a)
+        store.set(preferenceKey("appearance"), a)
       },
       motionPref,
       setMotionPref: (m) => {
         setMotionS(m)
-        store.set("pf.motion", m)
+        store.set(preferenceKey("motion"), m)
       },
       motion,
       palette,

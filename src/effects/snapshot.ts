@@ -16,15 +16,20 @@ export function snapshot(
   budget: number,
   align = false,
   spacing = 2,
+  viewport = false,
 ): Fragment[] {
   const rect = root.getBoundingClientRect()
   const shiftX = align ? -rect.left : 0
   const shiftY =
     align && document.documentElement.dataset.layout !== "h" ? -rect.top : 0
-  const left = Math.max(0, rect.left + shiftX)
-  const top = Math.max(0, rect.top + shiftY)
-  const right = Math.min(innerWidth, rect.right + shiftX)
-  const bottom = Math.min(innerHeight, rect.bottom + shiftY)
+  const left = viewport ? 0 : Math.max(0, rect.left + shiftX)
+  const top = viewport ? 0 : Math.max(0, rect.top + shiftY)
+  const right = viewport
+    ? innerWidth
+    : Math.min(innerWidth, rect.right + shiftX)
+  const bottom = viewport
+    ? innerHeight
+    : Math.min(innerHeight, rect.bottom + shiftY)
   const width = Math.ceil(right - left),
     height = Math.ceil(bottom - top)
   if (width <= 0 || height <= 0 || budget <= 0) return []
@@ -39,6 +44,25 @@ export function snapshot(
     0,
     650,
   )
+  const chrome = new Set<Element>()
+  if (viewport) {
+    ctx.fillStyle =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--c-bg")
+        .trim() || "#623b91"
+    ctx.fillRect(0, 0, width, height)
+    for (const layer of document.querySelectorAll<HTMLElement>(
+      "header,[data-deck-status]",
+    )) {
+      if (root.contains(layer)) continue
+      for (const el of [layer, ...layer.querySelectorAll<HTMLElement>("*")]) {
+        chrome.add(el)
+        elements.push(el)
+      }
+    }
+  }
+  const offset = (el: Element) =>
+    chrome.has(el) ? { x: -left, y: -top } : { x: offsetX, y: offsetY }
   const styles = new Map<Element, CSSStyleDeclaration>()
   const visible = (el: Element) => {
     const s = styles.get(el) ?? getComputedStyle(el)
@@ -54,7 +78,8 @@ export function snapshot(
     color !== "transparent" && color !== "rgba(0, 0, 0, 0)"
   const box = (el: Element) => {
     const r = el.getBoundingClientRect()
-    return { x: r.left + offsetX, y: r.top + offsetY, w: r.width, h: r.height }
+    const o = offset(el)
+    return { x: r.left + o.x, y: r.top + o.y, w: r.width, h: r.height }
   }
   for (const el of elements) {
     if (!visible(el)) continue
@@ -154,6 +179,7 @@ export function snapshot(
     )
       continue
     const s = styles.get(parent)!
+    const o = offset(parent)
     if (s.writingMode !== "horizontal-tb") continue
     ctx.fillStyle = s.color
     ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`
@@ -168,8 +194,8 @@ export function snapshot(
       i += char.length
       if (!char.trim()) continue
       const r = range.getBoundingClientRect()
-      const x = r.left + offsetX,
-        y = r.top + offsetY
+      const x = r.left + o.x,
+        y = r.top + o.y
       if (
         !r.width ||
         x + r.width < 0 ||
@@ -201,7 +227,8 @@ export function snapshot(
       const k = (y * width + x) * 4
       if (pixels[k + 3] < 65) continue
       count++
-      const slot = count <= limit ? count - 1 : Math.floor(Math.random() * count)
+      const slot =
+        count <= limit ? count - 1 : Math.floor(Math.random() * count)
       if (slot >= limit) continue
       const px = x + left,
         py = y + top
