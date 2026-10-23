@@ -5,7 +5,7 @@ import { JSDOM } from "jsdom"
 import React, { act } from "react"
 import { createRoot } from "react-dom/client"
 
-let server, geometry, rendererModule, snapshotModule, App
+let server, geometry, rendererModule, snapshotModule, coordinatorModule, App
 before(async () => {
   server = await createServer({
     server: { middlewareMode: true },
@@ -14,6 +14,16 @@ before(async () => {
   geometry = await server.ssrLoadModule("/src/effects/geometry.ts")
   rendererModule = await server.ssrLoadModule("/src/effects/renderer.ts")
   snapshotModule = await server.ssrLoadModule("/src/effects/snapshot.ts")
+  coordinatorModule = await server.ssrLoadModule("/src/effects/coordinator.ts")
+  // Resolve lazy module I/O before React's act scope so initial Suspense work
+  // can finish within that scope, without timing-dependent resource warnings.
+  await Promise.all(
+    [
+      "/src/effects/EffectsLayer.tsx",
+      "/src/three/PoolView.tsx",
+      "/src/three/PlanetView.tsx",
+    ].map((path) => server.ssrLoadModule(path)),
+  )
   App = (await server.ssrLoadModule("/src/App.tsx")).default
 })
 after(async () => server?.close())
@@ -563,6 +573,68 @@ const click = async (el) => {
   assert.ok(el, "control exists")
   await act(async () => el.click())
 }
+
+test("real React navigation gives each adjacent page boundary a distinct liquid transition in both directions", async () => {
+  const f = fixture(),
+    unmount = await mountApp(f),
+    calls = [],
+    disconnect = coordinatorModule.connectEffects({
+      transition(from, into, options) {
+        calls.push({ from: from.id, into: into.id, ...options })
+      },
+      assemble() {},
+      morph() {},
+      disperse(_, done) {
+        done()
+      },
+      cancel() {},
+    })
+  try {
+    const ids = [...document.querySelectorAll("[data-panel]")].map(
+      (panel) => panel.id,
+    )
+    const variants = ["spill", "pools", "counterflow", "pour", "split", "drain"]
+    assert.equal(ids.length, variants.length + 1)
+    for (let i = 0; i < variants.length; i++) {
+      await act(async () =>
+        window.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "ArrowRight" }),
+        ),
+      )
+      assert.deepEqual(calls[i], {
+        from: ids[i],
+        into: ids[i + 1],
+        origin: undefined,
+        align: true,
+        direction: 1,
+        variant: variants[i],
+      })
+    }
+    assert.equal(
+      new Set(calls.map(({ variant }) => variant)).size,
+      variants.length,
+    )
+    for (let i = variants.length - 1; i >= 0; i--) {
+      await act(async () =>
+        window.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "ArrowLeft" }),
+        ),
+      )
+      assert.deepEqual(calls.at(-1), {
+        from: ids[i + 1],
+        into: ids[i],
+        origin: undefined,
+        align: true,
+        direction: -1,
+        variant: variants[i],
+      })
+    }
+    assert.equal(location.hash, `#${ids[0]}`)
+  } finally {
+    disconnect()
+    await unmount()
+  }
+})
 
 test("real React tree preserves audio and text through rapid navigation, history, mode changes and motion-off", async () => {
   const f = fixture(),

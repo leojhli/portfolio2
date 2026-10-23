@@ -1,8 +1,9 @@
+import { clamp } from "./geometry"
 import {
+  createFlowBand,
+  screenFlowAt,
   screenOpacity,
   screenPixelSize,
-  screenTileOrder,
-  screenTileReveal,
   type ScreenVariant,
 } from "./screenGeometry"
 
@@ -11,15 +12,7 @@ type ScreenOptions = {
   height: number
   ascii?: boolean
   variant?: ScreenVariant
-}
-
-type Tile = {
-  x: number
-  y: number
-  width: number
-  height: number
-  order: number
-  reverse: boolean
+  direction?: 1 | -1
 }
 
 type MosaicPair = {
@@ -33,20 +26,29 @@ export type ScreenTransition = {
 }
 
 /**
- * Full-screen, nearest-neighbour mosaic with ordered pixel replacement.
- * All DOM reads, allocations and raster resizing happen once, at creation.
- * paint() uses only cached buffers and tile geometry; no blur or SVG filters.
+ * Liquid fronts carry fine pixels from one viewport into the next. Fixed,
+ * opaque destination strips prevent cracks; source-coordinate advection bends
+ * both images near their shared boundary. No blur, DOM reads or frame buffers
+ * are allocated during paint, and each navigation owns at most six mosaics.
  */
 export function createScreenTransition(
   fromRaster: HTMLCanvasElement,
   intoRaster: HTMLCanvasElement,
   options: ScreenOptions,
 ): ScreenTransition {
-  const width = Math.max(1, Math.ceil(options.width))
-  const height = Math.max(1, Math.ceil(options.height))
-  const variant = options.variant ?? "scan"
-  const mosaics = new Map<number, MosaicPair>()
-  const buffers: HTMLCanvasElement[] = []
+  const width = Math.max(1, Math.ceil(options.width)),
+    height = Math.max(1, Math.ceil(options.height)),
+    variant = options.variant ?? "spill",
+    direction = options.direction ?? 1,
+    vertical = variant === "pour",
+    length = vertical ? height : width,
+    cross = vertical ? width : height,
+    bandSize = Math.max(2, Math.ceil(cross / 320 / 2) * 2),
+    reach = Math.max(2, Math.round(Math.min(64, length * 0.065) / 2) * 2),
+    strength = Math.min(38, Math.min(width, height) * 0.045),
+    flow = createFlowBand(),
+    mosaics = new Map<number, MosaicPair>(),
+    buffers: HTMLCanvasElement[] = []
   let disposed = false
 
   const mosaic = (source: HTMLCanvasElement, pixelSize: number) => {
@@ -56,7 +58,6 @@ export function createScreenTransition(
     buffer.height = Math.max(1, Math.ceil(height / pixelSize))
     const ctx = buffer.getContext("2d")
     if (!ctx) throw new Error("Screen mosaic canvas is unavailable")
-    // Both downsampling and display use actual pixel colors, never interpolation.
     ctx.imageSmoothingEnabled = false
     ctx.drawImage(
       source,
@@ -73,7 +74,7 @@ export function createScreenTransition(
   }
 
   try {
-    for (let size = 2; size <= 8; size++) {
+    for (let size = 2; size <= 4; size++) {
       mosaics.set(size, {
         from: mosaic(fromRaster, size),
         into: mosaic(intoRaster, size),
@@ -88,41 +89,27 @@ export function createScreenTransition(
     throw error
   }
 
-  // Keep blit count bounded on large monitors. The image inside each tile still
-  // has the independent, much finer 2–8px mosaic grid.
-  const tileSize = Math.max(
-    16,
-    Math.ceil(Math.sqrt((width * height) / 2200) / 2) * 2,
-  )
-  const columns = Math.ceil(width / tileSize)
-  const rows = Math.ceil(height / tileSize)
-  const tiles: Tile[] = []
-  for (let row = 0; row < rows; row++) {
-    for (let column = 0; column < columns; column++) {
-      const index = row * columns + column
-      tiles.push({
-        x: column * tileSize,
-        y: row * tileSize,
-        width: Math.min(tileSize, width - column * tileSize),
-        height: Math.min(tileSize, height - row * tileSize),
-        order: screenTileOrder(index, column, row, columns, rows, variant),
-        reverse: variant === "dissolve" ? index % 2 === 0 : row % 2 === 0,
-      })
-    }
-  }
-
   const blit = (
     ctx: CanvasRenderingContext2D,
     source: HTMLCanvasElement,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
+    along: number,
+    across: number,
+    extent: number,
+    thickness: number,
+    dx = 0,
+    dy = 0,
   ) => {
+    if (extent <= 0) return
+    const x = vertical ? across : along,
+      y = vertical ? along : across,
+      w = vertical ? thickness : extent,
+      h = vertical ? extent : thickness
+    // Clamping the sample origin, rather than clipping its destination, keeps
+    // full opaque coverage even when the flow meets a viewport edge.
     ctx.drawImage(
       source,
-      (x / width) * source.width,
-      (y / height) * source.height,
+      (clamp(x + dx, 0, width - w) / width) * source.width,
+      (clamp(y + dy, 0, height - h) / height) * source.height,
       (w / width) * source.width,
       (h / height) * source.height,
       x,
@@ -132,64 +119,139 @@ export function createScreenTransition(
     )
   }
 
+  // Three neighboring slices ease the texture's flow into and out of a front.
+  // Only these narrow zones deform; the rest of each page stays at its source.
+  const edge = (
+    ctx: CanvasRenderingContext2D,
+    source: HTMLCanvasElement,
+    start: number,
+    end: number,
+    at: number,
+    across: number,
+    thickness: number,
+    phase: number,
+  ) => {
+    const steps = 3,
+      step = Math.max(2, Math.ceil((end - start) / steps / 2) * 2)
+    for (let a = start; a < end; a += step) {
+      const b = Math.min(end, a + step),
+        distance = Math.abs((a + b) / 2 - at),
+        weight = Math.pow(Math.max(0, 1 - distance / reach), 2) * phase
+      blit(
+        ctx,
+        source,
+        a,
+        across,
+        b - a,
+        thickness,
+        flow.dx * strength * weight,
+        flow.dy * strength * weight,
+      )
+    }
+  }
+
   return {
     paint(ctx, progress) {
       if (disposed) return
-      const alpha = screenOpacity(progress)
+      const p = Number.isFinite(progress) ? clamp(progress) : 0,
+        alpha = screenOpacity(p)
       if (!alpha) return
-      const pair = mosaics.get(screenPixelSize(progress))!
+      const pair = mosaics.get(screenPixelSize(p))!
       ctx.save()
       ctx.imageSmoothingEnabled = false
       ctx.globalAlpha = alpha
-
-      // Replacement is complete before the fade starts. Fade one composed
-      // incoming frame, otherwise translucent outgoing tiles ghost underneath it.
-      if (alpha < 1) {
+      // Fade a single settled incoming raster; compositing both would ghost.
+      if (alpha < 1 || p >= 0.8) {
         ctx.drawImage(pair.into, 0, 0, width, height)
         ctx.restore()
         return
       }
 
-      // A complete outgoing raster is always underneath partially revealed
-      // incoming tiles, so no part of the moving HTML escapes pixelation.
+      // This synchronous base masks the entire moving deck, header and footer.
       ctx.drawImage(pair.from, 0, 0, width, height)
-      for (const tile of tiles) {
-        const reveal = screenTileReveal(progress, tile.order)
-        if (reveal <= 0) continue
-        if (reveal >= 1) {
-          blit(ctx, pair.into, tile.x, tile.y, tile.width, tile.height)
-          continue
-        }
-        if (variant === "dissolve") {
-          const w = Math.min(
-            tile.width,
-            Math.ceil((tile.width * reveal) / 2) * 2,
+      for (let across = 0; across < cross; across += bandSize) {
+        const thickness = Math.min(bandSize, cross - across)
+        screenFlowAt(
+          (across + thickness / 2) / cross,
+          p,
+          variant,
+          direction,
+          flow,
+        )
+        for (let i = 0; i < flow.count; i++) {
+          const start = Math.max(
+              0,
+              Math.floor((flow.starts[i] * length) / 2) * 2,
+            ),
+            end = Math.min(length, Math.ceil((flow.ends[i] * length) / 2) * 2),
+            left = i ? Math.ceil((flow.ends[i - 1] * length) / 2) * 2 : 0,
+            right =
+              i + 1 < flow.count
+                ? Math.floor((flow.starts[i + 1] * length) / 2) * 2
+                : length,
+            innerLeft = start > 0 ? Math.min(end, start + reach) : start,
+            innerRight = end < length ? Math.max(innerLeft, end - reach) : end
+
+          // The outgoing side is pulled along the interface. The arriving side
+          // follows the same current with a shorter trailing displacement.
+          if (start > 0)
+            edge(
+              ctx,
+              pair.from,
+              Math.max(left, start - reach),
+              start,
+              start,
+              across,
+              thickness,
+              1,
+            )
+          if (end < length)
+            edge(
+              ctx,
+              pair.from,
+              end,
+              Math.min(right, end + reach),
+              end,
+              across,
+              thickness,
+              1,
+            )
+          edge(
+            ctx,
+            pair.into,
+            start,
+            innerLeft,
+            start,
+            across,
+            thickness,
+            -0.65,
           )
-          const h = Math.min(
-            tile.height,
-            Math.ceil((tile.height * reveal) / 2) * 2,
+          blit(
+            ctx,
+            pair.into,
+            innerLeft,
+            across,
+            innerRight - innerLeft,
+            thickness,
           )
-          const x = tile.x + Math.floor((tile.width - w) / 4) * 2
-          const y = tile.y + Math.floor((tile.height - h) / 4) * 2
-          blit(ctx, pair.into, x, y, w, h)
-        } else {
-          const w = Math.min(
-            tile.width,
-            Math.ceil((tile.width * reveal) / 2) * 2,
-          )
-          const x = tile.reverse ? tile.x + tile.width - w : tile.x
-          blit(ctx, pair.into, x, tile.y, w, tile.height)
-        }
-        if (options.ascii && tile.width >= 20 && tile.height >= 20) {
-          ctx.globalAlpha = alpha * 0.18
-          ctx.font = '600 7px "Geist Mono", monospace'
-          ctx.fillStyle = "#ffffff"
-          ctx.fillText(
-            tile.reverse ? "+" : ":",
-            tile.x + tile.width / 2,
-            tile.y + tile.height / 2,
-          )
-          ctx.globalAlpha = alpha
+          edge(ctx, pair.into, innerRight, end, end, across, thickness, -0.65)
+
+          if (
+            options.ascii &&
+            across % (bandSize * 8) === 0 &&
+            end - start > 12 &&
+            end < length
+          ) {
+            ctx.globalAlpha = 0.16
+            ctx.font = '600 7px "Geist Mono", monospace'
+            ctx.fillStyle = "#ffffff"
+            ctx.fillText(
+              variant === "pools" ? ":" : "+",
+              vertical ? across : end,
+              vertical ? end : across,
+            )
+            ctx.globalAlpha = 1
+          }
         }
       }
       ctx.restore()
@@ -202,7 +264,6 @@ export function createScreenTransition(
       })
       buffers.length = 0
       mosaics.clear()
-      tiles.length = 0
     },
   }
 }

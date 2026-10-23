@@ -1,9 +1,12 @@
 import type { Point } from "./geometry"
+import type { ScreenVariant } from "./screenGeometry"
 
 export type EffectOptions = {
   origin?: Point
   align?: boolean
   screen?: boolean
+  direction?: 1 | -1
+  variant?: ScreenVariant
 }
 export type EffectDriver = {
   transition(

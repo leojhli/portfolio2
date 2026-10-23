@@ -357,7 +357,8 @@ export function createRenderer(
     from: HTMLCanvasElement,
     into: HTMLElement,
     align = false,
-    life = 840,
+    life = 900,
+    options: EffectOptions = {},
   ) => {
     let to: HTMLCanvasElement | null = null
     try {
@@ -368,7 +369,8 @@ export function createRenderer(
         width: innerWidth,
         height: innerHeight,
         ascii: ascii(),
-        variant: screenVariant(turn++),
+        variant: options.variant ?? screenVariant(turn++),
+        direction: options.direction,
       })
       home()
       screen = { effect, born: performance.now(), life }
@@ -461,7 +463,7 @@ export function createRenderer(
       if (!enabled()) return
       try {
         const raster = captureRaster(from)
-        if (raster) startScreen(raster, into, options.align)
+        if (raster) startScreen(raster, into, options.align, 900, options)
       } catch {
         cancel()
       }

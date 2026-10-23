@@ -10,6 +10,7 @@ import {
 import { usePrefs } from "../state/preferences"
 import { cancelEffects, transition, visiblePanel } from "../effects/coordinator"
 import type { Point } from "../effects/geometry"
+import { screenVariant } from "../effects/screenGeometry"
 
 const Q = "(min-width: 1024px) and (min-height: 700px)"
 const THRESH = 240
@@ -74,6 +75,8 @@ export default function Deck({
       into = ps[i]
     const from = live.current.wide ? ps[idx.current] : visiblePanel()
     if (!into || (from === into && options.animate !== false)) return
+    const fromIndex = from ? ps.indexOf(from) : -1
+    const previousIndex = fromIndex >= 0 ? fromIndex : idx.current
     cancelEffects()
     ps.forEach((p) => p.style.removeProperty("transform"))
     idx.current = i
@@ -82,9 +85,14 @@ export default function Deck({
       history.pushState(null, "", `#${into.id}`)
     const animate = live.current.motion && options.animate !== false
     // Snapshot outgoing content before moving the track. Destination coordinates are
-    // normalized to its final viewport, so the particles assemble the actual layout.
+    // normalized to its final viewport, so the liquid pixels resolve into its layout.
     if (animate && from && from !== into)
-      transition(from, into, { origin: options.origin, align: true })
+      transition(from, into, {
+        origin: options.origin,
+        align: true,
+        direction: i > previousIndex ? 1 : -1,
+        variant: screenVariant(Math.min(previousIndex, i)),
+      })
     if (live.current.wide) place(i, animate)
     else into.scrollIntoView({ block: "start", behavior: "instant" })
     lockUntil.current = animate ? performance.now() + 1000 : 0
