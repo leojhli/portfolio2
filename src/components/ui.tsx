@@ -52,6 +52,7 @@ export function Panel({
         </p>
         <h2
           id={`${id}-h`}
+          tabIndex={-1}
           className="mt-3 font-display text-[clamp(2.25rem,4.4vw,3.75rem)] font-semibold leading-none tracking-[-0.045em]"
         >
           {title}

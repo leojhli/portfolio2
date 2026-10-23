@@ -61,7 +61,7 @@ export default function Page() {
       <PixelFilters />
       {motion && (
         <Suspense fallback={null}>
-          <EffectsLayer ascii={ascii} />
+          <EffectsLayer />
         </Suspense>
       )}
 
@@ -116,6 +116,7 @@ export default function Page() {
                 </p>
                 <h1
                   id="intro-h"
+                  tabIndex={-1}
                   data-reveal
                   style={d(1)}
                   className="mt-5 font-display text-[clamp(4rem,10vw,8.75rem)] font-semibold leading-[0.88] tracking-[-0.065em]"

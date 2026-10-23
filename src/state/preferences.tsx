@@ -16,6 +16,7 @@ import {
   type Appearance,
   type Palette,
 } from "../theme/palettes"
+import { morphPresentation } from "../effects/coordinator"
 
 export type Mode = "dynamic" | "ascii"
 export type MotionPref = "system" | "on" | "off"
@@ -139,7 +140,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     () => ({
       mode,
       setMode: (m) => {
+        if (m === mode) return
         capture()
+        if (motion) morphPresentation()
         setModeS(m)
         store.set("pf.mode", m)
       },

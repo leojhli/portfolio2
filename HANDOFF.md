@@ -1,6 +1,10 @@
 # Portfolio handoff notes
 
-## Local export
+## Current interaction implementation
+
+Pixel breakup, travelling ripples and coordinated scatter/swirl/assembly now build on the current horizontal deck and existing visuals. See [interaction-effects.md](docs/interaction-effects.md) for behavior, rendering limits, and test coverage. The earlier plan and prototype notes below are historical and do not override the current design. Run `npm test` for the automated interaction checks.
+
+## Export notes
 
 The Figma Make source is now in this folder as `portfolio2`. Run `npm run dev`; `npm run build` checks TypeScript and creates `dist/`. The Vite configuration and HTML metadata no longer depend on Figma. The source design and supplied books/music are retained. Dynamic book spines fit their available column at intermediate widths; ASCII shelves scroll within their column. See README.md for local setup.
 

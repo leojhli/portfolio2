@@ -56,6 +56,7 @@ export default function PlanetView({
   return (
     <div
       ref={host}
+      data-fx
       data-drag
       role="img"
       aria-label={`Planet with ${items.length} project landmarks. Use the project list to explore them.`}

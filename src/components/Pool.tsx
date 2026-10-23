@@ -35,7 +35,7 @@ export default function Pool() {
       className="card m-0 overflow-hidden"
       style={{ "--hover": "var(--c-v2)" } as CSSProperties}
     >
-      <div className="relative aspect-[4/3] max-h-[50vh] w-full">
+      <div data-fx className="relative aspect-[4/3] max-h-[50vh] w-full">
         {failed ? (
           <FlatPool />
         ) : (

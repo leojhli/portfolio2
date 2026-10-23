@@ -1,6 +1,14 @@
-import { lazy, Suspense, useState, type CSSProperties } from "react"
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react"
 import type { Landmark, Project } from "../content/data"
 import { usePrefs } from "../state/preferences"
+import { assemble } from "../effects/coordinator"
 
 const PlanetView = lazy(() => import("../three/PlanetView"))
 const KINDS: Landmark[] = [
@@ -53,6 +61,12 @@ export default function Projects({ projects }: { projects: Project[] }) {
   const [hover, setHover] = useState(-1)
   const [focusKey, setFocusKey] = useState(0)
   const [failed, setFailed] = useState(false)
+  const detail = useRef<HTMLElement>(null)
+  const previous = useRef(sel)
+  useEffect(() => {
+    if (previous.current !== sel) assemble(detail.current)
+    previous.current = sel
+  }, [sel])
   const items = projects.map((p, i) => ({
     id: p.id,
     title: p.title,
@@ -139,6 +153,7 @@ export default function Projects({ projects }: { projects: Project[] }) {
 
         <article
           id="project-detail"
+          ref={detail}
           aria-live="polite"
           className={`card overflow-hidden ${failed ? "" : "mt-6"}`}
           style={{ "--hover": `var(--c-v${(sel % 3) + 1})` } as CSSProperties}

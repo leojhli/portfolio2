@@ -1,7 +1,8 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { Book } from "../content/data"
 import { usePrefs } from "../state/preferences"
 import Icon from "./Icons"
+import { assemble, disperse } from "../effects/coordinator"
 
 const PER_SHELF = 10
 const yearLabel = (y: number) => (y < 0 ? `c. ${-y} BC` : String(y))
@@ -12,6 +13,19 @@ export default function Bookshelf({ books }: { books: Book[] }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const trigger = useRef<HTMLButtonElement | null>(null)
   const [active, setActive] = useState<Book | null>(null)
+  const closing = useRef(false)
+  useEffect(() => {
+    if (active && dialog.current?.open) assemble(dialog.current)
+  }, [active])
+  const close = () => {
+    const el = dialog.current
+    if (!el?.open || closing.current) return
+    closing.current = true
+    disperse(el, () => {
+      el.close()
+      closing.current = false
+    })
+  }
 
   const open = (b: Book, el: HTMLButtonElement) => {
     trigger.current = el
@@ -33,7 +47,14 @@ export default function Bookshelf({ books }: { books: Book[] }) {
           <li key={s}>
             <ul className="flex snap-x items-end gap-1.5 overflow-x-auto px-1 pb-2 pt-2">
               {row.map((b, j) => (
-                <li key={b.id} className={ascii ? "shrink-0 snap-start" : "shrink-0 snap-start sm:min-w-0 sm:max-w-10 sm:flex-1"}>
+                <li
+                  key={b.id}
+                  className={
+                    ascii
+                      ? "shrink-0 snap-start"
+                      : "shrink-0 snap-start sm:min-w-0 sm:max-w-10 sm:flex-1"
+                  }
+                >
                   <button
                     type="button"
                     onClick={(e) => open(b, e.currentTarget)}
@@ -102,8 +123,18 @@ export default function Bookshelf({ books }: { books: Book[] }) {
       <dialog
         ref={dialog}
         aria-labelledby="book-title"
-        onClose={() => trigger.current?.focus()}
-        onClick={(e) => e.target === dialog.current && dialog.current.close()}
+        onClose={() => {
+          setActive(null)
+          closing.current = false
+          trigger.current?.focus()
+        }}
+        onCancel={(e) => {
+          e.preventDefault()
+          close()
+        }}
+        onClick={(e) => {
+          if (e.target === dialog.current) close()
+        }}
         className="box m-auto w-[min(92vw,520px)] rounded-xl border-[1.5px] border-fg p-0 text-fg shadow-[8px_8px_0_var(--c-accent)] backdrop:bg-black/50 backdrop:backdrop-blur-sm"
       >
         {active && (
@@ -139,7 +170,7 @@ export default function Bookshelf({ books }: { books: Book[] }) {
               </div>
               <button
                 type="button"
-                onClick={() => dialog.current?.close()}
+                onClick={close}
                 aria-label="Close"
                 className="pop pop-sm size-11 shrink-0 justify-center !p-0"
               >

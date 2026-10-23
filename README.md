@@ -15,6 +15,8 @@ Open http://127.0.0.1:5173. To check and build the production version, run `npm 
 
 Dependencies are already installed in this checkout, so you can run `npm run dev` immediately. If PowerShell blocks `npm.ps1`, use `npm.cmd run dev`. The exported pnpm lockfile is retained for users who prefer `pnpm install --frozen-lockfile`.
 
+Run `npm test` for interaction and state-preservation checks (Node 22.22.2+, 24.15+, or 26+). See [interaction effects](docs/interaction-effects.md) for the new pixel/ripple system, supported behavior, and visual verification limits.
+
 ## Editing
 
 - `src/content/data.ts`: profile, contact destinations, experience, projects, and game clips.

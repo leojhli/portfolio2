@@ -8,25 +8,25 @@ import {
   type ReactNode,
 } from "react"
 import { usePrefs } from "../state/preferences"
-import { bruteforce, pixelWipe } from "../effects/pager"
+import { cancelEffects, transition, visiblePanel } from "../effects/coordinator"
+import type { Point } from "../effects/geometry"
 
-// Paged layout only where a full page fits; smaller screens stack vertically.
 const Q = "(min-width: 1024px) and (min-height: 700px)"
 const THRESH = 240
 const subscribe = (cb: () => void) => {
-  const m = window.matchMedia(Q)
+  const m = matchMedia(Q)
   m.addEventListener("change", cb)
   return () => m.removeEventListener("change", cb)
 }
 const pad = (n: number) => String(n).padStart(2, "0")
-const delayOf = (el: HTMLElement) =>
-  (Number(el.style.getPropertyValue("--d")) || 0) * 95
+type GoOptions = {
+  history?: boolean
+  animate?: boolean
+  focus?: boolean
+  origin?: Point
+}
 
-/**
- * Each section is a full-screen page laid out left to right. Scrolling builds up
- * "pull"; past the threshold the deck turns to the next page, a pixel wipe sweeps
- * across, and the new page's elements pixelate (or brute-force, in ASCII) into place.
- */
+/** Retains the desktop page deck; compact layouts keep ordinary vertical scrolling. */
 export default function Deck({
   nav,
   children,
@@ -34,137 +34,166 @@ export default function Deck({
   nav: Array<[string, string]>
   children: ReactNode
 }) {
-  const wide = useSyncExternalStore(
-    subscribe,
-    () => window.matchMedia(Q).matches,
-  )
-  const { motion, mode } = usePrefs()
-  const live = useRef({ motion, ascii: mode === "ascii" })
-  live.current = { motion, ascii: mode === "ascii" }
+  const wide = useSyncExternalStore(subscribe, () => matchMedia(Q).matches)
+  const { motion } = usePrefs()
+  const live = useRef({ motion, wide })
+  live.current = { motion, wide }
   const track = useRef<HTMLDivElement>(null)
   const meter = useRef<HTMLSpanElement>(null)
   const idx = useRef(0)
   const lockUntil = useRef(0)
-  const timers = useRef<number[]>([])
   const [index, setIndex] = useState(0)
   const [pagesMeta, setPagesMeta] = useState<Array<{
     id: string
     label: string
   }>>([])
-
   const pages = () =>
     track.current
       ? [...track.current.children].filter(
-          (n): n is HTMLElement =>
-            n instanceof HTMLElement && n.hasAttribute("data-panel"),
+          (el): el is HTMLElement =>
+            el instanceof HTMLElement && el.hasAttribute("data-panel"),
         )
       : []
-
-  const enter = (page: HTMLElement | undefined) => {
-    page?.querySelectorAll<HTMLElement>("[data-reveal]").forEach((el) => {
-      el.classList.remove("px-in", "px-out")
-      void el.offsetWidth
-      el.classList.add("is-in")
-      if (!live.current.motion) return
-      el.classList.add("px-in")
-      window.setTimeout(() => el.classList.remove("px-in"), 1800)
-      if (live.current.ascii) bruteforce(el, delayOf(el))
-    })
-  }
-  const leave = (page: HTMLElement) =>
-    page.querySelectorAll("[data-reveal]").forEach((el) => {
-      el.classList.remove("px-in")
-      el.classList.add("px-out")
-    })
-  const hide = (page: HTMLElement) =>
-    page
-      .querySelectorAll("[data-reveal]")
-      .forEach((el) => el.classList.remove("px-out", "px-in", "is-in"))
   const place = (i: number, animate: boolean) => {
-    const t = track.current
-    if (!t) return
-    t.style.transition = animate
-      ? "transform 0.8s cubic-bezier(0.76, 0, 0.24, 1)"
+    if (!track.current) return
+    track.current.style.transition = animate
+      ? "transform 0.7s cubic-bezier(0.76,0,0.24,1)"
       : "none"
-    t.style.transform = `translate3d(${-i * 100}vw,0,0)`
+    track.current.style.transform = `translate3d(${-i * 100}vw,0,0)`
   }
-
-  const go = useCallback((target: number) => {
-    const ps = pages()
-    const i = Math.max(0, Math.min(ps.length - 1, target))
-    const from = idx.current
-    if (i === from || !ps[i]) return
-    timers.current.forEach(clearTimeout)
-    timers.current = []
+  const settle = useCallback(() => {
+    cancelEffects()
+    lockUntil.current = 0
+    pages().forEach((p) => p.style.removeProperty("transform"))
+    if (live.current.wide) place(idx.current, false)
+    if (meter.current) meter.current.style.transform = "scaleX(0)"
+  }, [])
+  const go = useCallback((target: number, options: GoOptions = {}) => {
+    const ps = pages(),
+      i = Math.max(0, Math.min(ps.length - 1, target)),
+      into = ps[i]
+    const from = live.current.wide ? ps[idx.current] : visiblePanel()
+    if (!into || (from === into && options.animate !== false)) return
+    cancelEffects()
+    ps.forEach((p) => p.style.removeProperty("transform"))
     idx.current = i
     setIndex(i)
-    history.replaceState(null, "", `#${ps[i].id}`)
-    const out = ps[from],
-      into = ps[i]
-    out.style.transform = ""
-    if (!live.current.motion) {
-      hide(out)
-      place(i, false)
-      enter(into)
-      return
+    if (options.history !== false && location.hash !== `#${into.id}`)
+      history.pushState(null, "", `#${into.id}`)
+    const animate = live.current.motion && options.animate !== false
+    // Snapshot outgoing content before moving the track. Destination coordinates are
+    // normalized to its final viewport, so the particles assemble the actual layout.
+    if (animate && from && from !== into)
+      transition(from, into, { origin: options.origin, align: true })
+    if (live.current.wide) place(i, animate)
+    else into.scrollIntoView({ block: "start", behavior: "instant" })
+    lockUntil.current = animate ? performance.now() + 1000 : 0
+    if (options.focus) {
+      const heading = into.querySelector<HTMLElement>("h1,h2") ?? into
+      heading.focus({ preventScroll: true })
     }
-    lockUntil.current = performance.now() + 1100
-    leave(out)
-    pixelWipe(i > from ? 1 : -1, live.current.ascii)
-    timers.current.push(window.setTimeout(() => place(i, true), 180))
-    timers.current.push(
-      window.setTimeout(() => {
-        hide(out)
-        enter(into)
-      }, 560),
-    )
   }, [])
 
-  // Keep the reader on the same section when the layout switches.
+  // Arrival and direct hashes show content immediately. Resizing preserves the section.
   useLayoutEffect(() => {
-    const html = document.documentElement
-    const prev = html.dataset.layout
-    const ps = pages()
+    const html = document.documentElement,
+      prev = html.dataset.layout,
+      ps = pages()
+    const previousPanel = prev === "v" ? visiblePanel() : null
+    settle()
     if (wide) {
-      let k =
-        prev === "v"
-          ? ps.findIndex(
-              (p) =>
-                p.getBoundingClientRect().bottom > window.innerHeight * 0.4,
-            )
-          : ps.findIndex((p) => `#${p.id}` === location.hash)
-      k = Math.max(0, k)
-      idx.current = k
-      setIndex(k)
+      const current = previousPanel
+      idx.current = Math.max(
+        0,
+        current
+          ? ps.indexOf(current)
+          : ps.findIndex((p) => `#${p.id}` === location.hash),
+      )
       html.dataset.layout = "h"
+      place(idx.current, false)
     } else {
       html.dataset.layout = "v"
-      if (prev === "h") ps[idx.current]?.scrollIntoView({ block: "start" })
+      track.current?.style.removeProperty("transform")
+      track.current?.style.removeProperty("transition")
+      const target =
+        prev === "h"
+          ? ps[idx.current]
+          : ps.find((p) => `#${p.id}` === location.hash)
+      target?.scrollIntoView({ block: "start", behavior: "instant" })
     }
-  }, [wide])
+    setIndex(idx.current)
+    setPagesMeta(ps.map((p) => ({ id: p.id, label: p.dataset.panel ?? "" })))
+    return cancelEffects
+  }, [wide, settle])
 
   useEffect(() => {
-    const t = track.current!
-    const ps = pages()
-    setPagesMeta(ps.map((p) => ({ id: p.id, label: p.dataset.panel ?? "" })))
-    if (!wide) {
-      t.style.transform = ""
-      t.style.transition = ""
-      ps.forEach((p) => (p.style.transform = ""))
-      return
-    }
-    place(idx.current, false)
-    ps.forEach((p, k) => k !== idx.current && hide(p))
-    enter(ps[idx.current])
+    if (!motion) settle()
+  }, [motion, settle])
 
+  // Shared anchor/history handling for both layouts. Normal links keep native behavior.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (
+        e.defaultPrevented ||
+        e.button !== 0 ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey
+      )
+        return
+      const link = (e.target as Element).closest?.(
+        'a[href^="#"]',
+      ) as HTMLAnchorElement | null
+      const destination = link && document.getElementById(link.hash.slice(1))
+      if (!destination || !track.current?.contains(destination)) return
+      const page = destination.closest<HTMLElement>("[data-panel]")
+      if (!page) return
+      e.preventDefault()
+      go(pages().indexOf(page), {
+        focus: e.detail === 0,
+        origin: e.detail ? { x: e.clientX, y: e.clientY } : undefined,
+      })
+    }
+    const onHistory = () => {
+      const i = pages().findIndex((p) => `#${p.id}` === location.hash)
+      if (i >= 0 && i !== idx.current) go(i, { history: false, animate: false })
+      else if (!location.hash) go(0, { history: false, animate: false })
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") settle()
+    }
+    const onVisibility = () => {
+      if (document.hidden) settle()
+    }
+    document.addEventListener("click", onClick)
+    addEventListener("hashchange", onHistory)
+    addEventListener("popstate", onHistory)
+    addEventListener("keydown", onKey)
+    addEventListener("resize", settle)
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => {
+      document.removeEventListener("click", onClick)
+      removeEventListener("hashchange", onHistory)
+      removeEventListener("popstate", onHistory)
+      removeEventListener("keydown", onKey)
+      removeEventListener("resize", settle)
+      document.removeEventListener("visibilitychange", onVisibility)
+    }
+  }, [go, settle])
+
+  useEffect(() => {
+    if (!wide) return
     let accum = 0,
       lastWheel = 0,
       quietNeeded = false,
       raf = 0
     const show = () => {
-      const p = pages()[idx.current]
-      const off = Math.max(-1, Math.min(1, accum / THRESH))
-      if (p) p.style.transform = off ? `translate3d(${-off * 56}px,0,0)` : ""
+      const off = Math.max(-1, Math.min(1, accum / THRESH)),
+        p = pages()[idx.current]
+      if (p)
+        p.style.transform =
+          live.current.motion && off ? `translate3d(${-off * 40}px,0,0)` : ""
       if (meter.current)
         meter.current.style.transform = `scaleX(${Math.abs(off)})`
     }
@@ -179,154 +208,149 @@ export default function Deck({
       show()
       if (accum) raf = requestAnimationFrame(decay)
     }
-    const turn = (dir: number) => {
-      accum = 0
-      show()
-      quietNeeded = true
-      go(idx.current + dir)
-    }
-
     const onWheel = (e: WheelEvent) => {
-      if ((e.target as Element).closest?.("dialog")) return
-      const now = performance.now()
-      const raw = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
-      const delta =
-        raw *
-        (e.deltaMode === 1 ? 32 : e.deltaMode === 2 ? window.innerHeight : 1)
-      // Ignore trackpad momentum that follows a page turn.
-      if (now < lockUntil.current || (quietNeeded && now - lastWheel < 180)) {
+      if (
+        (e.target as Element).closest?.(
+          "dialog,input,textarea,select,[contenteditable]",
+        )
+      )
+        return
+      const now = performance.now(),
+        quiet = now - lastWheel
+      if (now < lockUntil.current) {
+        // Momentum does not queue pages. A fresh gesture can interrupt and settle.
+        if (quiet > 220) settle()
+        lastWheel = now
+        return
+      }
+      if (quietNeeded && quiet < 180) {
         lastWheel = now
         return
       }
       quietNeeded = false
       lastWheel = now
+      const raw = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+      const delta =
+        raw * (e.deltaMode === 1 ? 32 : e.deltaMode === 2 ? innerHeight : 1)
       const p = pages()[idx.current]
-      if (p && p.scrollHeight > p.clientHeight + 2) {
-        if (delta > 0 && p.scrollTop + p.clientHeight < p.scrollHeight - 2)
+      // Inner scrolling regions (including shelves) keep their own scroll.
+      let inner = e.target as HTMLElement | null
+      while (inner && inner !== p) {
+        if (
+          inner.scrollWidth > inner.clientWidth + 2 &&
+          Math.abs(e.deltaX) > Math.abs(e.deltaY)
+        )
           return
-        if (delta < 0 && p.scrollTop > 0) return
+        inner = inner.parentElement
       }
+      if (
+        p &&
+        p.scrollHeight > p.clientHeight + 2 &&
+        ((delta > 0 && p.scrollTop + p.clientHeight < p.scrollHeight - 2) ||
+          (delta < 0 && p.scrollTop > 0))
+      )
+        return
       accum += delta
-      if (Math.abs(accum) >= THRESH) return turn(Math.sign(accum))
+      if (Math.abs(accum) >= THRESH) {
+        const dir = Math.sign(accum)
+        accum = 0
+        show()
+        quietNeeded = true
+        go(idx.current + dir)
+        return
+      }
       show()
       if (!raf) raf = requestAnimationFrame(decay)
     }
     const onKey = (e: KeyboardEvent) => {
-      const tg = e.target as HTMLElement
-      if (tg.closest("input, textarea, select, [contenteditable], dialog"))
+      const target = e.target instanceof HTMLElement ? e.target : document.body
+      if (
+        e.defaultPrevented ||
+        e.altKey ||
+        e.ctrlKey ||
+        e.metaKey ||
+        target.closest(
+          'input,textarea,select,[contenteditable],dialog,[role="slider"]',
+        )
+      )
         return
-      const k = e.key
-      let d = 0
-      if (k === "ArrowRight" || k === "ArrowDown" || k === "PageDown") d = 1
-      else if (k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp") d = -1
-      else if (k === " " && !tg.closest("button, a")) d = e.shiftKey ? -1 : 1
-      else if (k === "Home" || k === "End") {
-        e.preventDefault()
-        go(k === "Home" ? 0 : pages().length - 1)
-        return
-      }
-      if (!d) return
+      let i = idx.current
+      if (["ArrowRight", "ArrowDown", "PageDown"].includes(e.key)) i++
+      else if (["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key)) i--
+      else if (e.key === " " && !target.closest("button,a"))
+        i += e.shiftKey ? -1 : 1
+      else if (e.key === "Home") i = 0
+      else if (e.key === "End") i = pages().length - 1
+      else return
       e.preventDefault()
-      if (performance.now() >= lockUntil.current) go(idx.current + d)
+      go(i, { focus: true })
     }
     let tx = 0,
       ty = 0,
       dragZone = false
-    // Swipes that start on a draggable 3D stage spin it instead of turning the page.
     const onTouchStart = (e: TouchEvent) => {
       tx = e.touches[0].clientX
       ty = e.touches[0].clientY
-      dragZone = !!(e.target as Element).closest?.("[data-drag]")
+      dragZone = !!(e.target as Element).closest?.(
+        "[data-drag],button,a,input,dialog",
+      )
     }
     const onTouchEnd = (e: TouchEvent) => {
-      if (dragZone) return
-      const p = e.changedTouches[0]
-      const dx = tx - p.clientX,
+      if (dragZone || getSelection()?.toString()) return
+      const p = e.changedTouches[0],
+        dx = tx - p.clientX,
         dy = ty - p.clientY
-      const m = Math.abs(dx) > Math.abs(dy) ? dx : dy
-      if (Math.abs(m) > 60 && performance.now() >= lockUntil.current)
-        go(idx.current + Math.sign(m))
+      const distance = Math.abs(dx) > Math.abs(dy) ? dx : dy
+      if (Math.abs(distance) > 60) go(idx.current + Math.sign(distance))
     }
-    const onClick = (e: MouseEvent) => {
-      if (
-        e.defaultPrevented ||
-        e.button !== 0 ||
-        e.metaKey ||
-        e.ctrlKey ||
-        e.shiftKey
-      )
-        return
-      const a = (e.target as Element).closest?.(
-        'a[href^="#"]',
-      ) as HTMLAnchorElement | null
-      const el = a && document.getElementById(a.hash.slice(1))
-      if (!el || !t.contains(el)) return
-      e.preventDefault()
-      const p = el.closest<HTMLElement>("[data-panel]")
-      if (!p) return
-      go(pages().indexOf(p))
-      p.focus({ preventScroll: true })
-    }
-    // Tabbing into another page turns to it.
     const onFocus = (e: FocusEvent) => {
-      const el = e.target as HTMLElement
-      if (!t.contains(el)) return
-      const i = pages().indexOf(el.closest<HTMLElement>("[data-panel]")!)
-      if (i >= 0 && i !== idx.current) go(i)
+      const el = e.target as HTMLElement,
+        page = el.closest<HTMLElement>("[data-panel]")
+      const i = page ? pages().indexOf(page) : -1
+      if (i >= 0 && i !== idx.current) go(i, { animate: false })
     }
-    window.addEventListener("wheel", onWheel, { passive: true })
-    window.addEventListener("keydown", onKey)
-    window.addEventListener("touchstart", onTouchStart, { passive: true })
-    window.addEventListener("touchend", onTouchEnd, { passive: true })
-    document.addEventListener("click", onClick)
+    addEventListener("wheel", onWheel, { passive: true })
+    addEventListener("keydown", onKey)
+    addEventListener("touchstart", onTouchStart, { passive: true })
+    addEventListener("touchend", onTouchEnd, { passive: true })
     document.addEventListener("focusin", onFocus)
     return () => {
       cancelAnimationFrame(raf)
-      timers.current.forEach(clearTimeout)
-      window.removeEventListener("wheel", onWheel)
-      window.removeEventListener("keydown", onKey)
-      window.removeEventListener("touchstart", onTouchStart)
-      window.removeEventListener("touchend", onTouchEnd)
-      document.removeEventListener("click", onClick)
+      removeEventListener("wheel", onWheel)
+      removeEventListener("keydown", onKey)
+      removeEventListener("touchstart", onTouchStart)
+      removeEventListener("touchend", onTouchEnd)
       document.removeEventListener("focusin", onFocus)
+      settle()
     }
-  }, [wide, go])
+  }, [wide, go, settle])
 
-  // Switching Dynamic/ASCII replays the current page's build-in.
-  const firstMode = useRef(true)
+  // Natural scrolling uses a short, one-time reveal, never a full-screen transition.
   useEffect(() => {
-    if (firstMode.current) {
-      firstMode.current = false
-      return
-    }
-    if (wide) enter(pages()[idx.current])
-  }, [mode])
-
-  // Stacked layout: elements pixelate in as they enter the viewport (and replay).
-  useEffect(() => {
-    if (wide) return
-    const els = track.current!.querySelectorAll<HTMLElement>("[data-reveal]")
-    if (!("IntersectionObserver" in window)) {
-      els.forEach((e) => e.classList.add("is-in"))
-      return
-    }
-    const io = new IntersectionObserver(
-      (entries) =>
-        entries.forEach(({ target, isIntersecting }) => {
+    if (wide || !motion || !("IntersectionObserver" in window)) return
+    const elements =
+      track.current!.querySelectorAll<HTMLElement>("[data-reveal]")
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const { target, isIntersecting } of entries) {
+          if (!isIntersecting) continue
           const el = target as HTMLElement
-          if (isIntersecting && !el.classList.contains("is-in")) {
-            el.classList.add("is-in")
-            if (!live.current.motion) return
-            el.classList.add("px-in")
-            window.setTimeout(() => el.classList.remove("px-in"), 1800)
-            if (live.current.ascii) bruteforce(el, delayOf(el))
-          } else if (!isIntersecting) el.classList.remove("is-in", "px-in")
-        }),
+          if (
+            el.getBoundingClientRect().top > 0 &&
+            !el.contains(document.activeElement)
+          )
+            el.classList.add("soft-reveal")
+          observer.unobserve(el)
+        }
+      },
       { threshold: 0.12 },
     )
-    els.forEach((e) => io.observe(e))
-    return () => io.disconnect()
-  }, [wide, mode])
+    elements.forEach((el) => observer.observe(el))
+    return () => {
+      observer.disconnect()
+      elements.forEach((el) => el.classList.remove("soft-reveal"))
+    }
+  }, [wide, motion])
 
   const current = pagesMeta[index]
   return (

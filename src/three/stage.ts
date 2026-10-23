@@ -63,6 +63,8 @@ export class Stage {
     this.out.className = "ascii-out"
     this.out.setAttribute("aria-hidden", "true")
     host.prepend(canvas, this.out)
+    canvas.addEventListener("portfolio:sample", this.paint)
+    this.out.addEventListener("portfolio:sample", this.paint)
     // Still frames (motion off) are drawn once, so redraw when the mono font arrives.
     document.fonts?.ready.then(() => this.resize())
     this.ro = new ResizeObserver(() => this.resize())
@@ -124,9 +126,15 @@ export class Stage {
       return
     }
     this.onFrame(motion ? dt : 0, this.clock)
+    this.paint()
+    this.dirty = false
+  }
+
+  private paint = () => {
+    if (!this.w || !this.h) return
     this.renderer.render(this.scene, this.camera)
-    if (ascii) {
-      this.lastAscii = now
+    if (this.opts.ascii) {
+      this.lastAscii = performance.now()
       const c = this.renderer.domElement
       this.raster.paint(
         this.out,
@@ -139,10 +147,11 @@ export class Stage {
         this.family,
       )
     }
-    this.dirty = false
   }
 
   dispose() {
+    this.renderer.domElement.removeEventListener("portfolio:sample", this.paint)
+    this.out.removeEventListener("portfolio:sample", this.paint)
     cancelAnimationFrame(this.raf)
     this.ro.disconnect()
     this.io?.disconnect()
