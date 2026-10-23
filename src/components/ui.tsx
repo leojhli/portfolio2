@@ -64,37 +64,6 @@ export function Panel({
   )
 }
 
-/**
- * Pixelation filters at fixed block sizes. CSS keyframes step through them so
- * elements render as chunky pixels that resolve into crisp UI.
- */
-export const PIXEL_SIZES = [2, 4, 8, 14, 24, 40]
-export function PixelFilters() {
-  return (
-    <svg aria-hidden="true" width="0" height="0" className="absolute">
-      <defs>
-        {PIXEL_SIZES.map((b) => (
-          <filter
-            key={b}
-            id={`px-${b}`}
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            colorInterpolationFilters="sRGB"
-          >
-            <feFlood x={b / 2} y={b / 2} width="1" height="1" />
-            <feComposite width={b} height={b} />
-            <feTile result="grid" />
-            <feComposite in="SourceGraphic" in2="grid" operator="in" />
-            <feMorphology operator="dilate" radius={b / 2} />
-          </filter>
-        ))}
-      </defs>
-    </svg>
-  )
-}
-
 /** Per-letter hover animation; the real string stays available to assistive tech. */
 export function Kinetic({
   text,

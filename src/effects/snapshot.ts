@@ -6,18 +6,8 @@ export type Fragment = {
   rank: number
 }
 
-/**
- * Sample actual text, fills, outlines and local media at their DOM positions.
- * This is a bounded silhouette rasterizer, not an HTML screenshot: CSS gradients,
- * shadows and complex SVG effects remain in the real DOM beneath the fragments.
- */
-export function snapshot(
-  root: HTMLElement,
-  budget: number,
-  align = false,
-  spacing = 2,
-  viewport = false,
-): Fragment[] {
+/** Capture once per interaction; animation frames only read the resulting bitmap. */
+function rasterize(root: HTMLElement, align = false, viewport = false) {
   const rect = root.getBoundingClientRect()
   const shiftX = align ? -rect.left : 0
   const shiftY =
@@ -32,12 +22,12 @@ export function snapshot(
     : Math.min(innerHeight, rect.bottom + shiftY)
   const width = Math.ceil(right - left),
     height = Math.ceil(bottom - top)
-  if (width <= 0 || height <= 0 || budget <= 0) return []
+  if (width <= 0 || height <= 0) return null
   const canvas = document.createElement("canvas")
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext("2d", { willReadFrequently: true })
-  if (!ctx) return []
+  if (!ctx) return null
   const offsetX = shiftX - left,
     offsetY = shiftY - top
   const elements = [root, ...root.querySelectorAll<HTMLElement>("*")].slice(
@@ -45,16 +35,19 @@ export function snapshot(
     650,
   )
   const chrome = new Set<Element>()
+  const textScopes = [root]
   if (viewport) {
     ctx.fillStyle =
       getComputedStyle(document.documentElement)
         .getPropertyValue("--c-bg")
         .trim() || "#623b91"
     ctx.fillRect(0, 0, width, height)
+    paintBackdrop(ctx, width, height)
     for (const layer of document.querySelectorAll<HTMLElement>(
       "header,[data-deck-status]",
     )) {
       if (root.contains(layer)) continue
+      textScopes.push(layer)
       for (const el of [layer, ...layer.querySelectorAll<HTMLElement>("*")]) {
         chrome.add(el)
         elements.push(el)
@@ -71,7 +64,9 @@ export function snapshot(
       s.display !== "none" &&
       s.visibility !== "hidden" &&
       Number(s.opacity) !== 0 &&
-      !el.closest("[data-effect-canvas], .sr-only, [hidden]")
+      !el.closest(
+        "[data-effect-canvas], .sr-only, [hidden], dialog:not([open])",
+      )
     )
   }
   const solid = (color: string) =>
@@ -86,10 +81,9 @@ export function snapshot(
     const s = styles.get(el)!,
       b = box(el)
     if (b.x + b.w < 0 || b.y + b.h < 0 || b.x > width || b.y > height) continue
-    // Full-section backgrounds are intentionally excluded: sample the content, not a solid rectangle.
+    // The viewport base is already painted; smaller surfaces retain their fills.
     if (
-      el !== root &&
-      b.w * b.h < width * height * 0.65 &&
+      (viewport || (el !== root && b.w * b.h < width * height * 0.65)) &&
       solid(s.backgroundColor)
     ) {
       ctx.fillStyle = s.backgroundColor
@@ -161,59 +155,86 @@ export function snapshot(
     }
   }
   const headings = new Map<Element, DOMRect>()
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
   const range = document.createRange()
-  let remaining = 2200
-  for (
-    let node = walker.nextNode();
-    node && remaining > 0;
-    node = walker.nextNode()
-  ) {
-    const parent = node.parentElement,
-      text = node.textContent ?? ""
-    if (
-      !parent ||
-      !text.trim() ||
-      !visible(parent) ||
-      parent.closest("svg, script, style")
-    )
-      continue
-    const s = styles.get(parent)!
-    const o = offset(parent)
-    if (s.writingMode !== "horizontal-tb") continue
-    ctx.fillStyle = s.color
-    ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`
-    ctx.textBaseline = "alphabetic"
-    const heading = parent.closest("h1,h2,h3")
-    if (heading && !headings.has(heading))
-      headings.set(heading, heading.getBoundingClientRect())
-    for (let i = 0; i < text.length && remaining > 0; ) {
-      const char = String.fromCodePoint(text.codePointAt(i)!)
-      range.setStart(node, i)
-      range.setEnd(node, i + char.length)
-      i += char.length
-      if (!char.trim()) continue
-      const r = range.getBoundingClientRect()
-      const x = r.left + o.x,
-        y = r.top + o.y
+  for (const scope of textScopes) {
+    const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT)
+    let remaining = scope === root ? 5000 : 1500
+    for (
+      let node = walker.nextNode();
+      node && remaining > 0;
+      node = walker.nextNode()
+    ) {
+      const parent = node.parentElement,
+        text = node.textContent ?? ""
       if (
-        !r.width ||
-        x + r.width < 0 ||
-        y + r.height < 0 ||
-        x > width ||
-        y > height
+        !parent ||
+        !text.trim() ||
+        !visible(parent) ||
+        parent.closest("svg, script, style")
       )
         continue
-      ctx.fillText(
-        char,
-        x,
-        y +
-          (r.height + parseFloat(s.fontSize)) / 2 -
-          parseFloat(s.fontSize) * 0.16,
-      )
-      remaining--
+      const s = styles.get(parent)!
+      const o = offset(parent)
+      if (s.writingMode !== "horizontal-tb") continue
+      ctx.fillStyle = s.color
+      ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`
+      ctx.textBaseline = "alphabetic"
+      const heading = parent.closest("h1,h2,h3")
+      if (heading && !headings.has(heading))
+        headings.set(heading, heading.getBoundingClientRect())
+      for (let i = 0; i < text.length && remaining > 0; ) {
+        const char = String.fromCodePoint(text.codePointAt(i)!)
+        range.setStart(node, i)
+        range.setEnd(node, i + char.length)
+        i += char.length
+        if (!char.trim()) continue
+        const r = range.getBoundingClientRect()
+        const x = r.left + o.x,
+          y = r.top + o.y
+        if (
+          !r.width ||
+          x + r.width < 0 ||
+          y + r.height < 0 ||
+          x > width ||
+          y > height
+        )
+          continue
+        ctx.fillText(
+          char,
+          x,
+          y +
+            (r.height + parseFloat(s.fontSize)) / 2 -
+            parseFloat(s.fontSize) * 0.16,
+        )
+        remaining--
+      }
     }
   }
+  return { canvas, ctx, left, top, shiftX, shiftY, headings }
+}
+
+/** Full viewport raster includes the background, panel and fixed navigation. */
+export function captureRaster(
+  root: HTMLElement,
+  align = false,
+  viewport = true,
+) {
+  return rasterize(root, align, viewport)?.canvas ?? null
+}
+
+/** Sample actual text, fills, outlines and local media at their DOM positions. */
+export function snapshot(
+  root: HTMLElement,
+  budget: number,
+  align = false,
+  spacing = 2,
+  viewport = false,
+): Fragment[] {
+  if (budget <= 0) return []
+  const raster = rasterize(root, align, viewport)
+  if (!raster) return []
+  const { canvas, ctx, left, top, shiftX, shiftY, headings } = raster
+  const { width, height } = canvas
   const pixels = ctx.getImageData(0, 0, width, height).data
   // Resolution stays fine even when the pool is full. Limit the number of
   // samples with reservoir sampling instead of inflating pixels into blocks.
@@ -251,4 +272,44 @@ export function snapshot(
     }
   }
   return candidates
+}
+
+/** Match the fixed CSS page texture so empty space also participates in the mosaic. */
+function paintBackdrop(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+) {
+  const style = getComputedStyle(document.documentElement)
+  const color = (name: string) => style.getPropertyValue(name).trim()
+  ctx.save()
+  if (document.documentElement.dataset.mode === "ascii") {
+    ctx.globalAlpha = 0.35
+    ctx.fillStyle = color("--c-v1") || "#00bbf9"
+    for (let y = 9; y < height; y += 18)
+      for (let x = 9; x < width; x += 18) ctx.fillRect(x, y, 1, 1)
+  } else {
+    // Paint from back to front, in the same order as the body's CSS gradients.
+    for (const [key, x, y, rx, ry, alpha] of [
+      ["--c-v3", 0.78, 0.06, 0.4, 0.35, 0.2],
+      ["--c-v2", 0.96, 0.92, 0.5, 0.45, 0.24],
+      ["--c-v1", 0.06, 0.08, 0.6, 0.5, 0.22],
+    ] as const) {
+      ctx.save()
+      ctx.translate(width * x, height * y)
+      ctx.scale(width * rx, height * ry)
+      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 0.7)
+      gradient.addColorStop(0, color(key) || "#00bbf9")
+      gradient.addColorStop(1, "transparent")
+      ctx.globalAlpha = alpha
+      ctx.fillStyle = gradient
+      ctx.fillRect(-3, -3, 6, 6)
+      ctx.restore()
+    }
+    ctx.globalAlpha = 0.05
+    ctx.fillStyle = color("--c-fg") || "#fefbe0"
+    for (let x = 0; x < width; x += 48) ctx.fillRect(x, 0, 1, height)
+    for (let y = 0; y < height; y += 48) ctx.fillRect(0, y, width, 1)
+  }
+  ctx.restore()
 }

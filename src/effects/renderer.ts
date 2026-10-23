@@ -8,7 +8,9 @@ import {
   rippleAt,
   type Point,
 } from "./geometry"
-import { snapshot, type Fragment } from "./snapshot"
+import { captureRaster, snapshot, type Fragment } from "./snapshot"
+import { createScreenTransition, type ScreenTransition } from "./screen"
+import { screenVariant } from "./screenGeometry"
 import type { EffectDriver, EffectOptions } from "./coordinator"
 import { visiblePanel } from "./coordinator"
 
@@ -46,13 +48,13 @@ type Nearby = {
   el: HTMLElement
   x: number
   y: number
-  strength: number
+  targetX: number
+  targetY: number
+  updated: number
   seen: number
   translate: string
-  filter: string
   baseX: string
   baseY: string
-  baseFilter: string
 }
 
 /** One scheduler owns particles, ripples and temporary reveal animations. */
@@ -75,6 +77,13 @@ export function createRenderer(
   let dust: Dust[] = [],
     waves: Wave[] = [],
     sequence: Sequence | null = null
+  let screen: {
+    effect: ScreenTransition
+    born: number
+    life: number
+  } | null = null
+  let turn = 0
+  let pendingRaster: HTMLCanvasElement | null = null
   let cursor: Point | null = null
   let backdrop: {
     x: number
@@ -83,7 +92,7 @@ export function createRenderer(
   } | null = null
   let animations: Animation[] = []
   const nearby = new Map<HTMLElement, Nearby>()
-  const screenFilters = new Map<HTMLElement, string>()
+  const screenLayers = new Set<HTMLElement>()
   let waveCache: {
     root: HTMLElement
     at: number
@@ -94,7 +103,6 @@ export function createRenderer(
   const backgroundPosition = document.body.style.backgroundPosition
   const restoreNearby = (n: Nearby) => {
     n.el.style.translate = n.translate
-    n.el.style.filter = n.filter
     delete n.el.dataset.proximityActive
   }
   const clearNearby = () => {
@@ -135,16 +143,16 @@ export function createRenderer(
     canvas.width = Math.round(innerWidth * dpr)
     canvas.height = Math.round(innerHeight * dpr)
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.imageSmoothingEnabled = false
     cache.clear()
   }
   const cleanAnimations = () => {
     animations.forEach((a) => a.cancel())
     animations = []
-    screenFilters.forEach((filter, el) => {
-      el.style.filter = filter
+    screenLayers.forEach((el) => {
       delete el.dataset.screenPixelation
     })
-    screenFilters.clear()
+    screenLayers.clear()
   }
   const home = () => {
     const dialog = document.querySelector("dialog[open]")
@@ -157,6 +165,8 @@ export function createRenderer(
     cancelAnimationFrame(raf)
     cancelAnimationFrame(pendingMorph)
     raf = pendingMorph = 0
+    if (pendingRaster) pendingRaster.width = pendingRaster.height = 0
+    pendingRaster = null
     dust = []
     waves = []
     cursor = null
@@ -172,6 +182,8 @@ export function createRenderer(
     cleanAnimations()
     const done = sequence?.done
     sequence = null
+    screen?.effect.dispose()
+    screen = null
     ctx.clearRect(0, 0, innerWidth, innerHeight)
     done?.()
     home()
@@ -199,7 +211,12 @@ export function createRenderer(
     ctx.fillStyle = color
     if (ascii()) ctx.fillText(glyph(seed), p.x, p.y)
     else
-      ctx.fillRect(Math.round(p.x * 2) / 2, Math.round(p.y * 2) / 2, size, size)
+      ctx.fillRect(
+        Math.round(p.x),
+        Math.round(p.y),
+        Math.max(1, Math.round(size)),
+        Math.max(1, Math.round(size)),
+      )
   }
   const safe = (el: HTMLElement) => {
     const active = document.activeElement
@@ -220,20 +237,26 @@ export function createRenderer(
       candidates = [...document.querySelectorAll<HTMLElement>(REACTIVE)]
       candidatesAt = now
     }
-    return candidates
-      .filter((el) => {
-        if (!safe(el)) return false
-        const r = el.getBoundingClientRect()
-        return (
+    const visible = candidates
+      .filter(safe)
+      .map((el) => ({ el, rect: el.getBoundingClientRect() }))
+      .filter(
+        ({ rect: r }) =>
           r.width > 0 &&
           r.height > 0 &&
           r.left < innerWidth &&
           r.right > 0 &&
           r.top < innerHeight &&
-          r.bottom > 0
-        )
-      })
+          r.bottom > 0,
+      )
       .slice(0, 500)
+    // Move one visual group, never both a heading/card and its nested labels.
+    const groups = new Set(visible.map(({ el }) => el))
+    return visible.filter(({ el }) => {
+      for (let parent = el.parentElement; parent; parent = parent.parentElement)
+        if (groups.has(parent)) return false
+      return true
+    })
   }
   const reactTo = (
     el: HTMLElement,
@@ -253,38 +276,41 @@ export function createRenderer(
         el,
         x: 0,
         y: 0,
-        strength: 0,
+        targetX: 0,
+        targetY: 0,
+        updated: now,
         seen: now,
         translate: el.style.translate,
-        filter: el.style.filter,
         baseX: translate[0],
         baseY: translate[1] || "0px",
-        baseFilter: style.filter === "none" ? "" : style.filter,
       }
       nearby.set(el, n)
     }
     const dx = rect.left + rect.width / 2 - point.x,
       dy = rect.top + rect.height / 2 - point.y
-    const length = Math.hypot(dx, dy) || 1
+    // A soft center avoids the direction flip of normalizing a near-zero vector.
+    const length = Math.sqrt(dx * dx + dy * dy + 32 * 32)
     const force =
       (1 - distance / 140) *
       (el.matches("button,a,input,select,textarea") ? 3 : 6)
-    n.x = (dx / length) * force
-    n.y = (dy / length) * force
+    n.targetX = (dx / length) * force
+    n.targetY = (dy / length) * force
     n.seen = now
   }
   const updateNearby = (now: number) => {
     for (const [el, n] of nearby) {
-      const target = now - n.seen < 100 && safe(el) ? 1 : 0
-      n.strength += (target - n.strength) * 0.24
-      if (!el.isConnected || (!target && n.strength < 0.015)) {
+      const active = now - n.seen < 100 && safe(el)
+      const ease =
+        1 - Math.exp(-Math.min(64, Math.max(0, now - n.updated)) / 75)
+      n.updated = now
+      n.x += ((active ? n.targetX : 0) - n.x) * ease
+      n.y += ((active ? n.targetY : 0) - n.y) * ease
+      if (!el.isConnected || (!active && Math.hypot(n.x, n.y) < 0.015)) {
         restoreNearby(n)
         nearby.delete(el)
         continue
       }
-      el.style.translate = `calc(${n.baseX} + ${(n.x * n.strength).toFixed(2)}px) calc(${n.baseY} + ${(n.y * n.strength).toFixed(2)}px)`
-      el.style.filter =
-        n.strength > 0.1 ? `url(#px-2) ${n.baseFilter}`.trim() : n.filter
+      el.style.translate = `calc(${n.baseX} + ${n.x.toFixed(2)}px) calc(${n.baseY} + ${n.y.toFixed(2)}px)`
       el.dataset.proximityActive = ""
     }
   }
@@ -339,7 +365,17 @@ export function createRenderer(
     ctx.clearRect(0, 0, innerWidth, innerHeight)
     ctx.font = '600 7px "Geist Mono", monospace'
     ctx.textBaseline = "middle"
-    if (sequence) {
+    if (screen) {
+      const s = screen
+      const progress = clamp((now - s.born) / s.life)
+      s.effect.paint(ctx, progress)
+      if (progress >= 1) {
+        s.effect.dispose()
+        screen = null
+        cleanAnimations()
+        home()
+      }
+    } else if (sequence) {
       const s = sequence,
         age = Math.max(0, now - s.born)
       for (const [i, f] of s.flights.entries()) {
@@ -367,18 +403,15 @@ export function createRenderer(
       if (cursor && !getSelection()?.toString()) {
         refreshColors()
         const near: HTMLElement[] = []
-        for (const el of visuals(now)) {
-          const r = el.getBoundingClientRect(),
-            nearestX = clamp(cursor.x, r.left, r.right),
+        for (const { el, rect: r } of visuals(now)) {
+          const nearestX = clamp(cursor.x, r.left, r.right),
             nearestY = clamp(cursor.y, r.top, r.bottom)
           const distance = Math.hypot(nearestX - cursor.x, nearestY - cursor.y)
           if (distance > 140) continue
           reactTo(el, cursor, r, distance, now)
           if (distance < 100) near.push(el)
         }
-        for (const el of near.filter(
-          (el) => !near.some((other) => other !== el && other.contains(el)),
-        )) {
+        for (const el of near) {
           const surface = getComputedStyle(el).backgroundColor
           for (const sample of samplesFor(el, now)) {
             const distance = Math.hypot(
@@ -528,6 +561,7 @@ export function createRenderer(
     ctx.globalAlpha = 1
     if (seen.size > 50000) seen.clear()
     if (
+      screen ||
       sequence ||
       dust.length ||
       waves.length ||
@@ -538,16 +572,11 @@ export function createRenderer(
       kick()
   }
   const revealScreen = () => {
-    // Filter fixed layers themselves, not their zero-height ancestor: filtering
-    // #root would change the containing block of the horizontal fixed deck.
+    // Only lifecycle markers: the single opaque canvas owns the pixelation.
     for (const el of document.querySelectorAll<HTMLElement>(
       "header,.deck,[data-deck-status]",
     )) {
-      screenFilters.set(el, el.style.filter)
-      const filter = getComputedStyle(el).filter
-      el.style.filter = `url(#px-2) ${
-        filter && filter !== "none" ? filter : ""
-      }`.trim()
+      screenLayers.add(el)
       el.dataset.screenPixelation = ""
     }
   }
@@ -565,13 +594,12 @@ export function createRenderer(
       animations.push(
         el.animate(
           [
-            { opacity: 0.35, filter: ascii() ? "none" : "url(#px-2)" },
+            { opacity: 0.65 },
             {
               opacity: 0.75,
-              filter: "none",
               offset: 0.7,
             },
-            { opacity: 1, filter: "none" },
+            { opacity: 1 },
           ],
           {
             duration: el.matches("h1,h2,h3") ? duration * 0.78 : duration,
@@ -627,12 +655,47 @@ export function createRenderer(
       life: duration,
       exiting: false,
     }
-    if (options.screen) revealScreen()
-    else reveal(into, duration)
+    reveal(into, duration)
     kick()
   }
+  const startScreen = (
+    from: HTMLCanvasElement,
+    into: HTMLElement,
+    align = false,
+    life = 840,
+  ) => {
+    let to: HTMLCanvasElement | null = null
+    try {
+      if (!enabled()) return
+      to = captureRaster(into, align)
+      if (!to) return
+      const effect = createScreenTransition(from, to, {
+        width: innerWidth,
+        height: innerHeight,
+        ascii: ascii(),
+        variant: screenVariant(turn++),
+      })
+      home()
+      screen = { effect, born: performance.now(), life }
+      revealScreen()
+      // Cover the moving DOM before Deck changes its transform.
+      ctx.globalAlpha = 1
+      effect.paint(ctx, 0)
+      kick()
+    } finally {
+      from.width = from.height = 0
+      if (to) to.width = to.height = 0
+    }
+  }
   const onMove = (e: PointerEvent) => {
-    if (sequence || e.pointerType === "touch" || e.buttons || !enabled()) return
+    if (
+      screen ||
+      sequence ||
+      e.pointerType === "touch" ||
+      e.buttons ||
+      !enabled()
+    )
+      return
     cursor = { x: e.clientX, y: e.clientY }
     kick()
   }
@@ -640,6 +703,7 @@ export function createRenderer(
     if (
       !enabled() ||
       sequence ||
+      screen ||
       e.button !== 0 ||
       e.defaultPrevented ||
       (e.target as Element).closest?.(
@@ -693,7 +757,8 @@ export function createRenderer(
     kick()
   }
   const onScroll = () => {
-    if (!sequence || performance.now() - sequence.born > 80) cancel()
+    const active = screen ?? sequence
+    if (!active || performance.now() - active.born > 80) cancel()
   }
   const onResize = () => {
     cancel()
@@ -722,10 +787,8 @@ export function createRenderer(
       cancel()
       if (!enabled()) return
       try {
-        start(snapshot(from, budget(), false, ascii() ? 4 : 2, true), into, {
-          ...options,
-          screen: true,
-        })
+        const raster = captureRaster(from)
+        if (raster) startScreen(raster, into, options.align)
       } catch {
         cancel()
       }
@@ -742,12 +805,18 @@ export function createRenderer(
       cancel()
       if (!enabled()) return
       try {
-        const screen = !root.closest("dialog")
-        const from = snapshot(root, budget(), false, ascii() ? 4 : 2, screen)
+        const wholeScreen = !root.closest("dialog")
+        pendingRaster = wholeScreen ? captureRaster(root) : null
+        const from = wholeScreen
+          ? []
+          : snapshot(root, budget(), false, ascii() ? 4 : 2)
         pendingMorph = requestAnimationFrame(() => {
           pendingMorph = 0
+          const raster = pendingRaster
+          pendingRaster = null
           try {
-            start(from, root, { screen }, 560)
+            if (raster) startScreen(raster, root, false, 560)
+            else start(from, root, {}, 560)
           } catch {
             cancel()
           }

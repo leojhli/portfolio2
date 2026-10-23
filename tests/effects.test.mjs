@@ -145,6 +145,8 @@ function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
     this.dispatchEvent(new w.Event("close"))
   }
   const context = () => ({
+    imageCalls: [],
+    textCalls: [],
     setTransform() {},
     clearRect() {},
     beginPath() {},
@@ -156,12 +158,18 @@ function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
     restore() {},
     translate() {},
     scale() {},
-    drawImage() {},
+    createRadialGradient() {
+      return { addColorStop() {} }
+    },
+    drawImage(...args) {
+      if (this.imageCalls.length < 5000) this.imageCalls.push(args)
+    },
     fillRect(...args) {
       assert.ok(args.every(Number.isFinite))
       if (paintCalls.length < 10000) paintCalls.push(args)
     },
     fillText(text, x, y) {
+      this.textCalls.push(text)
       assert.ok(
         Number.isFinite(x) && Number.isFinite(y),
         `${text}: finite text coordinates`,
@@ -293,10 +301,17 @@ test("renderer retargets, cancels work, and completes pending dialog closure on 
   renderer.transition(one, two)
   assert.equal(d.querySelectorAll("[data-screen-pixelation]").length, 3)
   assert.ok(
-    [...d.querySelectorAll("header,.deck,[data-deck-status]")].every((el) =>
-      el.style.filter.includes("px-2"),
+    [...d.querySelectorAll("header,.deck,[data-deck-status]")].every(
+      (el) => !el.style.filter,
     ),
+    "live content never receives blur-producing SVG filters",
   )
+  assert.deepEqual(
+    canvas._ctx.imageCalls[0].slice(1),
+    [0, 0, 1280, 800],
+    "first paint covers the viewport synchronously",
+  )
+  assert.equal(canvas._ctx.imageSmoothingEnabled, false)
   assert.equal(f.frames.size, 1)
   renderer.transition(two, one)
   assert.equal(
@@ -325,7 +340,7 @@ test("unmarked text and navigation react to proximity and restore their original
   d.documentElement.dataset.motion = "on"
   d.body.insertAdjacentHTML(
     "beforeend",
-    '<header><a href="#example">Navigation</a></header><p style="filter:contrast(1.1)">Unmarked text</p><span>Metadata</span><button>Unmarked button</button>',
+    '<header><a href="#example">Navigation</a></header><p style="filter:contrast(1.1)">Unmarked text <span id="nested">nested label</span></p><span id="meta">Metadata</span><button>Unmarked button</button>',
   )
   const canvas = d.createElement("canvas")
   canvas.dataset.effectCanvas = ""
@@ -340,14 +355,23 @@ test("unmarked text and navigation react to proximity and restore their original
   })
   window.dispatchEvent(pointer)
   f.advance(32)
-  for (const el of d.querySelectorAll("p,span,button,a")) {
+  for (const el of d.querySelectorAll("p,#meta,button,a")) {
     assert.ok(
       el.hasAttribute("data-proximity-active"),
       `${el.tagName} reacts without data-fx`,
     )
-    assert.match(el.style.filter, /px-2/)
+    assert.ok(!el.style.filter.includes("url("))
     assert.ok(el.style.translate.includes("calc("))
   }
+  assert.equal(
+    d.getElementById("nested").style.translate,
+    "",
+    "nested labels do not get a second transform",
+  )
+  assert.equal(
+    d.getElementById("nested").hasAttribute("data-proximity-active"),
+    false,
+  )
   assert.ok(d.querySelector("p").style.filter.includes("contrast"))
   f.advance(1200)
   assert.equal(d.querySelectorAll("[data-proximity-active]").length, 0)
@@ -361,6 +385,70 @@ test("unmarked text and navigation react to proximity and restore their original
   assert.equal(f.frames.size, 0)
   renderer.dispose()
   f.dom.window.close()
+})
+
+test("viewport rasters include navigation and status text as well as the panel", () => {
+  const f = fixture(),
+    d = f.dom.window.document
+  try {
+    d.body.insertAdjacentHTML(
+      "beforeend",
+      '<header>Navigation</header><section id="panel"><h2>Panel text</h2></section><footer data-deck-status>Page status</footer>',
+    )
+    const raster = snapshotModule.captureRaster(d.getElementById("panel"))
+    assert.equal(raster.width, 1280)
+    assert.equal(raster.height, 800)
+    const painted = raster._ctx.textCalls.join("")
+    assert.ok(painted.includes("Navigation"))
+    assert.ok(painted.includes("Pagestatus"))
+    assert.ok(painted.includes("Paneltext"))
+  } finally {
+    f.dom.window.close()
+  }
+})
+
+test("proximity eases direction changes instead of snapping across the center", () => {
+  const f = fixture(),
+    d = f.dom.window.document
+  d.documentElement.dataset.motion = "on"
+  d.body.insertAdjacentHTML("beforeend", '<p id="smooth">Smooth motion</p>')
+  const canvas = d.createElement("canvas")
+  canvas.dataset.effectCanvas = ""
+  d.body.append(canvas)
+  const renderer = rendererModule.createRenderer(canvas)
+  const move = (x) => {
+    const event = new Event("pointermove")
+    Object.defineProperties(event, {
+      clientX: { value: x },
+      clientY: { value: 250 },
+      pointerType: { value: "mouse" },
+      buttons: { value: 0 },
+    })
+    window.dispatchEvent(event)
+  }
+  const position = () =>
+    Number(
+      d.getElementById("smooth").style.translate.match(/\+ ([-\d.]+)px/)?.[1],
+    )
+  try {
+    move(100)
+    f.advance(64)
+    const before = position()
+    assert.ok(before > 0)
+    move(530)
+    f.advance(16)
+    assert.ok(
+      position() > 0,
+      "direction reversal eases through the old position",
+    )
+    assert.ok(position() < before)
+    f.advance(1600)
+    assert.equal(d.getElementById("smooth").style.translate, "")
+    assert.equal(f.frames.size, 0)
+  } finally {
+    renderer.dispose()
+    f.dom.window.close()
+  }
 })
 
 test("rapid ripples finish, selections and hidden tabs clear work, motion-off is immediate", () => {

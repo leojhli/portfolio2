@@ -8,7 +8,7 @@ import Games from "./Games"
 import Projects from "./Projects"
 import Pool from "./Pool"
 import Deck from "./Deck"
-import { AsciiArt, ContactLinks, Kinetic, Panel, PixelFilters } from "./ui"
+import { AsciiArt, ContactLinks, Kinetic, Panel } from "./ui"
 
 const EffectsLayer = lazy(() => import("../effects/EffectsLayer"))
 const c = getContent()
@@ -58,7 +58,6 @@ export default function Page() {
       >
         Skip to content
       </a>
-      <PixelFilters />
       {motion && (
         <Suspense fallback={null}>
           <EffectsLayer />
