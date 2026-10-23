@@ -1,4 +1,4 @@
-/** Two nested Ls: softened elbows and matching cut ends form a compact signature. */
+/** Two forward-leaning Ls with square elbows and parallel 45-degree cut ends. */
 export default function Logo() {
   return (
     <svg
@@ -9,7 +9,7 @@ export default function Logo() {
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M5 6H11V28C11 29.105 11.895 30 13 30H37L31 36H11C7.686 36 5 33.314 5 30V6ZM19 6H25V17C25 18.105 25.895 19 27 19H37L31 25H25C21.686 25 19 22.314 19 19V6Z" />
+      <path d="M11 6H19L11.8 30H35L29 36H2L11 6ZM26 6H34L30.4 18H40L34 24H20.6L26 6Z" />
     </svg>
   )
 }

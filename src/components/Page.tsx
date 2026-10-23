@@ -81,7 +81,7 @@ export default function Page() {
                   <li key={id}>
                     <a
                       href={`#${id}`}
-                      className="nav-link inline-flex min-h-11 items-center px-2.5 font-mono text-xs text-muted"
+                      className="nav-link inline-flex min-h-11 items-center px-2.5 font-sans text-xs text-muted"
                     >
                       {label}
                     </a>
@@ -111,7 +111,7 @@ export default function Page() {
           >
             <div className="grid gap-14 lg:grid-cols-[1.25fr_1fr] lg:items-center">
               <div>
-                <p data-reveal className="font-mono text-sm text-accent">
+                <p data-reveal className="font-sans text-sm text-accent">
                   {c.profile.headline}
                 </p>
                 <h1
@@ -119,7 +119,7 @@ export default function Page() {
                   tabIndex={-1}
                   data-reveal
                   style={d(1)}
-                  className="mt-5 font-display text-[clamp(4rem,10vw,8.75rem)] font-semibold leading-[0.88] tracking-[-0.065em]"
+                  className="mt-5 font-display text-[clamp(4rem,10vw,8.75rem)] font-normal leading-[0.88] tracking-[-0.065em]"
                 >
                   <Kinetic text={c.profile.displayName} />
                   <span aria-hidden="true" className="text-accent">
@@ -127,7 +127,7 @@ export default function Page() {
                   </span>
                   <span
                     lang="zh-Hans"
-                    className="mt-4 block font-['Noto_Sans_SC',sans-serif] text-[0.34em] font-medium tracking-[0.12em] text-muted"
+                    className="mt-4 block font-sans text-[0.34em] font-medium tracking-[0.12em] text-muted"
                   >
                     {c.profile.chineseName}
                   </span>
@@ -169,14 +169,14 @@ export default function Page() {
                         aria-label="Portrait placeholder — image not yet added"
                         className="hatch grid aspect-[4/5] max-h-[48vh] w-full place-items-center rounded-[9px]"
                       >
-                        <span className="font-mono text-xs text-muted">
+                        <span className="font-sans text-xs text-muted">
                           Portrait coming soon
                         </span>
                       </div>
                     )}
                   </div>
                 )}
-                <p className="mt-6 font-mono text-xs text-muted">Off-screen</p>
+                <p className="mt-6 font-sans text-xs text-muted">Off-screen</p>
                 <ul className="mt-2 flex flex-wrap gap-2">
                   {INTERESTS.map((t, i) => (
                     <li
@@ -225,7 +225,7 @@ export default function Page() {
                       className="-mx-6 -mt-6 mb-5 h-3 border-b-[1.5px] border-fg"
                       style={{ background: vivid(i) }}
                     />
-                    <div className="flex items-center justify-between gap-3 font-mono text-xs text-muted">
+                    <div className="flex items-center justify-between gap-3 font-sans text-xs text-muted">
                       <span>{String(i + 1).padStart(2, "0")}</span>
                       <span className="rounded-md border border-fg px-2 py-0.5 text-fg">
                         {e.dates}
@@ -304,7 +304,7 @@ export default function Page() {
                       key={k}
                       className="grid gap-1 py-4 sm:grid-cols-[120px_1fr] sm:gap-6"
                     >
-                      <dt className="flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-accent sm:pt-0.5">
+                      <dt className="flex items-center gap-2 font-sans text-xs uppercase tracking-wider text-accent sm:pt-0.5">
                         <span
                           aria-hidden="true"
                           className="size-2.5 shrink-0 rounded-full border border-fg"
@@ -333,11 +333,11 @@ export default function Page() {
           >
             <div className="grid grid-cols-1 gap-14 lg:grid-cols-2 lg:items-end lg:gap-16">
               <div data-reveal style={d(1)}>
-                <p className="mb-4 font-mono text-xs text-muted">Now playing</p>
+                <p className="mb-4 font-sans text-xs text-muted">Now playing</p>
                 <CDPlayer />
               </div>
               <div data-reveal style={d(2)}>
-                <p className="mb-4 font-mono text-xs text-muted">Bookshelf</p>
+                <p className="mb-4 font-sans text-xs text-muted">Bookshelf</p>
                 <Bookshelf books={c.books} />
               </div>
             </div>
@@ -374,7 +374,7 @@ export default function Page() {
             <div data-reveal style={d(2)}>
               <ContactLinks contacts={c.contacts} size="lg" />
             </div>
-            <footer className="mt-16 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-6 font-mono text-xs text-muted">
+            <footer className="mt-16 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-6 font-sans text-xs text-muted">
               <p>
                 © {c.profile.displayName} ·{" "}
                 <span lang="zh-Hans">{c.profile.chineseName}</span>

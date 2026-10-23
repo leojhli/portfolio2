@@ -1,5 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300..800&family=Geist+Mono:wght@400..600&family=Noto+Sans+SC:wght@400;500;700&family=Petrona:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..600&family=Hanken+Grotesk:wght@300..800&family=Noto+Sans+SC:wght@400;500;700&display=swap');
 @import 'tailwindcss';
+@import './links.css';
 
 @custom-variant hz (&:where(html[data-layout='h'] *));
 
@@ -20,9 +21,9 @@
   --color-v1: var(--c-v1); --color-v2: var(--c-v2); --color-v3: var(--c-v3);
   --color-on-v1: var(--c-on-v1); --color-on-v2: var(--c-on-v2); --color-on-v3: var(--c-on-v3);
   --color-ink: var(--c-ink); --color-on-ink: var(--c-on-ink); --color-paper: var(--c-paper); --color-on-paper: var(--c-on-paper);
-  --font-sans: 'Figtree', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-sans: 'Hanken Grotesk', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --font-mono: 'Geist Mono', 'Noto Sans SC', 'PingFang SC', ui-monospace, monospace;
-  --font-display: 'Petrona', 'Noto Sans SC', Georgia, 'Times New Roman', serif;
+  --font-display: var(--font-sans);
 }
 
 /* Dark Graphite before preferences hydrate. */
@@ -64,7 +65,7 @@
 @layer base {
   html { background: var(--c-bg); color: var(--c-fg); }
   body {
-    font-family: var(--font-sans); line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: clip;
+    font-family: var(--font-sans); font-weight: 300; line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: clip;
     background-image:
       linear-gradient(color-mix(in oklab, var(--c-fg) 2%, transparent) 1px, transparent 1px),
       linear-gradient(90deg, color-mix(in oklab, var(--c-fg) 2%, transparent) 1px, transparent 1px),
@@ -75,7 +76,7 @@
     background-attachment: fixed;
   }
   html[data-mode='ascii'] body {
-    font-family: var(--font-mono); font-size: 15px;
+    font-size: 15px;
     background-image: radial-gradient(color-mix(in oklab, var(--c-v1) 35%, transparent) 1px, transparent 1.5px);
     background-size: 18px 18px;
   }
@@ -83,16 +84,15 @@
   ::selection { background: var(--c-accent-fill); color: var(--c-on-accent-fill); }
 }
 
-/* The reference uses light serif headings, overriding the earlier bold display utilities. */
-html:not([data-mode='ascii']) :is(h1, h2, h3, h4) {
-  font-family: var(--font-display); font-weight: 400; letter-spacing: 0;
+/* One restrained sans family throughout the interface, including the hero name. */
+:is(h1, h2, h3, h4) {
+  font-family: var(--font-sans); font-weight: 400; letter-spacing: 0;
 }
-html[data-mode='ascii'] { --font-display: var(--font-mono); }
 
 /* The monogram inherits every palette, including both light and dark surfaces. */
 .brand-home {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
-  width: 44px; height: 44px; border-radius: 10px; color: var(--c-fg);
+  width: 44px; height: 44px; border-radius: 4px; color: var(--c-fg);
   transition: color 160ms ease, background-color 160ms ease;
 }
 .brand-home:hover { color: var(--c-accent); background-color: var(--c-surface); }
@@ -117,7 +117,6 @@ html[data-layout='h'] .panel > :not(.ghost-num) { width: 100%; max-width: 1240px
 /* Hard-stop strip of all five swatches. */
 .palette-strip { background: linear-gradient(90deg, var(--c-s1) 0 20%, var(--c-s2) 20% 40%, var(--c-s3) 40% 60%, var(--c-s4) 60% 80%, var(--c-s5) 80%); }
 .vivid-bar { background: linear-gradient(90deg, var(--c-v1), var(--c-v2), var(--c-v3)); }
-html[data-mode='ascii'] .ghost-num { font-family: var(--font-mono); }
 
 /* Content is readable even if the decorative renderer is unavailable. */
 html[data-motion='on'] .soft-reveal { animation: soft-reveal 420ms ease-out both; }
@@ -175,8 +174,6 @@ html[data-motion='on'] .nudge { animation: nudge 1.8s ease-in-out infinite; }
 .game-tile:hover, .game-tile:focus-visible, .game-tile[data-open='true'] { background: var(--c-accent-fill); color: var(--c-on-accent-fill); border-color: var(--c-muted); box-shadow: 0 2px 6px color-mix(in oklab, var(--c-fg) 8%, transparent); }
 html[data-mode='ascii'] .game-tile { background: transparent; color: var(--c-fg); }
 .game-tile svg, .game-tile img { transition: transform 0.5s cubic-bezier(0.34, 1.8, 0.64, 1); }
-.nav-link { background: linear-gradient(90deg, var(--c-v1), var(--c-v2), var(--c-v3)) left bottom / 0% 3px no-repeat; transition: background-size 0.3s ease, color 0.2s; }
-.nav-link:hover, .nav-link[aria-current='true'] { background-size: 100% 3px; color: var(--c-fg); }
 
 /* ---------- Motion-driven bits ---------- */
 [data-spring] { transition: transform 520ms cubic-bezier(0.34, 1.56, 0.64, 1); }

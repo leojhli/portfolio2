@@ -39,7 +39,7 @@ export function Panel({
         {index}
       </span>
       <div data-reveal className="relative mb-10">
-        <p className="font-mono text-xs text-muted">
+        <p className="font-sans text-xs text-muted">
           {ascii ? (
             <>
               [<span className="text-accent">{index}</span>] {kicker}
@@ -53,7 +53,7 @@ export function Panel({
         <h2
           id={`${id}-h`}
           tabIndex={-1}
-          className="mt-3 font-display text-[clamp(2.25rem,4.4vw,3.75rem)] font-semibold leading-none tracking-[-0.045em]"
+          className="mt-3 font-display text-[clamp(2.25rem,4.4vw,3.75rem)] font-normal leading-none tracking-[-0.045em]"
         >
           {title}
           {accent && <span className="text-accent"> {accent}</span>}
@@ -90,14 +90,6 @@ export function Kinetic({
   )
 }
 
-const Dot = ({ i }: { i: number }) => (
-  <span
-    aria-hidden="true"
-    className="size-2.5 shrink-0 rounded-full border border-fg"
-    style={{ background: `var(--c-v${((i + 1) % 3) + 1})` }}
-  />
-)
-
 export function ContactLinks({
   contacts,
   size = "md",
@@ -107,10 +99,10 @@ export function ContactLinks({
 }) {
   const { mode } = usePrefs()
   const ascii = mode === "ascii"
-  const sz = size === "lg" ? "text-lg min-h-14 px-6" : "text-sm"
+  const sz = size === "lg" ? "text-lg" : "text-sm"
   return (
-    <ul className="flex flex-wrap gap-3">
-      {contacts.map((c, i) => (
+    <ul className="flex flex-wrap gap-x-6 gap-y-1">
+      {contacts.map((c) => (
         <li key={c.id}>
           {c.href ? (
             <a
@@ -118,20 +110,18 @@ export function ContactLinks({
               {...(c.id !== "email" && !c.href.startsWith("/")
                 ? { target: "_blank", rel: "noreferrer" }
                 : {})}
-              className={`pop ${sz} ${i === 0 ? "pop-accent" : ""}`}
+              className={`contact-link ${sz}`}
             >
-              <Dot i={i} />
               {ascii ? `[ ${c.label} ]` : c.label}
               <Icon name="arrow" size={16} />
             </a>
           ) : (
             <span
-              className={`pop pop-off ${sz}`}
+              className={`contact-link text-link-off ${sz}`}
               title={`${c.label} link not yet added`}
             >
-              <Dot i={i} />
               {ascii ? `[ ${c.label} ]` : c.label}
-              <span className="font-mono text-[10px] font-normal uppercase tracking-wider">
+              <span className="font-sans text-[10px] font-normal uppercase tracking-wider">
                 soon
               </span>
             </span>
@@ -162,7 +152,7 @@ export function AsciiArt({
       >
         {art}
       </pre>
-      <p aria-hidden="true" className="font-mono text-sm text-muted sm:hidden">
+      <p aria-hidden="true" className="font-sans text-sm text-muted sm:hidden">
         {fallback}
       </p>
     </figure>

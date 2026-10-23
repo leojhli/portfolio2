@@ -148,9 +148,12 @@ function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
     imageCalls: [],
     textCalls: [],
     frameCalls: [],
+    clearCalls: [],
     setTransform() {},
-    clearRect() {
-      this.frameCalls = []
+    clearRect(...args) {
+      if (this.clearCalls.length < 5000) this.clearCalls.push(args)
+      if (args[2] === innerWidth && args[3] === innerHeight)
+        this.frameCalls = []
     },
     beginPath() {},
     roundRect() {},
@@ -350,7 +353,7 @@ test("the liquid interaction stays local and never translates page elements", ()
   d.body.style.backgroundPosition = "8px 12px"
   d.body.insertAdjacentHTML(
     "beforeend",
-    '<header><a href="#example">Navigation</a></header><p style="filter:contrast(1.1);translate:2px 3px">Unmarked text <span>nested label</span></p><span>Metadata</span><button>Button</button>',
+    '<header><a class="nav-link" href="#example">Navigation</a></header><p style="filter:contrast(1.1);translate:2px 3px">Unmarked text <span>nested label</span></p><span>Metadata</span><button>Button</button>',
   )
   const nodes = [...d.querySelectorAll("header,p,span,button,a")]
   const styles = nodes.map((el) => el.getAttribute("style"))
@@ -371,6 +374,12 @@ test("the liquid interaction stays local and never translates page elements", ()
       styles,
     )
     assert.equal(d.body.style.backgroundPosition, "8px 12px")
+    assert.ok(
+      canvas._ctx.clearCalls.some(
+        ([x, y, w, h]) => x === 40 && y === 321 && w === 500 && h === 2,
+      ),
+      "the liquid overlay exposes the native animated underline",
+    )
     for (const {
       args: [x, y, w, h],
     } of canvas._ctx.frameCalls) {

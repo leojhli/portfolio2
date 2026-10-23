@@ -163,14 +163,14 @@ export default function Games({ games }: { games: Game[] }) {
               ...TILE[gi % 5],
             } as CSSProperties
             const inner = ascii ? (
-              <span className="font-mono text-sm">[{short[g.id]}]</span>
+              <span className="font-sans text-sm">[{short[g.id]}]</span>
             ) : (
               <Mark g={g} />
             )
             const tip = (
               <span
                 aria-hidden="true"
-                className={`pointer-events-none absolute bottom-full left-1/2 z-30 mb-3 -translate-x-1/2 whitespace-nowrap rounded-md border border-fg bg-fg px-2.5 py-1 font-mono text-xs text-bg ${
+                className={`pointer-events-none absolute bottom-full left-1/2 z-30 mb-3 -translate-x-1/2 whitespace-nowrap rounded-md border border-fg bg-fg px-2.5 py-1 font-sans text-xs text-bg ${
                   tapped === g.id
                     ? "block"
                     : "hidden group-hover:block group-focus-visible:block"
@@ -220,7 +220,7 @@ export default function Games({ games }: { games: Game[] }) {
             )
           })}
         </ul>
-        <p className="mt-6 font-mono text-xs text-muted">
+        <p className="mt-6 font-sans text-xs text-muted">
           Hover, focus or tap a tile to preview its clip.
         </p>
       </div>

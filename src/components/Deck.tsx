@@ -367,7 +367,7 @@ export default function Deck({
       </p>
       <div
         data-deck-status
-        className="fixed inset-x-0 bottom-0 z-30 hidden h-14 items-center gap-6 border-t border-line bg-bg/85 px-8 font-mono text-xs text-muted backdrop-blur hz:flex"
+        className="fixed inset-x-0 bottom-0 z-30 hidden h-14 items-center gap-6 border-t border-line bg-bg/85 px-8 font-sans text-xs text-muted backdrop-blur hz:flex"
       >
         <span className="w-16 shrink-0 tabular-nums text-fg">
           {pad(index + 1)}

@@ -171,7 +171,7 @@ export default function Controls() {
         >
           {() => (
             <fieldset>
-              <legend className="mb-2 flex w-full items-baseline justify-between font-mono text-xs uppercase tracking-wide text-muted">
+              <legend className="mb-2 flex w-full items-baseline justify-between font-sans text-xs uppercase tracking-wide text-muted">
                 Palette{" "}
                 <span className="normal-case tracking-normal">
                   {PALETTES.length} sets · 5 colours each
@@ -180,7 +180,7 @@ export default function Controls() {
               <div className="max-h-[min(65vh,32rem)] space-y-4 overflow-y-auto pr-1">
                 {PALETTE_GROUPS.map((group) => (
                   <fieldset key={group.name}>
-                    <legend className="mb-1 px-2 font-mono text-xs text-muted">
+                    <legend className="mb-1 px-2 font-sans text-xs text-muted">
                       {group.name}
                     </legend>
                     <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
@@ -205,7 +205,7 @@ export default function Controls() {
                           {p.palette.id === def.id && (
                             <span
                               aria-hidden="true"
-                              className="font-mono text-xs text-accent"
+                              className="font-sans text-xs text-accent"
                             >
                               ●
                             </span>
@@ -241,7 +241,7 @@ export default function Controls() {
         {() => (
           <>
             <fieldset>
-              <legend className="mb-2 font-mono text-xs uppercase tracking-wide text-muted">
+              <legend className="mb-2 font-sans text-xs uppercase tracking-wide text-muted">
                 Motion
               </legend>
               {(["system", "on", "off"] as MotionPref[]).map((m) => (

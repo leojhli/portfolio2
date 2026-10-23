@@ -19,7 +19,9 @@ The pointer canvas has no hit area and never rewrites semantic text. Selected te
 
 ## Typography and curated themes
 
-The screenshot's typography is Petrona for regular serif headings and Figtree for body text, identified from [Aaron Ye's portfolio](https://aaronye.dev/). Geist Mono and Chinese fallbacks remain available, and ASCII presentation keeps monospace typography.
+The interface uses **Hanken Grotesk** throughout, verified from [Sofia Bodnar's public font declarations](https://sofiabodnar.com/). This includes the hero name, headings, body text, navigation, controls, metadata and labels. Body text uses the reference's lighter 300 weight and headings use 400. Chinese characters use the existing sans fallback; Geist Mono is reserved for fixed-width ASCII artwork and character rendering.
+
+Text links use a faint one-pixel baseline with a current-color line that grows from left to right on hover or keyboard focus over 350ms. Section navigation uses the same hairline treatment, with active sections underlined. Contact and project links are plain text instead of raised pills. The liquid overlay exposes these thin feedback lines so the native CSS animation stays visible while nearby pixels move. Motion Off makes these state changes instant. Link hit targets remain at least 44px high, and focus indicators remain visible.
 
 Four restrained palettes lead the theme picker. They adapt the design language of portfolios actually listed in the Waterloo webrings:
 

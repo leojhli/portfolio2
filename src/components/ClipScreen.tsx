@@ -189,7 +189,7 @@ export default function ClipScreen({
 
         <div
           aria-hidden="true"
-          className={`pointer-events-none absolute inset-x-0 top-0 flex justify-between p-3 font-mono text-[11px] uppercase tracking-wider ${
+          className={`pointer-events-none absolute inset-x-0 top-0 flex justify-between p-3 font-sans text-[11px] uppercase tracking-wider ${
             ascii ? "text-muted" : ""
           }`}
         >
@@ -224,7 +224,7 @@ export default function ClipScreen({
               </button>
             ) : (
               <p
-                className={`px-3 py-2 text-center font-mono text-xs uppercase tracking-wider ${
+                className={`px-3 py-2 text-center font-sans text-xs uppercase tracking-wider ${
                   ascii
                     ? "bg-bg"
                     : "rounded-md border-[1.5px] border-fg bg-paper text-on-paper shadow-[3px_3px_0_var(--c-fg)]"
@@ -255,7 +255,7 @@ export default function ClipScreen({
           </button>
         )}
       </div>
-      <figcaption className="mt-3 flex items-baseline justify-between gap-3 font-mono text-xs text-muted">
+      <figcaption className="mt-3 flex items-baseline justify-between gap-3 font-sans text-xs text-muted">
         <span className="truncate text-fg">
           {game?.name ?? "Nothing selected"}
         </span>

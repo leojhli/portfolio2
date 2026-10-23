@@ -1,0 +1,85 @@
+/* Quiet text links: a soft hairline fills from left to right on interaction. */
+.text-link,
+.contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0.55rem 0;
+  color: var(--c-fg);
+  font-weight: 400;
+  line-height: 1.4;
+  text-decoration: none;
+  background-image:
+    linear-gradient(currentColor, currentColor),
+    linear-gradient(
+      color-mix(in oklab, currentColor 25%, transparent),
+      color-mix(in oklab, currentColor 25%, transparent)
+    );
+  background-size: 0% 1px, 100% 1px;
+  background-position: left calc(50% + 0.65em);
+  background-repeat: no-repeat;
+  transition: background-size 350ms ease, color 200ms ease;
+}
+
+.text-link:hover,
+.contact-link:hover,
+.text-link:focus-visible,
+.contact-link:focus-visible {
+  background-size: 100% 1px, 100% 1px;
+}
+
+.text-link:focus-visible,
+.contact-link:focus-visible {
+  outline-offset: 4px;
+}
+
+.text-link-off {
+  color: var(--c-muted);
+  background: none;
+  cursor: default;
+}
+
+/* Keep icons steady; the underline shows interaction. */
+.text-link svg,
+.contact-link svg {
+  flex: none;
+  transform: none;
+}
+
+/* Section navigation uses the same restrained one-pixel line. */
+.nav-link {
+  position: relative;
+  background: none;
+  text-decoration: none;
+  transition: color 200ms ease;
+}
+
+.nav-link::after {
+  position: absolute;
+  content: "";
+  height: 1px;
+  inset-inline: 0.5rem;
+  bottom: 0.5rem;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 350ms ease;
+}
+
+.nav-link:hover,
+.nav-link:focus-visible,
+.nav-link[aria-current="true"] {
+  color: var(--c-fg);
+}
+
+.nav-link:hover::after,
+.nav-link:focus-visible::after,
+.nav-link[aria-current="true"]::after {
+  transform: scaleX(1);
+}
+
+html[data-motion="off"] :is(.text-link, .contact-link, .nav-link),
+html[data-motion="off"] .nav-link::after {
+  transition: none;
+}

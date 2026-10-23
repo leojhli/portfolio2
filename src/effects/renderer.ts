@@ -62,6 +62,11 @@ export function createRenderer(
     key: string
     samples: Fragment[]
     cover: string
+    lines: Array<{
+      left: number
+      top: number
+      width: number
+    }>
   } | null = null
   let animations: Animation[] = []
   const screenLayers = new Set<HTMLElement>()
@@ -173,6 +178,31 @@ export function createRenderer(
           getComputedStyle(document.documentElement)
             .getPropertyValue("--c-bg")
             .trim() || "#0d0d0d",
+        // Leave the one-pixel UI feedback in the live DOM, above displaced
+        // pixels. The browser remains responsible for its native CSS timing.
+        lines: [
+          ...document.querySelectorAll<HTMLElement>(
+            "a.nav-link,a.text-link,a.contact-link",
+          ),
+        ].flatMap((link) => {
+          const rect = link.getBoundingClientRect()
+          if (!rect.width || rect.bottom < 0 || rect.top > innerHeight)
+            return []
+          const font = parseFloat(getComputedStyle(link).fontSize) || 16
+          const rem =
+            parseFloat(getComputedStyle(document.documentElement).fontSize) ||
+            16
+          const top = link.classList.contains("nav-link")
+            ? rect.bottom - rem * 0.5 - 1
+            : rect.top + (rect.height - 1) / 2 + font * 0.65
+          return [
+            {
+              left: Math.floor(rect.left),
+              top: Math.floor(top),
+              width: Math.ceil(rect.width),
+            },
+          ]
+        }),
       }
       refreshed = true
     }
@@ -224,8 +254,11 @@ export function createRenderer(
         captureLocal(pointer, now)
       }
       moving = liquid.paint(ctx, now, ascii())
-      if (liquid.size()) canvas.dataset.liquidActive = ""
-      else {
+      if (liquid.size()) {
+        canvas.dataset.liquidActive = ""
+        for (const line of patch?.lines ?? [])
+          ctx.clearRect(line.left, line.top, line.width, 2)
+      } else {
         delete canvas.dataset.liquidActive
         if (!pointer) patch = null
       }

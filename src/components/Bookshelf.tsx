@@ -62,7 +62,7 @@ export default function Bookshelf({ books }: { books: Book[] }) {
                     aria-label={`${b.title} by ${b.author}, ${b.status.toLowerCase()}`}
                     className={
                       ascii
-                        ? "min-h-11 border border-dashed border-muted px-2 py-2 font-mono text-xs hover:text-accent"
+                        ? "min-h-11 border border-dashed border-muted px-2 py-2 font-sans text-xs hover:text-accent"
                         : "spine relative flex w-10 flex-col items-center justify-between overflow-hidden rounded-[4px] border-[1.5px] border-fg pb-2 pt-2.5 sm:w-full"
                     }
                     style={
@@ -116,7 +116,7 @@ export default function Bookshelf({ books }: { books: Book[] }) {
           </li>
         ))}
       </ul>
-      <p className="mt-3 font-mono text-xs text-muted sm:hidden">
+      <p className="mt-3 font-sans text-xs text-muted sm:hidden">
         Scroll the shelf sideways →
       </p>
 
@@ -148,7 +148,7 @@ export default function Bookshelf({ books }: { books: Book[] }) {
                 />
               )}
               <div className="min-w-0 flex-1">
-                <p className="font-mono text-xs uppercase tracking-wide text-muted">
+                <p className="font-sans text-xs uppercase tracking-wide text-muted">
                   {active.status}
                 </p>
                 <h3 id="book-title" className="mt-1 text-xl font-medium">
@@ -160,7 +160,7 @@ export default function Bookshelf({ books }: { books: Book[] }) {
                     {active.tags.map((t) => (
                       <li
                         key={t}
-                        className="rounded-md border border-line px-2 py-0.5 font-mono text-[11px] text-muted"
+                        className="rounded-md border border-line px-2 py-0.5 font-sans text-[11px] text-muted"
                       >
                         {t}
                       </li>

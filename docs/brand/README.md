@@ -1,6 +1,6 @@
 # Leo Li monogram
 
-Two nested Ls share softened elbows and parallel cut ends. The square construction suggests a modular interface; the rounded turns connect it to the site's liquid interaction. It works as a single-color mark without gradients or fine detail.
+Two forward-leaning Ls use square elbows, broad stems and parallel 45-degree cut ends. The offset shapes form a compact, angular signature with a clear negative-space channel. The mark uses only straight edges and works in a single color without gradients or fine detail.
 
 - `src/components/Logo.tsx`: inline header mark; inherits the active palette's foreground color, including light/dark and ASCII presentation.
 - `public/logo.svg`: transparent vector master in dark ink.

@@ -60,7 +60,7 @@ export default function CDPlayer() {
         )}
       </div>
       <div className="min-w-0">
-        <p className="flex justify-between gap-3 font-mono text-xs uppercase tracking-wide text-muted">
+        <p className="flex justify-between gap-3 font-sans text-xs uppercase tracking-wide text-muted">
           <span aria-live="polite">{LABEL[a.status]}</span>
           {a.tracks.length > 1 && <span className="tabular-nums">{a.index + 1} / {a.tracks.length}</span>}
         </p>
@@ -73,7 +73,7 @@ export default function CDPlayer() {
           </button>
           <button type="button" className={btn} disabled={off || single} onClick={a.next} aria-label="Next track"><Icon name="next" size={16} /></button>
         </div>
-        <div className="mt-4 flex items-center gap-3 font-mono text-xs text-muted">
+        <div className="mt-4 flex items-center gap-3 font-sans text-xs text-muted">
           <span className="w-10 text-right">{fmt(a.time)}</span>
           <input type="range" aria-label="Seek" min={0} max={a.duration || 0} step={0.1} value={Math.min(a.time, a.duration || 0)} disabled={off || !a.duration} onChange={(e) => a.seek(Number(e.target.value))} className="min-h-11 min-w-0 flex-1 accent-[var(--c-accent)] disabled:opacity-40" />
           <span className="w-10">{a.duration ? fmt(a.duration) : '--:--'}</span>

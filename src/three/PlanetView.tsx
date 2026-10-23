@@ -72,7 +72,7 @@ export default function PlanetView({
           onClick={() => onSelect(i)}
           onPointerEnter={() => onHover(i)}
           onPointerLeave={() => onHover(-1)}
-          className={`planet-label absolute left-0 top-0 cursor-pointer whitespace-nowrap rounded-full border-[1.5px] border-fg px-2.5 py-0.5 font-mono text-[11px] shadow-[2px_2px_0_var(--c-fg)] ${
+          className={`planet-label absolute left-0 top-0 cursor-pointer whitespace-nowrap rounded-full border-[1.5px] border-fg px-2.5 py-0.5 font-sans text-[11px] shadow-[2px_2px_0_var(--c-fg)] ${
             i === selected
               ? "bg-accent-fill text-on-accent-fill"
               : i === hovered

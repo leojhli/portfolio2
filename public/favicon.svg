@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42" fill="none">
   <title>Leo Li</title>
-  <rect width="42" height="42" rx="9" fill="#0d0d0d"/>
-  <path fill="#f3f3f3" d="M5 6H11V28C11 29.105 11.895 30 13 30H37L31 36H11C7.686 36 5 33.314 5 30V6ZM19 6H25V17C25 18.105 25.895 19 27 19H37L31 25H25C21.686 25 19 22.314 19 19V6Z"/>
+  <rect width="42" height="42" fill="#0d0d0d"/>
+  <path fill="#f3f3f3" d="M11 6H19L11.8 30H35L29 36H2L11 6ZM26 6H34L30.4 18H40L34 24H20.6L26 6Z"/>
 </svg>

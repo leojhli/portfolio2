@@ -44,7 +44,7 @@ export default function Pool() {
           </Suspense>
         )}
       </div>
-      <figcaption className="flex items-center justify-between gap-3 border-t-[1.5px] border-fg px-5 py-3 font-mono text-xs">
+      <figcaption className="flex items-center justify-between gap-3 border-t-[1.5px] border-fg px-5 py-3 font-sans text-xs">
         <span className="flex items-center gap-2">
           <span
             aria-hidden="true"

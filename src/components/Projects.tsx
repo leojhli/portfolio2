@@ -101,7 +101,7 @@ export default function Projects({ projects }: { projects: Project[] }) {
               onFail={() => setFailed(true)}
             />
           </Suspense>
-          <p className="mt-2 text-center font-mono text-xs text-muted">
+          <p className="mt-2 text-center font-sans text-xs text-muted">
             {ascii
               ? "< drag to spin · click a landmark >"
               : "Drag to spin · click a landmark"}
@@ -136,14 +136,14 @@ export default function Projects({ projects }: { projects: Project[] }) {
               >
                 <span
                   aria-hidden="true"
-                  className={`grid size-8 shrink-0 place-items-center rounded-md border-[1.5px] border-fg font-mono text-xs font-semibold ${tone(i)}`}
+                  className={`grid size-8 shrink-0 place-items-center rounded-md border-[1.5px] border-fg font-sans text-xs font-semibold ${tone(i)}`}
                 >
                   {pad(i)}
                 </span>
                 <span className="min-w-0 flex-1 truncate font-medium">
                   {x.title}
                 </span>
-                <span className="shrink-0 font-mono text-[11px] text-muted">
+                <span className="shrink-0 font-sans text-[11px] text-muted">
                   {NAMES[x.landmark]}
                 </span>
               </button>
@@ -163,10 +163,10 @@ export default function Projects({ projects }: { projects: Project[] }) {
               ascii ? "!bg-transparent !text-fg border-dashed" : ""
             }`}
           >
-            <span className="font-mono text-4xl font-semibold leading-none tracking-tighter">
+            <span className="font-sans text-4xl font-semibold leading-none tracking-tighter">
               {pad(sel)}
             </span>
-            <span className="ml-auto font-mono text-[11px] uppercase tracking-wider">
+            <span className="ml-auto font-sans text-[11px] uppercase tracking-wider">
               {NAMES[items[sel].landmark]}
             </span>
           </div>
@@ -184,16 +184,16 @@ export default function Projects({ projects }: { projects: Project[] }) {
               {p.technologies.map((x, i) => (
                 <li
                   key={x}
-                  className={`rounded-md border border-fg px-2 py-0.5 font-mono text-xs ${SWATCH[i % 5]}`}
+                  className={`rounded-md border border-fg px-2 py-0.5 font-sans text-xs ${SWATCH[i % 5]}`}
                 >
                   {x}
                 </li>
               ))}
             </ul>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap gap-x-6 gap-y-1">
               {p.repoUrl ? (
                 <a
-                  className="pop pop-sm"
+                  className="text-link text-sm"
                   href={p.repoUrl}
                   target="_blank"
                   rel="noreferrer"
@@ -201,11 +201,13 @@ export default function Projects({ projects }: { projects: Project[] }) {
                   Repository
                 </a>
               ) : (
-                <span className="pop pop-sm pop-off">repo · soon</span>
+                <span className="text-link text-link-off text-sm">
+                  repo · soon
+                </span>
               )}
               {p.liveUrl ? (
                 <a
-                  className="pop pop-sm pop-accent"
+                  className="text-link text-sm"
                   href={p.liveUrl}
                   target="_blank"
                   rel="noreferrer"
@@ -213,7 +215,9 @@ export default function Projects({ projects }: { projects: Project[] }) {
                   Live
                 </a>
               ) : (
-                <span className="pop pop-sm pop-off">live · soon</span>
+                <span className="text-link text-link-off text-sm">
+                  live · soon
+                </span>
               )}
             </div>
           </div>
