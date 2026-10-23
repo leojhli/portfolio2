@@ -16,15 +16,6 @@ export const noise = (n: number) => {
   return x - Math.floor(x)
 }
 
-export function farthestCorner(p: Point, width: number, height: number) {
-  return Math.hypot(Math.max(p.x, width - p.x), Math.max(p.y, height - p.y))
-}
-
-export function rippleAt(age: number, reach: number, duration = 900) {
-  const p = clamp(age / duration)
-  return { radius: reach * (1 - (1 - p) ** 2), alpha: (1 - p) ** 1.4 }
-}
-
 /** Scatter, curved travel, then settle exactly onto the destination silhouette. */
 export function assemblyAt(
   from: Point,
@@ -47,16 +38,6 @@ export function assemblyAt(
       (to.y - from.y) * travel +
       Math.sin(angle) * envelope * reach * 0.65,
   }
-}
-
-export function dustAt(
-  origin: Point,
-  direction: Point,
-  progress: number,
-): Point {
-  const p = clamp(progress)
-  const lift = Math.sin(Math.PI * p) * 22
-  return { x: origin.x + direction.x * lift, y: origin.y + direction.y * lift }
 }
 
 export function particleBudget(width: number, height: number, coarse: boolean) {

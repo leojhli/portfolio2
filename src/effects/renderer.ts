@@ -1,33 +1,18 @@
 import {
   assemblyAt,
   clamp,
-  dustAt,
-  farthestCorner,
   noise,
   particleBudget,
-  rippleAt,
   type Point,
 } from "./geometry"
 import { captureRaster, snapshot, type Fragment } from "./snapshot"
 import { createScreenTransition, type ScreenTransition } from "./screen"
 import { screenVariant } from "./screenGeometry"
+import { createLiquidField } from "./liquid"
+import { LIQUID_INFLUENCE } from "./liquidGeometry"
 import type { EffectDriver, EffectOptions } from "./coordinator"
 import { visiblePanel } from "./coordinator"
 
-type Dust = {
-  source: Fragment
-  direction: Point
-  born: number
-  life: number
-  cover: string
-  gain: number
-}
-type Wave = Point & {
-  born: number
-  reach: number
-  samples: Fragment[]
-  emitted: Set<number>
-}
 type Flight = {
   from: Fragment
   to: Fragment
@@ -42,22 +27,9 @@ type Sequence = {
   done?: () => void
 }
 const GLYPHS = "+*:#=%@"
-const REACTIVE =
-  "h1,h2,h3,h4,p,li,dt,dd,span,figcaption,button,a,input,textarea,select,svg,img,canvas,pre,.card,.box,.stage,.ghost-num,.palette-strip,.planet-label,[data-fx]"
-type Nearby = {
-  el: HTMLElement
-  x: number
-  y: number
-  targetX: number
-  targetY: number
-  updated: number
-  seen: number
-  translate: string
-  baseX: string
-  baseY: string
-}
+const TILE = 64
 
-/** One scheduler owns particles, ripples and temporary reveal animations. */
+/** One scheduler owns a local liquid field and explicit navigation/reveal effects. */
 export function createRenderer(
   canvas: HTMLCanvasElement,
 ): EffectDriver & { dispose(): void } {
@@ -72,113 +44,70 @@ export function createRenderer(
       dispose() {},
     }
   const ctx = context
+  const liquid = createLiquidField()
   let raf = 0,
-    pendingMorph = 0
-  let dust: Dust[] = [],
-    waves: Wave[] = [],
-    sequence: Sequence | null = null
+    pendingMorph = 0,
+    turn = 0
+  let sequence: Sequence | null = null
   let screen: {
     effect: ScreenTransition
     born: number
     life: number
   } | null = null
-  let turn = 0
   let pendingRaster: HTMLCanvasElement | null = null
-  let cursor: Point | null = null
-  let backdrop: {
-    x: number
-    y: number
-    at: number
+  let pointer: Point | null = null
+  let pointerDirty = false
+  let patch: {
+    root: HTMLElement
+    key: string
+    samples: Fragment[]
+    cover: string
   } | null = null
   let animations: Animation[] = []
-  const nearby = new Map<HTMLElement, Nearby>()
   const screenLayers = new Set<HTMLElement>()
-  let waveCache: {
-    root: HTMLElement
-    at: number
-    samples: Fragment[]
-  } | null = null
-  let candidates: HTMLElement[] = [],
-    candidatesAt = -Infinity
-  const backgroundPosition = document.body.style.backgroundPosition
-  const restoreNearby = (n: Nearby) => {
-    n.el.style.translate = n.translate
-    delete n.el.dataset.proximityActive
-  }
-  const clearNearby = () => {
-    nearby.forEach(restoreNearby)
-    nearby.clear()
-    document.body.style.backgroundPosition = backgroundPosition
-  }
-  let springs: Array<{
-    el: HTMLElement
-    center: Point
-  }> = []
-  const cache = new Map<HTMLElement, {
-    at: number
-    samples: Fragment[]
-    rect: DOMRect
-  }>()
-  const seen = new Map<string, number>()
   const ascii = () => document.documentElement.dataset.mode === "ascii"
   const enabled = () =>
     document.documentElement.dataset.motion === "on" && !document.hidden
-  const coarse = () => matchMedia("(pointer: coarse)").matches
   const budget = () => {
-    const pixels = particleBudget(innerWidth, innerHeight, coarse())
-    // Glyphs occupy more space than individual pixels; retain readable ASCII.
+    const pixels = particleBudget(
+      innerWidth,
+      innerHeight,
+      matchMedia("(pointer: coarse)").matches,
+    )
     return ascii() ? Math.min(6500, pixels) : pixels
   }
-  let colors = { bg: "#faf0ca", fx: "#b24430", ink: "#1b1b1e" }
-  const refreshColors = () => {
-    const s = getComputedStyle(document.documentElement)
-    colors = {
-      bg: s.getPropertyValue("--c-bg").trim(),
-      fx: s.getPropertyValue("--c-fx").trim(),
-      ink: s.getPropertyValue("--c-fg").trim(),
-    }
-  }
+  const editing = () =>
+    document.activeElement?.matches(
+      'input,textarea,select,[contenteditable="true"]',
+    )
   const resize = () => {
     const dpr = Math.min(devicePixelRatio || 1, 2)
     canvas.width = Math.round(innerWidth * dpr)
     canvas.height = Math.round(innerHeight * dpr)
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.imageSmoothingEnabled = false
-    cache.clear()
+  }
+  const home = () => {
+    const parent = document.querySelector("dialog[open]") ?? document.body
+    if (canvas.parentElement !== parent) parent.appendChild(canvas)
   }
   const cleanAnimations = () => {
     animations.forEach((a) => a.cancel())
     animations = []
-    screenLayers.forEach((el) => {
-      delete el.dataset.screenPixelation
-    })
+    screenLayers.forEach((el) => delete el.dataset.screenPixelation)
     screenLayers.clear()
   }
-  const home = () => {
-    const dialog = document.querySelector("dialog[open]")
-    const parent = dialog ?? document.body
-    if (canvas.parentElement !== parent) parent.appendChild(canvas)
-  }
-  const resetSprings = () =>
-    springs.forEach(({ el }) => el.style.removeProperty("translate"))
   const cancel = () => {
     cancelAnimationFrame(raf)
     cancelAnimationFrame(pendingMorph)
     raf = pendingMorph = 0
     if (pendingRaster) pendingRaster.width = pendingRaster.height = 0
     pendingRaster = null
-    dust = []
-    waves = []
-    cursor = null
-    backdrop = null
-    cache.clear()
-    seen.clear()
-    resetSprings()
-    springs = []
-    clearNearby()
-    candidates = []
-    candidatesAt = -Infinity
-    waveCache = null
+    pointer = null
+    pointerDirty = false
+    patch = null
+    liquid.clear()
+    delete canvas.dataset.liquidActive
     cleanAnimations()
     const done = sequence?.done
     sequence = null
@@ -198,8 +127,6 @@ export function createRenderer(
         }
       })
   }
-  const glyph = (seed: number) =>
-    GLYPHS[Math.floor(noise(seed) * GLYPHS.length)]
   const draw = (
     p: Point,
     size: number,
@@ -209,7 +136,8 @@ export function createRenderer(
   ) => {
     ctx.globalAlpha = clamp(alpha)
     ctx.fillStyle = color
-    if (ascii()) ctx.fillText(glyph(seed), p.x, p.y)
+    if (ascii())
+      ctx.fillText(GLYPHS[Math.floor(noise(seed) * GLYPHS.length)], p.x, p.y)
     else
       ctx.fillRect(
         Math.round(p.x),
@@ -218,143 +146,37 @@ export function createRenderer(
         Math.max(1, Math.round(size)),
       )
   }
-  const safe = (el: HTMLElement) => {
-    const active = document.activeElement
-    const selection = getSelection()
-    return (
-      !el.closest("[data-effect-canvas],dialog:not([open]),.sr-only") &&
-      !(
-        active &&
-        active !== document.body &&
-        active.matches('input,textarea,select,[contenteditable="true"]') &&
-        (el.contains(active) || active.contains(el))
-      ) &&
-      !(selection && !selection.isCollapsed && selection.containsNode(el, true))
-    )
-  }
-  const visuals = (now: number) => {
-    if (now - candidatesAt > 500) {
-      candidates = [...document.querySelectorAll<HTMLElement>(REACTIVE)]
-      candidatesAt = now
-    }
-    const visible = candidates
-      .filter(safe)
-      .map((el) => ({ el, rect: el.getBoundingClientRect() }))
-      .filter(
-        ({ rect: r }) =>
-          r.width > 0 &&
-          r.height > 0 &&
-          r.left < innerWidth &&
-          r.right > 0 &&
-          r.top < innerHeight &&
-          r.bottom > 0,
-      )
-      .slice(0, 500)
-    // Move one visual group, never both a heading/card and its nested labels.
-    const groups = new Set(visible.map(({ el }) => el))
-    return visible.filter(({ el }) => {
-      for (let parent = el.parentElement; parent; parent = parent.parentElement)
-        if (groups.has(parent)) return false
-      return true
-    })
-  }
-  const reactTo = (
-    el: HTMLElement,
-    point: Point,
-    rect: DOMRect,
-    distance: number,
-    now: number,
-  ) => {
-    let n = nearby.get(el)
-    if (!n) {
-      const style = getComputedStyle(el)
-      const translate =
-        style.translate && style.translate !== "none"
-          ? style.translate.split(" ")
-          : ["0px", "0px"]
-      n = {
-        el,
-        x: 0,
-        y: 0,
-        targetX: 0,
-        targetY: 0,
-        updated: now,
-        seen: now,
-        translate: el.style.translate,
-        baseX: translate[0],
-        baseY: translate[1] || "0px",
+  const captureLocal = (point: Point, now: number) => {
+    if (editing() || !getSelection()?.isCollapsed) return
+    const root =
+      document.querySelector<HTMLElement>("dialog[open]") ??
+      visiblePanel() ??
+      document.body
+    const x = Math.floor(point.x / TILE) * TILE
+    const y = Math.floor(point.y / TILE) * TILE
+    const key = x + ":" + y + ":" + (ascii() ? "ascii" : "dynamic")
+    let refreshed = false
+    if (!patch || patch.root !== root || patch.key !== key) {
+      // Capture a bounded neighborhood once on entry. The fine grid has no random
+      // reservoir omissions and its identities remain stable while the mouse rests.
+      const region = {
+        left: Math.max(0, x - LIQUID_INFLUENCE),
+        top: Math.max(0, y - LIQUID_INFLUENCE),
+        right: Math.min(innerWidth, x + TILE + LIQUID_INFLUENCE),
+        bottom: Math.min(innerHeight, y + TILE + LIQUID_INFLUENCE),
       }
-      nearby.set(el, n)
-    }
-    const dx = rect.left + rect.width / 2 - point.x,
-      dy = rect.top + rect.height / 2 - point.y
-    // A soft center avoids the direction flip of normalizing a near-zero vector.
-    const length = Math.sqrt(dx * dx + dy * dy + 32 * 32)
-    const force =
-      (1 - distance / 140) *
-      (el.matches("button,a,input,select,textarea") ? 3 : 6)
-    n.targetX = (dx / length) * force
-    n.targetY = (dy / length) * force
-    n.seen = now
-  }
-  const updateNearby = (now: number) => {
-    for (const [el, n] of nearby) {
-      const active = now - n.seen < 100 && safe(el)
-      const ease =
-        1 - Math.exp(-Math.min(64, Math.max(0, now - n.updated)) / 75)
-      n.updated = now
-      n.x += ((active ? n.targetX : 0) - n.x) * ease
-      n.y += ((active ? n.targetY : 0) - n.y) * ease
-      if (!el.isConnected || (!active && Math.hypot(n.x, n.y) < 0.015)) {
-        restoreNearby(n)
-        nearby.delete(el)
-        continue
+      patch = {
+        root,
+        key,
+        samples: snapshot(root, 20000, false, 2, true, region),
+        cover:
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--c-bg")
+            .trim() || "#0d0d0d",
       }
-      el.style.translate = `calc(${n.baseX} + ${n.x.toFixed(2)}px) calc(${n.baseY} + ${n.y.toFixed(2)}px)`
-      el.dataset.proximityActive = ""
+      refreshed = true
     }
-  }
-  const samplesFor = (el: HTMLElement, now: number) => {
-    const old = cache.get(el),
-      rect = el.getBoundingClientRect()
-    if (
-      old &&
-      now - old.at < 400 &&
-      Math.abs(old.rect.left - rect.left) < 12 &&
-      Math.abs(old.rect.top - rect.top) < 12
-    )
-      return old.samples
-    const spacing = ascii() ? 4 : 2
-    const localBudget = Math.min(
-      coarse() ? 8000 : 18000,
-      Math.ceil((rect.width * rect.height) / (spacing * spacing)),
-    )
-    const samples = snapshot(el, localBudget, false, spacing)
-    cache.set(el, { samples, rect, at: now })
-    return samples
-  }
-  const emit = (
-    sample: Fragment,
-    center: Point,
-    now: number,
-    cover = "",
-    gain = 1,
-  ) => {
-    if (dust.length >= Math.min(ascii() ? 2400 : 10000, budget())) return
-    const key = `${Math.round(sample.x / 2)},${Math.round(sample.y / 2)}`
-    if (now - (seen.get(key) ?? -1000) < 250) return
-    seen.set(key, now)
-    const dx = sample.x - center.x,
-      dy = sample.y - center.y,
-      length = Math.hypot(dx, dy) || 1
-    dust.push({
-      source: sample,
-      direction: { x: dx / length, y: dy / length },
-      born: now,
-      life: 350,
-      cover,
-      gain,
-    })
+    liquid.add(patch.samples, patch.cover, now, refreshed)
   }
   function frame(now: number) {
     raf = 0
@@ -365,6 +187,7 @@ export function createRenderer(
     ctx.clearRect(0, 0, innerWidth, innerHeight)
     ctx.font = '600 7px "Geist Mono", monospace'
     ctx.textBaseline = "middle"
+    let moving = false
     if (screen) {
       const s = screen
       const progress = clamp((now - s.born) / s.life)
@@ -381,15 +204,11 @@ export function createRenderer(
       for (const [i, f] of s.flights.entries()) {
         const end = f.to.rank === 0 ? 0.78 : 1
         const p = clamp((age / s.life - f.delay) / (end - f.delay))
-        const position = assemblyAt(f.from, f.to, p, f.seed)
-        const opacity = s.exiting
-          ? (1 - p) * 0.85
-          : Math.sin(Math.PI * p) * 0.92
         draw(
-          position,
+          assemblyAt(f.from, f.to, p, f.seed),
           Math.max(0.8, f.to.size * (0.6 + Math.sin(Math.PI * p) * 0.4)),
           p < 0.45 ? f.from.color : f.to.color,
-          opacity,
+          s.exiting ? (1 - p) * 0.85 : Math.sin(Math.PI * p) * 0.92,
           i,
         )
       }
@@ -400,176 +219,19 @@ export function createRenderer(
         home()
       }
     } else {
-      if (cursor && !getSelection()?.toString()) {
-        refreshColors()
-        const near: HTMLElement[] = []
-        for (const { el, rect: r } of visuals(now)) {
-          const nearestX = clamp(cursor.x, r.left, r.right),
-            nearestY = clamp(cursor.y, r.top, r.bottom)
-          const distance = Math.hypot(nearestX - cursor.x, nearestY - cursor.y)
-          if (distance > 140) continue
-          reactTo(el, cursor, r, distance, now)
-          if (distance < 100) near.push(el)
-        }
-        for (const el of near) {
-          const surface = getComputedStyle(el).backgroundColor
-          for (const sample of samplesFor(el, now)) {
-            const distance = Math.hypot(
-              sample.x - cursor.x,
-              sample.y - cursor.y,
-            )
-            if (
-              distance < 100 &&
-              noise(sample.x + sample.y) < (1 - distance / 100) * 0.65
-            )
-              emit(
-                sample,
-                cursor,
-                now,
-                surface === "rgba(0, 0, 0, 0)" ? colors.bg : surface,
-              )
-          }
-        }
-        // Empty page space has the same fine pixel field, with a quiet glow and
-        // background parallax rather than depending on a nearby marked visual.
-        for (
-          let x = Math.floor((cursor.x - 90) / 6) * 6;
-          x < cursor.x + 90;
-          x += 6
-        ) {
-          for (
-            let y = Math.floor((cursor.y - 90) / 6) * 6;
-            y < cursor.y + 90;
-            y += 6
-          ) {
-            const distance = Math.hypot(x - cursor.x, y - cursor.y)
-            if (
-              x >= 0 &&
-              y >= 0 &&
-              x < innerWidth &&
-              y < innerHeight &&
-              distance < 90 &&
-              noise(x * 3 + y) < (1 - distance / 90) * 0.35
-            )
-              emit(
-                { x, y, color: colors.fx, size: 1.5, rank: 1 },
-                cursor,
-                now,
-                "",
-                0.2,
-              )
-          }
-        }
-        backdrop = {
-          x: (cursor.x / innerWidth - 0.5) * 8,
-          y: (cursor.y / innerHeight - 0.5) * 8,
-          at: now,
-        }
-        cursor = null
+      if (pointerDirty && pointer) {
+        pointerDirty = false
+        captureLocal(pointer, now)
       }
-      waves = waves.filter((w) => now - w.born < 900)
-      for (const wave of waves) {
-        const { radius, alpha } = rippleAt(now - wave.born, wave.reach)
-        const count = Math.min(
-          ascii() ? 600 : 3000,
-          Math.ceil((2 * Math.PI * radius) / (ascii() ? 7 : 3)),
-        )
-        for (let i = 0; i < count; i++) {
-          const a = (i / count) * Math.PI * 2
-          draw(
-            {
-              x: wave.x + Math.cos(a) * radius,
-              y: wave.y + Math.sin(a) * radius,
-            },
-            1.25,
-            colors.fx,
-            alpha * 0.45,
-            i,
-          )
-          if (i % 2 === 0)
-            draw(
-              {
-                x: wave.x + Math.cos(a) * radius * 0.88,
-                y: wave.y + Math.sin(a) * radius * 0.88,
-              },
-              1,
-              colors.fx,
-              alpha * 0.18,
-              i + 3,
-            )
-        }
-        for (const [i, sample] of wave.samples.entries()) {
-          if (
-            !wave.emitted.has(i) &&
-            Math.hypot(sample.x - wave.x, sample.y - wave.y) <= radius
-          ) {
-            wave.emitted.add(i)
-            emit(sample, wave, now)
-          }
-        }
-      }
-      for (const { el, center } of springs) {
-        if (nearby.has(el)) continue
-        let x = 0,
-          y = 0
-        for (const w of waves) {
-          const dx = center.x - w.x,
-            dy = center.y - w.y,
-            distance = Math.hypot(dx, dy) || 1
-          const radius = rippleAt(now - w.born, w.reach).radius
-          const impulse =
-            Math.sin((radius - distance) / 42) *
-            Math.exp(-Math.abs(radius - distance) / 70) *
-            3
-          x += (dx / distance) * impulse
-          y += (dy / distance) * impulse
-        }
-        // Individual decorations move at most 3px, independently of hover transforms.
-        el.style.translate = `${clamp(x, -3, 3)}px ${clamp(y, -3, 3)}px`
-      }
-      if (!waves.length) {
-        resetSprings()
-        springs = []
-      }
-      dust = dust.filter((d) => now - d.born < d.life)
-      for (const [i, d] of dust.entries()) {
-        const p = clamp((now - d.born) / d.life),
-          opacity = Math.sin(Math.PI * p)
-        if (d.cover) {
-          ctx.globalAlpha = opacity * 0.8
-          ctx.fillStyle = d.cover
-          ctx.fillRect(d.source.x, d.source.y, d.source.size, d.source.size)
-        }
-        draw(
-          dustAt(d.source, d.direction, p),
-          Math.max(0.8, d.source.size - 0.4),
-          d.source.color,
-          opacity * 0.9 * d.gain,
-          i,
-        )
-      }
-      updateNearby(now)
-      if (backdrop) {
-        const strength = 1 - clamp((now - backdrop.at) / 350)
-        document.body.style.backgroundPosition = `${backdrop.x * strength}px ${backdrop.y * strength}px`
-        if (!strength) {
-          backdrop = null
-          document.body.style.backgroundPosition = backgroundPosition
-        }
+      moving = liquid.paint(ctx, now, ascii())
+      if (liquid.size()) canvas.dataset.liquidActive = ""
+      else {
+        delete canvas.dataset.liquidActive
+        if (!pointer) patch = null
       }
     }
     ctx.globalAlpha = 1
-    if (seen.size > 50000) seen.clear()
-    if (
-      screen ||
-      sequence ||
-      dust.length ||
-      waves.length ||
-      cursor ||
-      nearby.size ||
-      backdrop
-    )
-      kick()
+    if (screen || sequence || moving || pointerDirty) kick()
   }
   const revealScreen = () => {
     // Only lifecycle markers: the single opaque canvas owns the pixelation.
@@ -647,7 +309,7 @@ export function createRenderer(
       options.screen,
     )
     if (!to.length) return
-    refreshColors()
+
     home()
     sequence = {
       flights: flights(from, to, options.origin),
@@ -687,74 +349,35 @@ export function createRenderer(
       if (to) to.width = to.height = 0
     }
   }
+  const releasePointer = () => {
+    pointer = null
+    pointerDirty = false
+    liquid.setPointer(null, performance.now())
+    if (liquid.size()) kick()
+  }
   const onMove = (e: PointerEvent) => {
-    if (
-      screen ||
-      sequence ||
-      e.pointerType === "touch" ||
-      e.buttons ||
-      !enabled()
-    )
+    if (screen || sequence || !enabled()) return
+    if (e.pointerType === "touch" || e.buttons || editing()) {
+      releasePointer()
       return
-    cursor = { x: e.clientX, y: e.clientY }
+    }
+    pointer = { x: e.clientX, y: e.clientY }
+    liquid.setPointer(pointer, performance.now())
+    pointerDirty = true
+    home()
     kick()
   }
-  const onClick = (e: MouseEvent) => {
-    if (
-      !enabled() ||
-      sequence ||
-      screen ||
-      e.button !== 0 ||
-      e.defaultPrevented ||
-      (e.target as Element).closest?.(
-        'a[href^="#"],input,textarea,select,[contenteditable],dialog,[data-drag]',
-      )
-    )
-      return
-    refreshColors()
-    home()
-    const point =
-      e.detail === 0 && e.target instanceof Element
-        ? e.target.getBoundingClientRect()
-        : null
-    const x = point ? point.left + point.width / 2 : e.clientX,
-      y = point ? point.top + point.height / 2 : e.clientY
-    const now = performance.now()
-    const root = visiblePanel() ?? document.body
-    if (!waveCache || waveCache.root !== root || now - waveCache.at > 400) {
-      waveCache = {
-        root,
-        at: now,
-        samples: snapshot(
-          root,
-          Math.min(10000, budget()),
-          false,
-          ascii() ? 4 : 2,
-          true,
-        ),
-      }
+  const onOut = (e: PointerEvent) => {
+    if (!e.relatedTarget) releasePointer()
+  }
+  const onClick = () => {
+    // Controls may change their content; refresh only the local source. A click
+    // never emits an expanding ring or moves an entire element.
+    patch = null
+    if (pointer && !screen && !sequence) {
+      pointerDirty = true
+      kick()
     }
-    const samples = waveCache.samples
-    waves.push({
-      x,
-      y,
-      born: now,
-      reach: farthestCorner({ x, y }, innerWidth, innerHeight),
-      samples,
-      emitted: new Set(),
-    })
-    if (waves.length > 3) waves.shift()
-    springs = [...document.querySelectorAll<HTMLElement>("[data-spring]")]
-      .filter(safe)
-      .slice(0, 16)
-      .map((el) => {
-        const r = el.getBoundingClientRect()
-        return {
-          el,
-          center: { x: r.left + r.width / 2, y: r.top + r.height / 2 },
-        }
-      })
-    kick()
   }
   const onScroll = () => {
     const active = screen ?? sequence
@@ -773,10 +396,27 @@ export function createRenderer(
   const onSelection = () => {
     if (!getSelection()?.isCollapsed) cancel()
   }
+  const onFocus = () => {
+    if (editing()) cancel()
+  }
+  // Loaded fonts and presentation settings can invalidate cached pixel colors
+  // or text geometry. Preserve explicit section/mode transitions while they run.
+  const invalidate = () => {
+    if (!screen && !sequence && !pendingMorph) cancel()
+  }
+  const presentation = new window.MutationObserver(invalidate)
+  presentation.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["style", "data-theme", "data-mode", "data-motion"],
+  })
+  document.fonts?.addEventListener("loadingdone", invalidate)
   resize()
-  refreshColors()
   addEventListener("pointermove", onMove, { passive: true })
+  addEventListener("pointerout", onOut, { passive: true })
+  addEventListener("pointerdown", releasePointer, { passive: true })
+  addEventListener("blur", releasePointer)
   document.addEventListener("click", onClick)
+  document.addEventListener("focusin", onFocus)
   addEventListener("scroll", onScroll, { passive: true, capture: true })
   addEventListener("resize", onResize)
   addEventListener("keydown", onKey)
@@ -863,9 +503,15 @@ export function createRenderer(
     },
     cancel,
     dispose() {
+      presentation.disconnect()
+      document.fonts?.removeEventListener("loadingdone", invalidate)
       cancel()
       removeEventListener("pointermove", onMove)
+      removeEventListener("pointerout", onOut)
+      removeEventListener("pointerdown", releasePointer)
+      removeEventListener("blur", releasePointer)
       document.removeEventListener("click", onClick)
+      document.removeEventListener("focusin", onFocus)
       removeEventListener("scroll", onScroll, true)
       removeEventListener("resize", onResize)
       removeEventListener("keydown", onKey)

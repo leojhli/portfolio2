@@ -25,110 +25,30 @@ export type Palette = {
   scene: SceneColors
 }
 
-/** 20 hand-picked five-colour palettes (Coolors-style). Every swatch is used somewhere on the page. */
+/** Four restrained themes inspired by individual Waterloo webring portfolios. */
 export const PALETTES: PaletteDef[] = [
   {
-    id: "riso",
-    name: "Riso Print",
-    colors: ["#1b1b1e", "#f95738", "#ee964b", "#f4d35e", "#faf0ca"],
+    id: "graphite",
+    name: "Graphite",
+    colors: ["#0d0d0d", "#222222", "#686868", "#a0a0a0", "#f3f3f3"],
   },
   {
-    id: "sunset",
-    name: "Sunset Drive",
-    colors: ["#264653", "#2a9d8f", "#e9c46a", "#f4a261", "#e76f51"],
+    id: "slate",
+    name: "Slate",
+    colors: ["#0f172a", "#1e293b", "#6366f1", "#b7bfd0", "#f5f5f7"],
   },
   {
-    id: "harbor",
-    name: "Harbor Flags",
-    colors: ["#003049", "#d62828", "#f77f00", "#fcbf49", "#eae2b7"],
+    id: "sage",
+    name: "Sage",
+    colors: ["#232e21", "#465241", "#88917b", "#c3c5b5", "#f0e9df"],
   },
   {
-    id: "lagoon",
-    name: "Deep Lagoon",
-    colors: ["#03045e", "#0077b6", "#00b4d8", "#90e0ef", "#caf0f8"],
-  },
-  {
-    id: "regatta",
-    name: "Regatta",
-    colors: ["#1d3557", "#e63946", "#457b9d", "#a8dadc", "#f1faee"],
-  },
-  {
-    id: "candy",
-    name: "Candy Shop",
-    colors: ["#9b5de5", "#f15bb5", "#fee440", "#00bbf9", "#00f5d4"],
-  },
-  {
-    id: "campfire",
-    name: "Campfire",
-    colors: ["#283618", "#606c38", "#dda15e", "#bc6c25", "#fefae0"],
-  },
-  {
-    id: "vapor",
-    name: "Vaporwave",
-    colors: ["#3a86ff", "#8338ec", "#ff006e", "#fb5607", "#ffbe0b"],
-  },
-  {
-    id: "pitlane",
-    name: "Pit Lane",
-    colors: ["#2b2d42", "#8d99ae", "#edf2f4", "#ef233c", "#d90429"],
-  },
-  {
-    id: "mesa",
-    name: "Mesa",
-    colors: ["#432818", "#99582a", "#bb9457", "#ffe6a7", "#6f1d1b"],
-  },
-  {
-    id: "reef",
-    name: "Reef",
-    colors: ["#05668d", "#028090", "#00a896", "#02c39a", "#f0f3bd"],
-  },
-  {
-    id: "peach",
-    name: "Peach Fizz",
-    colors: ["#355070", "#6d597a", "#b56576", "#e56b6f", "#eaac8b"],
-  },
-  {
-    id: "citrus",
-    name: "Citrus Grove",
-    colors: ["#033f63", "#28666e", "#7c9885", "#b5b682", "#fedc97"],
-  },
-  {
-    id: "bubble",
-    name: "Bubblegum",
-    colors: ["#cdb4db", "#ffc8dd", "#ffafcc", "#bde0fe", "#a2d2ff"],
-  },
-  {
-    id: "ember",
-    name: "Ember",
-    colors: ["#370617", "#6a040f", "#d00000", "#e85d04", "#ffba08"],
-  },
-  {
-    id: "glacier",
-    name: "Glacier",
-    colors: ["#0d1b2a", "#1b263b", "#415a77", "#778da9", "#e0e1dd"],
-  },
-  {
-    id: "matcha",
-    name: "Matcha",
-    colors: ["#344e41", "#3a5a40", "#588157", "#a3b18a", "#dad7cd"],
-  },
-  {
-    id: "tropic",
-    name: "Tropic",
-    colors: ["#006d77", "#83c5be", "#edf6f9", "#ffddd2", "#e29578"],
-  },
-  {
-    id: "grape",
-    name: "Grape Soda",
-    colors: ["#10002b", "#3c096c", "#7b2cbf", "#c77dff", "#e0aaff"],
-  },
-  {
-    id: "arcade",
-    name: "Arcade",
-    colors: ["#0b0c10", "#f72585", "#7209b7", "#4cc9f0", "#f8f9fa"],
+    id: "paper",
+    name: "Paper",
+    colors: ["#1a1a1a", "#8b8784", "#973b3b", "#d7d2cb", "#faf9f7"],
   },
 ]
-export const DEFAULT_PALETTE = "candy"
+export const DEFAULT_PALETTE = "graphite"
 
 const rgb = (hex: string) => {
   const n = parseInt(hex.slice(1), 16)

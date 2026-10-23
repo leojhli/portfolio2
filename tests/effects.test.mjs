@@ -147,8 +147,11 @@ function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
   const context = () => ({
     imageCalls: [],
     textCalls: [],
+    frameCalls: [],
     setTransform() {},
-    clearRect() {},
+    clearRect() {
+      this.frameCalls = []
+    },
     beginPath() {},
     roundRect() {},
     fill() {},
@@ -166,6 +169,11 @@ function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
     },
     fillRect(...args) {
       assert.ok(args.every(Number.isFinite))
+      this.frameCalls.push({
+        args,
+        color: this.fillStyle,
+        alpha: this.globalAlpha,
+      })
       if (paintCalls.length < 10000) paintCalls.push(args)
     },
     fillText(text, x, y) {
@@ -231,17 +239,20 @@ function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
   }
 }
 
-test("ripple radius is finite and bounded even when rAF predates the click", () => {
-  const reach = geometry.farthestCorner({ x: 40, y: 200 }, 1280, 800)
-  for (const age of [-100, -0.3, 0, 10, 450, 900, 2000]) {
-    const { radius, alpha } = geometry.rippleAt(age, reach)
-    assert.ok(Number.isFinite(radius) && radius >= 0 && radius <= reach)
-    assert.ok(alpha >= 0 && alpha <= 1)
-  }
-  assert.equal(geometry.rippleAt(-1, reach).radius, 0)
-})
+function movePointer(x = 100, y = 250, overrides = {}) {
+  const event = new Event("pointermove")
+  for (const [key, value] of Object.entries({
+    clientX: x,
+    clientY: y,
+    pointerType: "mouse",
+    buttons: 0,
+    ...overrides,
+  }))
+    Object.defineProperty(event, key, { value })
+  window.dispatchEvent(event)
+}
 
-test("scatter paths land exactly on targets; dust reconstructs at its origin", () => {
+test("local assembly paths land exactly on targets and stay within their budget", () => {
   const from = { x: 20, y: 30 },
     to = { x: 900, y: 500 }
   assert.deepEqual(geometry.assemblyAt(from, to, -1, 0.3), from)
@@ -250,8 +261,6 @@ test("scatter paths land exactly on targets; dust reconstructs at its origin", (
   for (let seed = 0; seed < 100; seed++) {
     const p = geometry.assemblyAt(from, to, seed / 100, geometry.noise(seed))
     assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y))
-    const dust = geometry.dustAt(from, { x: 1, y: 0 }, seed / 100)
-    assert.ok(Math.abs(dust.x - from.x) <= 22)
   }
   assert.ok(geometry.particleBudget(10000, 10000, true) <= 12000)
   assert.ok(geometry.particleBudget(10000, 10000, false) <= 36000)
@@ -334,59 +343,66 @@ test("renderer retargets, cancels work, and completes pending dialog closure on 
   f.dom.window.close()
 })
 
-test("unmarked text and navigation react to proximity and restore their original styles", () => {
+test("the liquid interaction stays local and never translates page elements", () => {
   const f = fixture(),
     d = f.dom.window.document
   d.documentElement.dataset.motion = "on"
+  d.body.style.backgroundPosition = "8px 12px"
   d.body.insertAdjacentHTML(
     "beforeend",
-    '<header><a href="#example">Navigation</a></header><p style="filter:contrast(1.1)">Unmarked text <span id="nested">nested label</span></p><span id="meta">Metadata</span><button>Unmarked button</button>',
+    '<header><a href="#example">Navigation</a></header><p style="filter:contrast(1.1);translate:2px 3px">Unmarked text <span>nested label</span></p><span>Metadata</span><button>Button</button>',
   )
+  const nodes = [...d.querySelectorAll("header,p,span,button,a")]
+  const styles = nodes.map((el) => el.getAttribute("style"))
   const canvas = d.createElement("canvas")
   canvas.dataset.effectCanvas = ""
   d.body.append(canvas)
   const renderer = rendererModule.createRenderer(canvas)
-  const pointer = new Event("pointermove")
-  Object.defineProperties(pointer, {
-    clientX: { value: 100 },
-    clientY: { value: 250 },
-    pointerType: { value: "mouse" },
-    buttons: { value: 0 },
-  })
-  window.dispatchEvent(pointer)
-  f.advance(32)
-  for (const el of d.querySelectorAll("p,#meta,button,a")) {
+  try {
+    movePointer()
+    f.advance(2400)
+    assert.ok(canvas.hasAttribute("data-liquid-active"))
     assert.ok(
-      el.hasAttribute("data-proximity-active"),
-      `${el.tagName} reacts without data-fx`,
+      canvas._ctx.frameCalls.length > 1000,
+      "the local source supplies many tiny pixels",
     )
-    assert.ok(!el.style.filter.includes("url("))
-    assert.ok(el.style.translate.includes("calc("))
+    assert.deepEqual(
+      nodes.map((el) => el.getAttribute("style")),
+      styles,
+    )
+    assert.equal(d.body.style.backgroundPosition, "8px 12px")
+    for (const {
+      args: [x, y, w, h],
+    } of canvas._ctx.frameCalls) {
+      assert.ok(
+        Math.hypot(x + w / 2 - 100, y + h / 2 - 250) < 117,
+        "pixels stay in the local cursor neighborhood",
+      )
+      assert.equal(w, 2)
+      assert.equal(h, 2)
+    }
+    assert.equal(f.frames.size, 0, "a held cursor rests without pulsing")
+    const held = canvas._ctx.frameCalls
+    f.advance(2400)
+    assert.equal(
+      canvas._ctx.frameCalls,
+      held,
+      "no re-emission or timed pulse while resting",
+    )
+    window.dispatchEvent(new Event("blur"))
+    f.advance(1800)
+    assert.equal(canvas.hasAttribute("data-liquid-active"), false)
+    assert.equal(canvas._ctx.frameCalls.length, 0)
+    assert.equal(f.frames.size, 0)
+    assert.deepEqual(
+      nodes.map((el) => el.getAttribute("style")),
+      styles,
+    )
+  } finally {
+    renderer.dispose()
+    f.dom.window.close()
   }
-  assert.equal(
-    d.getElementById("nested").style.translate,
-    "",
-    "nested labels do not get a second transform",
-  )
-  assert.equal(
-    d.getElementById("nested").hasAttribute("data-proximity-active"),
-    false,
-  )
-  assert.ok(d.querySelector("p").style.filter.includes("contrast"))
-  f.advance(1200)
-  assert.equal(d.querySelectorAll("[data-proximity-active]").length, 0)
-  assert.equal(d.querySelector("p").style.filter, "contrast(1.1)")
-  assert.equal(f.frames.size, 0)
-  window.dispatchEvent(pointer)
-  f.advance(32)
-  renderer.cancel()
-  assert.equal(d.querySelectorAll("[data-proximity-active]").length, 0)
-  assert.equal(d.querySelector("p").style.filter, "contrast(1.1)")
-  assert.equal(f.frames.size, 0)
-  renderer.dispose()
-  f.dom.window.close()
 })
-
 test("viewport rasters include navigation and status text as well as the panel", () => {
   const f = fixture(),
     d = f.dom.window.document
@@ -407,95 +423,92 @@ test("viewport rasters include navigation and status text as well as the panel",
   }
 })
 
-test("proximity eases direction changes instead of snapping across the center", () => {
+test("clipped local snapshots retain every 2px cell on a stable viewport grid", () => {
+  const f = fixture(),
+    d = f.dom.window.document
+  try {
+    const region = { left: 24, top: 88, right: 296, bottom: 360 }
+    const cells = snapshotModule.snapshot(d.body, 20000, false, 2, true, region)
+    assert.equal(cells.length, 136 * 136)
+    assert.ok(
+      cells.every(
+        (s) => s.size === 2 && s.x > 24 && s.x < 296 && s.y > 88 && s.y < 360,
+      ),
+    )
+    assert.equal(new Set(cells.map((s) => s.x + ":" + s.y)).size, cells.length)
+    const again = snapshotModule.snapshot(d.body, 20000, false, 2, true, region)
+    assert.deepEqual(
+      cells,
+      again,
+      "local density does not use a random reservoir",
+    )
+  } finally {
+    f.dom.window.close()
+  }
+})
+
+test("clicks never send outward pulses; selection, hidden tabs and editing release the local effect", () => {
   const f = fixture(),
     d = f.dom.window.document
   d.documentElement.dataset.motion = "on"
-  d.body.insertAdjacentHTML("beforeend", '<p id="smooth">Smooth motion</p>')
+  d.body.insertAdjacentHTML(
+    "beforeend",
+    '<p id="selection">Selectable content</p><input aria-label="Edit">',
+  )
   const canvas = d.createElement("canvas")
   canvas.dataset.effectCanvas = ""
   d.body.append(canvas)
   const renderer = rendererModule.createRenderer(canvas)
-  const move = (x) => {
-    const event = new Event("pointermove")
-    Object.defineProperties(event, {
-      clientX: { value: x },
-      clientY: { value: 250 },
-      pointerType: { value: "mouse" },
-      buttons: { value: 0 },
-    })
-    window.dispatchEvent(event)
-  }
-  const position = () =>
-    Number(
-      d.getElementById("smooth").style.translate.match(/\+ ([-\d.]+)px/)?.[1],
-    )
   try {
-    move(100)
-    f.advance(64)
-    const before = position()
-    assert.ok(before > 0)
-    move(530)
-    f.advance(16)
-    assert.ok(
-      position() > 0,
-      "direction reversal eases through the old position",
-    )
-    assert.ok(position() < before)
-    f.advance(1600)
-    assert.equal(d.getElementById("smooth").style.translate, "")
+    for (let i = 0; i < 80; i++)
+      d.body.dispatchEvent(
+        new MouseEvent("click", {
+          bubbles: true,
+          detail: 1,
+          clientX: i * 8,
+          clientY: 100,
+        }),
+      )
+    assert.equal(f.frames.size, 0, "clicks do not launch global effects")
+    movePointer()
+    f.advance(160)
+    assert.ok(canvas.hasAttribute("data-liquid-active"))
+    const range = d.createRange()
+    range.selectNodeContents(d.getElementById("selection"))
+    d.getSelection().addRange(range)
+    d.dispatchEvent(new Event("selectionchange"))
     assert.equal(f.frames.size, 0)
+    assert.equal(canvas.hasAttribute("data-liquid-active"), false)
+    d.getSelection().removeAllRanges()
+    movePointer()
+    f.advance(160)
+    d.querySelector("input").focus()
+    assert.equal(f.frames.size, 0)
+    assert.equal(canvas.hasAttribute("data-liquid-active"), false)
+    d.querySelector("input").blur()
+    movePointer()
+    f.advance(160)
+    d.hidden = true
+    d.dispatchEvent(new Event("visibilitychange"))
+    assert.equal(f.frames.size, 0)
+    d.hidden = false
+    movePointer(100, 250, { pointerType: "touch" })
+    assert.equal(
+      f.frames.size,
+      0,
+      "touch interactions do not require decorative hover",
+    )
+    d.documentElement.dataset.motion = "off"
+    movePointer()
+    assert.equal(f.frames.size, 0)
+    let closed = false
+    renderer.disperse(d.body, () => (closed = true))
+    assert.equal(closed, true)
   } finally {
     renderer.dispose()
     f.dom.window.close()
   }
 })
-
-test("rapid ripples finish, selections and hidden tabs clear work, motion-off is immediate", () => {
-  const f = fixture(),
-    d = f.dom.window.document
-  d.documentElement.dataset.motion = "on"
-  const canvas = d.createElement("canvas")
-  d.body.append(canvas)
-  const renderer = rendererModule.createRenderer(canvas)
-  for (let i = 0; i < 80; i++)
-    d.body.dispatchEvent(
-      new MouseEvent("click", {
-        bubbles: true,
-        detail: 1,
-        clientX: i * 8,
-        clientY: 100,
-      }),
-    )
-  assert.equal(f.frames.size, 1)
-  f.advance(2000)
-  assert.equal(f.frames.size, 0)
-  assert.ok(f.paintCalls.length > 0)
-  d.body.click()
-  d.body.insertAdjacentHTML(
-    "beforeend",
-    '<p id="selection">Selectable content</p>',
-  )
-  const range = d.createRange()
-  range.selectNodeContents(d.getElementById("selection"))
-  d.getSelection().addRange(range)
-  d.dispatchEvent(new Event("selectionchange"))
-  assert.equal(f.frames.size, 0)
-  d.getSelection().removeAllRanges()
-  d.body.click()
-  d.hidden = true
-  d.dispatchEvent(new Event("visibilitychange"))
-  assert.equal(f.frames.size, 0)
-  d.hidden = false
-  d.documentElement.dataset.motion = "off"
-  let closed = false
-  renderer.disperse(d.body, () => (closed = true))
-  assert.equal(closed, true)
-  assert.equal(f.frames.size, 0)
-  renderer.dispose()
-  f.dom.window.close()
-})
-
 test("a failed canvas leaves navigation/content usable and closes dialogs immediately", () => {
   const f = fixture(),
     d = f.dom.window.document
@@ -552,7 +565,7 @@ test("real React tree preserves audio and text through rapid navigation, history
     assert.ok(
       document
         .querySelector('[aria-controls="palette-pop"]')
-        .textContent.includes("Candy Shop"),
+        .textContent.includes("Graphite"),
     )
     assert.equal(document.querySelectorAll("[data-panel]").length, 7)
     assert.equal(f.audioInstances.length, 0, "audio does not autoplay")
@@ -650,7 +663,7 @@ test("new defaults replace legacy preferences once, while new explicit choices r
     assert.ok(
       document
         .querySelector('[aria-controls="palette-pop"]')
-        .textContent.includes("Candy Shop"),
+        .textContent.includes("Graphite"),
     )
     await click(byText("button", "Light"))
     assert.equal(localStorage.getItem("pf.v2.appearance"), "light")
@@ -660,7 +673,7 @@ test("new defaults replace legacy preferences once, while new explicit choices r
   f = fixture({
     stored: {
       "pf.v2.appearance": "light",
-      "pf.v2.palette": "riso",
+      "pf.v2.palette": "paper",
       "pf.v2.motion": "off",
     },
   })
@@ -671,7 +684,7 @@ test("new defaults replace legacy preferences once, while new explicit choices r
     assert.ok(
       document
         .querySelector('[aria-controls="palette-pop"]')
-        .textContent.includes("Riso Print"),
+        .textContent.includes("Paper"),
     )
   } finally {
     await unmount()

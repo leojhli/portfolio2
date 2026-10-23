@@ -4,22 +4,43 @@ export type Fragment = {
   color: string
   size: number
   rank: number
+  alpha?: number
+}
+
+export type SampleRegion = {
+  left: number
+  top: number
+  right: number
+  bottom: number
 }
 
 /** Capture once per interaction; animation frames only read the resulting bitmap. */
-function rasterize(root: HTMLElement, align = false, viewport = false) {
+function rasterize(
+  root: HTMLElement,
+  align = false,
+  viewport = false,
+  region?: SampleRegion,
+) {
   const rect = root.getBoundingClientRect()
   const shiftX = align ? -rect.left : 0
   const shiftY =
     align && document.documentElement.dataset.layout !== "h" ? -rect.top : 0
-  const left = viewport ? 0 : Math.max(0, rect.left + shiftX)
-  const top = viewport ? 0 : Math.max(0, rect.top + shiftY)
-  const right = viewport
-    ? innerWidth
-    : Math.min(innerWidth, rect.right + shiftX)
-  const bottom = viewport
-    ? innerHeight
-    : Math.min(innerHeight, rect.bottom + shiftY)
+  const left = Math.max(
+    region?.left ?? 0,
+    viewport ? 0 : Math.max(0, rect.left + shiftX),
+  )
+  const top = Math.max(
+    region?.top ?? 0,
+    viewport ? 0 : Math.max(0, rect.top + shiftY),
+  )
+  const right = Math.min(
+    region?.right ?? innerWidth,
+    viewport ? innerWidth : Math.min(innerWidth, rect.right + shiftX),
+  )
+  const bottom = Math.min(
+    region?.bottom ?? innerHeight,
+    viewport ? innerHeight : Math.min(innerHeight, rect.bottom + shiftY),
+  )
   const width = Math.ceil(right - left),
     height = Math.ceil(bottom - top)
   if (width <= 0 || height <= 0) return null
@@ -40,9 +61,12 @@ function rasterize(root: HTMLElement, align = false, viewport = false) {
     ctx.fillStyle =
       getComputedStyle(document.documentElement)
         .getPropertyValue("--c-bg")
-        .trim() || "#623b91"
+        .trim() || "#0d0d0d"
     ctx.fillRect(0, 0, width, height)
-    paintBackdrop(ctx, width, height)
+    ctx.save()
+    ctx.translate(-left, -top)
+    paintBackdrop(ctx, innerWidth, innerHeight)
+    ctx.restore()
     for (const layer of document.querySelectorAll<HTMLElement>(
       "header,[data-deck-status]",
     )) {
@@ -71,10 +95,20 @@ function rasterize(root: HTMLElement, align = false, viewport = false) {
   }
   const solid = (color: string) =>
     color !== "transparent" && color !== "rgba(0, 0, 0, 0)"
+  const boxes = new Map<Element, {
+    x: number
+    y: number
+    w: number
+    h: number
+  }>()
   const box = (el: Element) => {
+    const cached = boxes.get(el)
+    if (cached) return cached
     const r = el.getBoundingClientRect()
     const o = offset(el)
-    return { x: r.left + o.x, y: r.top + o.y, w: r.width, h: r.height }
+    const value = { x: r.left + o.x, y: r.top + o.y, w: r.width, h: r.height }
+    boxes.set(el, value)
+    return value
   }
   for (const el of elements) {
     if (!visible(el)) continue
@@ -175,6 +209,14 @@ function rasterize(root: HTMLElement, align = false, viewport = false) {
         continue
       const s = styles.get(parent)!
       const o = offset(parent)
+      const bounds = box(parent)
+      if (
+        bounds.x + bounds.w < 0 ||
+        bounds.y + bounds.h < 0 ||
+        bounds.x > width ||
+        bounds.y > height
+      )
+        continue
       if (s.writingMode !== "horizontal-tb") continue
       ctx.fillStyle = s.color
       ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`
@@ -229,13 +271,15 @@ export function snapshot(
   align = false,
   spacing = 2,
   viewport = false,
+  region?: SampleRegion,
 ): Fragment[] {
   if (budget <= 0) return []
-  const raster = rasterize(root, align, viewport)
+  const raster = rasterize(root, align, viewport, region)
   if (!raster) return []
   const { canvas, ctx, left, top, shiftX, shiftY, headings } = raster
   const { width, height } = canvas
   const pixels = ctx.getImageData(0, 0, width, height).data
+  canvas.width = canvas.height = 0
   // Resolution stays fine even when the pool is full. Limit the number of
   // samples with reservoir sampling instead of inflating pixels into blocks.
   const step = Math.max(1, Math.round(spacing))
@@ -268,6 +312,7 @@ export function snapshot(
         size: step,
         rank,
         color: `rgb(${pixels[k]} ${pixels[k + 1]} ${pixels[k + 2]})`,
+        alpha: pixels[k + 3] / 255,
       }
     }
   }
@@ -285,29 +330,29 @@ function paintBackdrop(
   ctx.save()
   if (document.documentElement.dataset.mode === "ascii") {
     ctx.globalAlpha = 0.35
-    ctx.fillStyle = color("--c-v1") || "#00bbf9"
+    ctx.fillStyle = color("--c-v1") || "#a0a0a0"
     for (let y = 9; y < height; y += 18)
       for (let x = 9; x < width; x += 18) ctx.fillRect(x, y, 1, 1)
   } else {
     // Paint from back to front, in the same order as the body's CSS gradients.
     for (const [key, x, y, rx, ry, alpha] of [
-      ["--c-v3", 0.78, 0.06, 0.4, 0.35, 0.2],
-      ["--c-v2", 0.96, 0.92, 0.5, 0.45, 0.24],
-      ["--c-v1", 0.06, 0.08, 0.6, 0.5, 0.22],
+      ["--c-v3", 0.78, 0.06, 0.4, 0.35, 0.05],
+      ["--c-v2", 0.96, 0.92, 0.5, 0.45, 0.07],
+      ["--c-v1", 0.06, 0.08, 0.6, 0.5, 0.06],
     ] as const) {
       ctx.save()
       ctx.translate(width * x, height * y)
       ctx.scale(width * rx, height * ry)
       const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 0.7)
-      gradient.addColorStop(0, color(key) || "#00bbf9")
+      gradient.addColorStop(0, color(key) || "#a0a0a0")
       gradient.addColorStop(1, "transparent")
       ctx.globalAlpha = alpha
       ctx.fillStyle = gradient
       ctx.fillRect(-3, -3, 6, 6)
       ctx.restore()
     }
-    ctx.globalAlpha = 0.05
-    ctx.fillStyle = color("--c-fg") || "#fefbe0"
+    ctx.globalAlpha = 0.02
+    ctx.fillStyle = color("--c-fg") || "#f3f3f3"
     for (let x = 0; x < width; x += 48) ctx.fillRect(x, 0, 1, height)
     for (let y = 0; y < height; y += 48) ctx.fillRect(0, y, width, 1)
   }

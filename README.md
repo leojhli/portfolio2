@@ -15,9 +15,9 @@ Open http://127.0.0.1:5173. To check and build the production version, run `npm 
 
 Dependencies are already installed in this checkout, so you can run `npm run dev` immediately. If PowerShell blocks `npm.ps1`, use `npm.cmd run dev`. The exported pnpm lockfile is retained for users who prefer `pnpm install --frozen-lockfile`.
 
-Run `npm test` for interaction and state-preservation checks (Node 22.22.2+, 24.15+, or 26+). See [interaction effects](docs/interaction-effects.md) for the new pixel/ripple system, supported behavior, and visual verification limits.
+Run `npm test` for interaction and state-preservation checks (Node 22.22.2+, 24.15+, or 26+). See [interaction effects](docs/interaction-effects.md) for the local liquid cursor field, screen transitions, and visual verification limits.
 
-The arrival preset is **Dark / Candy Shop / Motion On**. Proximity effects apply across visible content and navigation; horizontal page changes pixelate the whole viewport. New appearance, palette and motion selections remain saved locally.
+The arrival preset is **Dark / Graphite / Motion On**. Four curated themes—Graphite, Slate, Sage and Paper—draw from portfolios in the Waterloo webrings. Petrona headings and Figtree body text follow the supplied typography reference. Only pixels near the cursor flow around its circular barrier; horizontal page changes pixelate the whole viewport. Appearance, palette and motion choices remain saved locally.
 
 ## Editing
 
