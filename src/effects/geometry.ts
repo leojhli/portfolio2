@@ -60,5 +60,5 @@ export function dustAt(
 }
 
 export function particleBudget(width: number, height: number, coarse: boolean) {
-  return Math.round(clamp((width * height) / 850, 180, coarse ? 480 : 1100))
+  return Math.round(clamp((width * height) / 40, 1600, coarse ? 12000 : 36000))
 }

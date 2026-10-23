@@ -1,5 +1,3 @@
-import { clamp } from "./geometry"
-
 export type Fragment = {
   x: number
   y: number
@@ -17,6 +15,7 @@ export function snapshot(
   root: HTMLElement,
   budget: number,
   align = false,
+  spacing = 2,
 ): Fragment[] {
   const rect = root.getBoundingClientRect()
   const shiftX = align ? -rect.left : 0
@@ -136,7 +135,7 @@ export function snapshot(
       ctx.restore()
     }
   }
-  const headings: DOMRect[] = []
+  const headings = new Map<Element, DOMRect>()
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
   const range = document.createRange()
   let remaining = 2200
@@ -159,8 +158,9 @@ export function snapshot(
     ctx.fillStyle = s.color
     ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`
     ctx.textBaseline = "alphabetic"
-    if (parent.closest("h1,h2,h3"))
-      headings.push(parent.getBoundingClientRect())
+    const heading = parent.closest("h1,h2,h3")
+    if (heading && !headings.has(heading))
+      headings.set(heading, heading.getBoundingClientRect())
     for (let i = 0; i < text.length && remaining > 0; ) {
       const char = String.fromCodePoint(text.codePointAt(i)!)
       range.setStart(node, i)
@@ -189,18 +189,23 @@ export function snapshot(
     }
   }
   const pixels = ctx.getImageData(0, 0, width, height).data
-  const step = Math.max(
-    4,
-    Math.ceil(Math.sqrt((width * height) / (budget * 5))),
-  )
+  // Resolution stays fine even when the pool is full. Limit the number of
+  // samples with reservoir sampling instead of inflating pixels into blocks.
+  const step = Math.max(1, Math.round(spacing))
+  const headingRects = [...headings.values()]
+  const limit = Math.max(1, Math.floor(budget))
   const candidates: Fragment[] = []
+  let count = 0
   for (let y = 1; y < height; y += step) {
     for (let x = 1; x < width; x += step) {
       const k = (y * width + x) * 4
       if (pixels[k + 3] < 65) continue
+      count++
+      const slot = count <= limit ? count - 1 : Math.floor(Math.random() * count)
+      if (slot >= limit) continue
       const px = x + left,
         py = y + top
-      const rank = headings.some(
+      const rank = headingRects.some(
         (r) =>
           px >= r.left + shiftX &&
           px <= r.right + shiftX &&
@@ -209,18 +214,14 @@ export function snapshot(
       )
         ? 0
         : 1
-      candidates.push({
+      candidates[slot] = {
         x: px,
         y: py,
         size: step,
         rank,
         color: `rgb(${pixels[k]} ${pixels[k + 1]} ${pixels[k + 2]})`,
-      })
+      }
     }
   }
-  if (candidates.length <= budget) return candidates
-  return Array.from(
-    { length: budget },
-    (_, i) => candidates[Math.floor(clamp(i / budget) * candidates.length)],
-  )
+  return candidates
 }

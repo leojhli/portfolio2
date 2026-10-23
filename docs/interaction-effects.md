@@ -18,7 +18,7 @@ The current implementation is the design reference. This work preserves the hori
 
 `snapshot.ts` builds bounded silhouettes from DOM character positions, fills, outlines, SVG paths, images and canvases. Stages redraw synchronously when sampled, retaining their current 3D/ASCII appearance. This is not a browser screenshot renderer: complex CSS gradients, shadows, background-image artwork and some SVG details stay in the underlying DOM and are not reproduced exactly by every particle. Cursor cover cells approximate the local background. DOM text and controls remain readable and operable underneath; only inert heading/visual leaves soften briefly during assembly.
 
-Particle count is capped at 1,100 on fine pointers and 480 on coarse pointers; cursor dust is capped at 360. DPR is capped at 1.5. Visual snapshots are cached briefly and taken on interactions, not on every frame. Idle effects schedule no animation frames. No new production dependency was added.
+Dynamic breakup uses a fixed 2px sampling grid with approximately 1–2px fragments, rather than enlarging fragments when a particle limit is reached. Transitions scale with viewport area (about 32,400 particles at 1440×900), capped at 36,000 on fine pointers and 12,000 on coarse pointers; cursor dust is capped at 10,000. Reservoir sampling bounds memory without reducing pixel resolution. ASCII keeps smaller 7px glyphs and a separate 6,500-fragment cap to avoid overcrowding. DPR is capped at 2 for sharper small pixels. Visual snapshots are cached briefly and taken on interactions, not on every frame. Idle effects schedule no animation frames. No new production dependency was added.
 
 ## Verification
 

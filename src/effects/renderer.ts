@@ -75,7 +75,11 @@ export function createRenderer(
   const enabled = () =>
     document.documentElement.dataset.motion === "on" && !document.hidden
   const coarse = () => matchMedia("(pointer: coarse)").matches
-  const budget = () => particleBudget(innerWidth, innerHeight, coarse())
+  const budget = () => {
+    const pixels = particleBudget(innerWidth, innerHeight, coarse())
+    // Glyphs occupy more space than individual pixels; retain readable ASCII.
+    return ascii() ? Math.min(6500, pixels) : pixels
+  }
   let colors = { bg: "#faf0ca", fx: "#b24430", ink: "#1b1b1e" }
   const refreshColors = () => {
     const s = getComputedStyle(document.documentElement)
@@ -86,7 +90,7 @@ export function createRenderer(
     }
   }
   const resize = () => {
-    const dpr = Math.min(devicePixelRatio || 1, 1.5)
+    const dpr = Math.min(devicePixelRatio || 1, 2)
     canvas.width = Math.round(innerWidth * dpr)
     canvas.height = Math.round(innerHeight * dpr)
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -144,7 +148,7 @@ export function createRenderer(
     ctx.fillStyle = color
     if (ascii()) ctx.fillText(glyph(seed), p.x, p.y)
     else
-      ctx.fillRect(Math.round(p.x / 2) * 2, Math.round(p.y / 2) * 2, size, size)
+      ctx.fillRect(Math.round(p.x * 2) / 2, Math.round(p.y * 2) / 2, size, size)
   }
   const safe = (el: HTMLElement) => {
     const active = document.activeElement
@@ -184,13 +188,18 @@ export function createRenderer(
       Math.abs(old.rect.top - rect.top) < 1
     )
       return old.samples
-    const samples = snapshot(el, coarse() ? 140 : 260)
+    const spacing = ascii() ? 4 : 2
+    const localBudget = Math.min(
+      coarse() ? 8000 : 18000,
+      Math.ceil(rect.width * rect.height / (spacing * spacing)),
+    )
+    const samples = snapshot(el, localBudget, false, spacing)
     cache.set(el, { samples, rect, at: now })
     return samples
   }
   const emit = (sample: Fragment, center: Point, now: number, cover = "") => {
-    if (dust.length >= Math.min(360, budget())) return
-    const key = `${Math.round(sample.x / 6)},${Math.round(sample.y / 6)}`
+    if (dust.length >= Math.min(ascii() ? 2400 : 10000, budget())) return
+    const key = `${Math.round(sample.x / 2)},${Math.round(sample.y / 2)}`
     if (now - (seen.get(key) ?? -1000) < 250) return
     seen.set(key, now)
     const dx = sample.x - center.x,
@@ -211,7 +220,7 @@ export function createRenderer(
       return
     }
     ctx.clearRect(0, 0, innerWidth, innerHeight)
-    ctx.font = '600 11px "Geist Mono", monospace'
+    ctx.font = '600 7px "Geist Mono", monospace'
     ctx.textBaseline = "middle"
     if (sequence) {
       const s = sequence,
@@ -225,7 +234,7 @@ export function createRenderer(
           : Math.sin(Math.PI * p) * 0.92
         draw(
           position,
-          Math.max(2, f.to.size * (0.6 + Math.sin(Math.PI * p) * 0.4)),
+          Math.max(0.8, f.to.size * (0.6 + Math.sin(Math.PI * p) * 0.4)),
           p < 0.45 ? f.from.color : f.to.color,
           opacity,
           i,
@@ -268,7 +277,7 @@ export function createRenderer(
       waves = waves.filter((w) => now - w.born < 900)
       for (const wave of waves) {
         const { radius, alpha } = rippleAt(now - wave.born, wave.reach)
-        const count = Math.min(240, Math.ceil((2 * Math.PI * radius) / 12))
+        const count = Math.min(ascii() ? 600 : 3000, Math.ceil((2 * Math.PI * radius) / (ascii() ? 7 : 3)))
         for (let i = 0; i < count; i++) {
           const a = (i / count) * Math.PI * 2
           draw(
@@ -276,7 +285,7 @@ export function createRenderer(
               x: wave.x + Math.cos(a) * radius,
               y: wave.y + Math.sin(a) * radius,
             },
-            2,
+            1.25,
             colors.fx,
             alpha * 0.45,
             i,
@@ -287,7 +296,7 @@ export function createRenderer(
                 x: wave.x + Math.cos(a) * radius * 0.88,
                 y: wave.y + Math.sin(a) * radius * 0.88,
               },
-              1.5,
+              1,
               colors.fx,
               alpha * 0.18,
               i + 3,
@@ -336,7 +345,7 @@ export function createRenderer(
         }
         draw(
           dustAt(d.source, d.direction, p),
-          Math.max(2, d.source.size - 1),
+          Math.max(0.8, d.source.size - 0.4),
           d.source.color,
           opacity * 0.9,
           i,
@@ -344,7 +353,7 @@ export function createRenderer(
       }
     }
     ctx.globalAlpha = 1
-    if (seen.size > 2400) seen.clear()
+    if (seen.size > 50000) seen.clear()
     if (sequence || dust.length || waves.length || cursor) kick()
   }
   const reveal = (root: HTMLElement, duration: number) => {
@@ -361,10 +370,10 @@ export function createRenderer(
       animations.push(
         el.animate(
           [
-            { opacity: 0.35, filter: ascii() ? "none" : "url(#px-14)" },
+            { opacity: 0.35, filter: ascii() ? "none" : "url(#px-2)" },
             {
               opacity: 0.75,
-              filter: ascii() ? "none" : "url(#px-4)",
+              filter: "none",
               offset: 0.7,
             },
             { opacity: 1, filter: "none" },
@@ -407,7 +416,7 @@ export function createRenderer(
     duration = 1000,
   ) => {
     if (!enabled()) return
-    const to = snapshot(into, budget(), options.align)
+    const to = snapshot(into, budget(), options.align, ascii() ? 4 : 2)
     if (!to.length) return
     refreshColors()
     home()
@@ -447,7 +456,7 @@ export function createRenderer(
     const now = performance.now()
     const samples = visuals()
       .flatMap((el) => samplesFor(el, now))
-      .slice(0, 650)
+      .slice(0, 10000)
     waves.push({
       x,
       y,
@@ -499,7 +508,7 @@ export function createRenderer(
       cancel()
       if (!enabled()) return
       try {
-        start(snapshot(from, budget()), into, options)
+        start(snapshot(from, budget(), false, ascii() ? 4 : 2), into, options)
       } catch {
         cancel()
       }
@@ -516,7 +525,7 @@ export function createRenderer(
       cancel()
       if (!enabled()) return
       try {
-        const from = snapshot(root, budget())
+        const from = snapshot(root, budget(), false, ascii() ? 4 : 2)
         pendingMorph = requestAnimationFrame(() => {
           pendingMorph = 0
           try {
@@ -536,7 +545,7 @@ export function createRenderer(
         return
       }
       try {
-        const from = snapshot(root, Math.min(400, budget()))
+        const from = snapshot(root, Math.min(8000, budget()), false, ascii() ? 4 : 2)
         if (!from.length) {
           done()
           return

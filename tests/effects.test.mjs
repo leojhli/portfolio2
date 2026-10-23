@@ -5,7 +5,7 @@ import { JSDOM } from "jsdom"
 import React, { act } from "react"
 import { createRoot } from "react-dom/client"
 
-let server, geometry, rendererModule, App
+let server, geometry, rendererModule, snapshotModule, App
 before(async () => {
   server = await createServer({
     server: { middlewareMode: true },
@@ -13,6 +13,7 @@ before(async () => {
   })
   geometry = await server.ssrLoadModule("/src/effects/geometry.ts")
   rendererModule = await server.ssrLoadModule("/src/effects/renderer.ts")
+  snapshotModule = await server.ssrLoadModule("/src/effects/snapshot.ts")
   App = (await server.ssrLoadModule("/src/App.tsx")).default
 })
 after(async () => server?.close())
@@ -156,14 +157,14 @@ function fixture({ width = 1280, reduced = false } = {}) {
     drawImage() {},
     fillRect(...args) {
       assert.ok(args.every(Number.isFinite))
-      paintCalls.push(args)
+      if (paintCalls.length < 10000) paintCalls.push(args)
     },
     fillText(text, x, y) {
       assert.ok(
         Number.isFinite(x) && Number.isFinite(y),
         `${text}: finite text coordinates`,
       )
-      paintCalls.push([x, y])
+      if (paintCalls.length < 10000) paintCalls.push([x, y])
     },
     getImageData(x, y, width, height) {
       const data = new Uint8ClampedArray(width * height * 4)
@@ -242,8 +243,23 @@ test("scatter paths land exactly on targets; dust reconstructs at its origin", (
     const dust = geometry.dustAt(from, { x: 1, y: 0 }, seed / 100)
     assert.ok(Math.abs(dust.x - from.x) <= 22)
   }
-  assert.ok(geometry.particleBudget(10000, 10000, true) <= 480)
-  assert.ok(geometry.particleBudget(10000, 10000, false) <= 1100)
+  assert.ok(geometry.particleBudget(10000, 10000, true) <= 12000)
+  assert.ok(geometry.particleBudget(10000, 10000, false) <= 36000)
+  assert.ok(geometry.particleBudget(1440, 900, false) >= 30000)
+})
+
+test("high-resolution snapshots keep 2px fragments and thousands of samples even at the pool limit", () => {
+  const f = fixture(), d = f.dom.window.document
+  try {
+    d.body.insertAdjacentHTML('beforeend', '<section id="fine"><h2>Fine particles</h2></section>')
+    const root = d.getElementById('fine')
+    const dense = snapshotModule.snapshot(root, 20000)
+    assert.ok(dense.length >= 10000, 'small visual supplies thousands of particles')
+    assert.ok(dense.every(sample => sample.size === 2))
+    const limited = snapshotModule.snapshot(root, 2000)
+    assert.equal(limited.length, 2000)
+    assert.ok(limited.every(sample => sample.size === 2), 'budgeting does not enlarge fragments')
+  } finally { f.dom.window.close() }
 })
 
 test("renderer retargets, cancels work, and completes pending dialog closure on disposal", () => {
