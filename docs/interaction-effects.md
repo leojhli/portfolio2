@@ -10,7 +10,7 @@ Nested vertical panels, shelves, inputs, dialogs and stage gestures keep their n
 
 Visual wrappers carry small depth values: portrait, planet, pool, music/books, game preview and background numerals. Their independent CSS translate follows scroll position, bounded to 54px. Text and hit targets stay in their original layout. Motion Off clears depth motion and wheel damping. Compact layouts retain ordinary vertical scrolling.
 
-Visible groups receive restrained native entrances, observed once as they enter the viewport. Popovers and header/footer have coordinated appearances, button presses compress slightly, and shelf spines lift on direct hover. Entrances use opacity/transform instead of animated layout dimensions. Keyboard focus reveals a group immediately. Media remains mounted. The previous GPU liquid surface, mosaic transitions and character page-transition overlays have been deleted.
+Desktop visual groups reveal continuously with scroll distance: staggered opacity and upward settling for text/cards, with a larger lift and subtle scale for artwork. Outgoing groups drift upward; reversing scroll reverses the choreography. The settled center stays fully opaque and aligned. Only opacity, translate and scale change; no blur, timers or layout reads are used per group during scrolling. Focused groups become fully visible immediately. Compact layouts keep their once-observed native entrances. Popovers and header/footer have coordinated appearances, button presses compress slightly, and shelf spines lift on direct hover. Entrances use opacity/transform instead of animated layout dimensions. Keyboard focus reveals a group immediately. Media remains mounted. The previous GPU liquid surface, mosaic transitions and character page-transition overlays have been deleted.
 
 ## Literal ASCII rendering
 
@@ -20,7 +20,7 @@ The original DOM strings stay in place for selection, copying, search and screen
 
 Icons and the LL logo use characters; frames use `+`, `-` and `|`; sliders use character tracks over accessible native range inputs. Normal CSS fills, curves, shadows, SVG icons and image output are suppressed. Existing 3D scenes and video render through the colored character rasterizer, the CD player has its character disc, and the pool has a character fallback when WebGL is unavailable. Character frames resize with their groups.
 
-ASCII mode has no liquid pointer displacement or page-transition overlay. It shares the continuous horizontal document and scroll-linked artwork depth. ASCII entrances fade native groups without moving the glyphs separately. Leaving ASCII removes every decorative text/frame canvas and restores the ordinary interface.
+ASCII mode has no liquid pointer displacement or page-transition overlay. It shares the continuous horizontal document and scroll-linked artwork depth. ASCII groups share the scroll-linked fades, with reveal lift and scale disabled to keep character shapes steady. Leaving ASCII removes every decorative text/frame canvas and restores the ordinary interface.
 
 ## Local cursor behavior
 

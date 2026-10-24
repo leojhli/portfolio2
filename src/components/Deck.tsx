@@ -10,7 +10,12 @@ import {
 import { usePrefs } from "../state/preferences"
 import { cancelEffects } from "../effects/coordinator"
 import { animateEntrance } from "../effects/entrances"
-import { clampScroll, depthOffset, scrollStep } from "../effects/scrollGeometry"
+import {
+  clampScroll,
+  depthOffset,
+  scrollStep,
+  scrollReveal,
+} from "../effects/scrollGeometry"
 
 const Q = "(min-width: 1024px) and (min-height: 700px)"
 const subscribe = (cb: () => void) => {
@@ -101,7 +106,18 @@ export default function Deck({
       })),
     )
     const stops: Array<() => void> = []
-    const seen = new Set<Element>()
+    const reveals = ps.flatMap((p, panel) =>
+      [...p.querySelectorAll<HTMLElement>("[data-reveal]")]
+        .filter((node) => !node.parentElement?.closest("[data-reveal]"))
+        .map((node, order) => ({
+          node,
+          panel,
+          order,
+          artwork: node.hasAttribute("data-depth"),
+        })),
+    )
+    if (wide && motion)
+      reveals.forEach(({ node }) => node.setAttribute("data-scroll-reveal", ""))
     const paint = () => {
       paintRaf = 0
       if (!wide) return
@@ -121,16 +137,26 @@ export default function Deck({
         const x = motion ? depthOffset(layer.panel, left, w, layer.depth) : 0
         layer.node.style.setProperty("--depth-x", x.toFixed(2) + "px")
       }
-      // No IntersectionObserver still leaves the first/current section animated.
-      if (
-        motion &&
-        !("IntersectionObserver" in window) &&
-        ps[i] &&
-        !seen.has(ps[i])
-      ) {
-        seen.add(ps[i])
-        stops.push(animateEntrance(ps[i]))
-      }
+      if (motion)
+        for (const group of reveals) {
+          const state = scrollReveal(
+            group.panel - left / w,
+            group.order,
+            group.artwork,
+          )
+          group.node.style.setProperty(
+            "--scroll-opacity",
+            state.opacity.toFixed(4),
+          )
+          group.node.style.setProperty(
+            "--scroll-y",
+            (mode === "ascii" ? 0 : state.y).toFixed(2) + "px",
+          )
+          group.node.style.setProperty(
+            "--scroll-scale",
+            (mode === "ascii" ? 1 : state.scale).toFixed(5),
+          )
+        }
     }
     const schedule = () => {
       if (!paintRaf && !stopped) paintRaf = requestAnimationFrame(paint)
@@ -253,7 +279,8 @@ export default function Deck({
       schedule()
     }
     let observer: IntersectionObserver | undefined
-    if (motion && "IntersectionObserver" in window) {
+    if (!wide && motion && "IntersectionObserver" in window) {
+      const seen = new Set<Element>()
       observer = new IntersectionObserver(
         (entries) => {
           for (const entry of entries) {
@@ -285,6 +312,15 @@ export default function Deck({
       observer?.disconnect()
       stops.forEach((stop) => stop())
       layers.forEach(({ node }) => node.style.removeProperty("--depth-x"))
+      reveals.forEach(({ node }) => {
+        node.removeAttribute("data-scroll-reveal")
+        for (const property of [
+          "--scroll-opacity",
+          "--scroll-y",
+          "--scroll-scale",
+        ])
+          node.style.removeProperty(property)
+      })
       el.removeEventListener("scroll", scroll)
       el.removeEventListener("wheel", wheel)
       el.removeEventListener("pointerdown", halt)

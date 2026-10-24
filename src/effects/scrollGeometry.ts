@@ -20,3 +20,19 @@ export function depthOffset(
   if (distance === 0) return 0
   return Math.max(-54, Math.min(54, -distance * width * depth))
 }
+
+/** Reversible choreography, driven only by scroll distance (never a timer). */
+export function scrollReveal(distance: number, order: number, artwork = false) {
+  const stagger = Math.min(Math.max(order, 0), 4) * 0.035
+  const t = Math.max(
+    0,
+    Math.min(1, (0.98 - Math.abs(distance) - stagger) / 0.72),
+  )
+  const visibility = t * t * (3 - 2 * t)
+  const hidden = 1 - visibility
+  return {
+    opacity: 0.16 + 0.84 * visibility,
+    y: hidden * (distance >= 0 ? (artwork ? 64 : 32) : artwork ? -28 : -14),
+    scale: artwork ? 1 - hidden * 0.055 : 1,
+  }
+}

@@ -772,6 +772,22 @@ test("horizontal scrolling is continuous, proportional to input, and keeps depth
       3010,
       "native scroll can rest at any fractional section",
     )
+    const pool = document.querySelector('[data-depth="0.06"]')
+    assert.ok(pool.hasAttribute("data-scroll-reveal"))
+    const faded = Number(pool.style.getPropertyValue("--scroll-opacity"))
+    const lifted = parseFloat(pool.style.getPropertyValue("--scroll-y"))
+    assert.ok(faded > 0.16 && faded < 1)
+    assert.ok(lifted > 0)
+    deck.scrollLeft = 3700
+    await act(async () => deck.dispatchEvent(new Event("scroll")))
+    await act(async () => f.advance(32))
+    assert.equal(Number(pool.style.getPropertyValue("--scroll-opacity")), 1)
+    assert.equal(parseFloat(pool.style.getPropertyValue("--scroll-y")), 0)
+    deck.scrollLeft = 3010
+    await act(async () => deck.dispatchEvent(new Event("scroll")))
+    await act(async () => f.advance(32))
+    assert.equal(Number(pool.style.getPropertyValue("--scroll-opacity")), faded)
+    assert.equal(parseFloat(pool.style.getPropertyValue("--scroll-y")), lifted)
   } finally {
     await unmount()
   }

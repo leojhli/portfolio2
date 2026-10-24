@@ -53,6 +53,34 @@ test("literal ASCII text glyphs come only from printable ASCII marks", () => {
   assert.ok(marks.size >= 6)
 })
 
+test("scroll reveals settle fully, stagger, and reverse continuously without overshoot", () => {
+  for (let order = 0; order <= 6; order++) {
+    assert.deepEqual(scrollModule.scrollReveal(0, order, true), {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+    })
+    let previous = 0
+    for (let step = 100; step >= 0; step--) {
+      const state = scrollModule.scrollReveal(step / 100, order, true)
+      assert.ok(state.opacity >= previous && state.opacity <= 1)
+      assert.ok(state.y >= 0 && state.y <= 64)
+      assert.ok(state.scale >= 0.945 && state.scale <= 1)
+      previous = state.opacity
+    }
+  }
+  const early = scrollModule.scrollReveal(0.6, 0, true)
+  const late = scrollModule.scrollReveal(0.6, 3, true)
+  assert.ok(early.opacity > late.opacity)
+  assert.ok(early.y < late.y)
+  assert.equal(scrollModule.scrollReveal(-0.6, 0, true).opacity, early.opacity)
+  assert.ok(scrollModule.scrollReveal(-0.6, 0, true).y < 0)
+  assert.equal(scrollModule.scrollReveal(0.6, 0, false).scale, 1)
+  const a = scrollModule.scrollReveal(0.5, 2, true)
+  const b = scrollModule.scrollReveal(0.5001, 2, true)
+  assert.ok(Math.abs(a.y - b.y) < 0.02, "small scroll changes never jump")
+})
+
 function entranceFixture() {
   const dom = new JSDOM(
     "<!doctype html><section><div data-reveal><h2>Heading</h2><p data-reveal>Nested</p></div><div data-reveal><button>Content</button></div></section>",
