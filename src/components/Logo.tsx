@@ -1,5 +1,14 @@
-/** Two forward-leaning Ls with square elbows and parallel 45-degree cut ends. */
+import { usePrefs } from "../state/preferences"
+
+/** Two forward-leaning Ls; character lettering in the terminal presentation. */
 export default function Logo() {
+  const { mode } = usePrefs()
+  if (mode === "ascii")
+    return (
+      <span aria-hidden="true" className="text-sm tracking-tight">
+        [LL]
+      </span>
+    )
   return (
     <svg
       width="38"

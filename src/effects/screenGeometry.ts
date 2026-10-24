@@ -26,14 +26,12 @@ export function screenVariant(index: number): ScreenVariant {
   return SCREEN_VARIANTS[i % SCREEN_VARIANTS.length]
 }
 
-/** Fine, sharp cells throughout; the incoming image is back to 2px before handoff. */
-export function screenPixelSize(progress: number) {
-  return (
-    2 + Math.round(Math.sin(Math.PI * clamp(progressOf(progress) / 0.82)) * 2)
-  )
+/** Keep the same fine grid throughout: changing raster resolutions causes pops. */
+export function screenPixelSize(_progress: number) {
+  return 2
 }
 
-/** 900ms navigation stays opaque beyond the underlying 700ms deck slide. */
+/** Navigation stays opaque beyond the underlying deck slide. */
 export function screenOpacity(progress: number) {
   return 1 - smooth((progressOf(progress) - 0.86) / 0.14)
 }

@@ -11,6 +11,7 @@ import { usePrefs } from "../state/preferences"
 import { cancelEffects, transition, visiblePanel } from "../effects/coordinator"
 import type { Point } from "../effects/geometry"
 import { screenVariant } from "../effects/screenGeometry"
+import { animateEntrance } from "../effects/entrances"
 
 const Q = "(min-width: 1024px) and (min-height: 700px)"
 const THRESH = 240
@@ -36,13 +37,16 @@ export default function Deck({
   children: ReactNode
 }) {
   const wide = useSyncExternalStore(subscribe, () => matchMedia(Q).matches)
-  const { motion } = usePrefs()
+  const { motion, mode } = usePrefs()
   const live = useRef({ motion, wide })
   live.current = { motion, wide }
   const track = useRef<HTMLDivElement>(null)
   const meter = useRef<HTMLSpanElement>(null)
   const idx = useRef(0)
   const lockUntil = useRef(0)
+  const entrance = useRef(() => {})
+  const arrival = useRef({ delay: 0, direction: 0 })
+  const previousMode = useRef(mode)
   const [index, setIndex] = useState(0)
   const [pagesMeta, setPagesMeta] = useState<Array<{
     id: string
@@ -58,11 +62,12 @@ export default function Deck({
   const place = (i: number, animate: boolean) => {
     if (!track.current) return
     track.current.style.transition = animate
-      ? "transform 0.7s cubic-bezier(0.76,0,0.24,1)"
+      ? "transform 0.56s cubic-bezier(0.22,1,0.36,1)"
       : "none"
     track.current.style.transform = `translate3d(${-i * 100}vw,0,0)`
   }
   const settle = useCallback(() => {
+    entrance.current()
     cancelEffects()
     lockUntil.current = 0
     pages().forEach((p) => p.style.removeProperty("transform"))
@@ -78,12 +83,19 @@ export default function Deck({
     const fromIndex = from ? ps.indexOf(from) : -1
     const previousIndex = fromIndex >= 0 ? fromIndex : idx.current
     cancelEffects()
+    entrance.current()
     ps.forEach((p) => p.style.removeProperty("transform"))
     idx.current = i
     setIndex(i)
     if (options.history !== false && location.hash !== `#${into.id}`)
       history.pushState(null, "", `#${into.id}`)
     const animate = live.current.motion && options.animate !== false
+    arrival.current = {
+      // The liquid reveal already supplies the entrance; let the live DOM settle
+      // underneath it so the handoff cannot fade back to partly hidden text.
+      delay: 0,
+      direction: i > previousIndex ? 1 : -1,
+    }
     // Snapshot outgoing content before moving the track. Destination coordinates are
     // normalized to its final viewport, so the liquid pixels resolve into its layout.
     if (animate && from && from !== into)
@@ -95,7 +107,7 @@ export default function Deck({
       })
     if (live.current.wide) place(i, animate)
     else into.scrollIntoView({ block: "start", behavior: "instant" })
-    lockUntil.current = animate ? performance.now() + 1000 : 0
+    lockUntil.current = animate ? performance.now() + 760 : 0
     if (options.focus) {
       const heading = into.querySelector<HTMLElement>("h1,h2") ?? into
       heading.focus({ preventScroll: true })
@@ -137,6 +149,18 @@ export default function Deck({
   useEffect(() => {
     if (!motion) settle()
   }, [motion, settle])
+
+  useEffect(() => {
+    const root = pages()[index]
+    if (motion && wide && root)
+      entrance.current = animateEntrance(root, arrival.current)
+    return () => entrance.current()
+  }, [index, motion, wide])
+
+  useEffect(() => {
+    if (previousMode.current !== mode) entrance.current()
+    previousMode.current = mode
+  }, [mode])
 
   // Shared anchor/history handling for both layouts. Normal links keep native behavior.
   useEffect(() => {
@@ -338,6 +362,7 @@ export default function Deck({
     if (wide || !motion || !("IntersectionObserver" in window)) return
     const elements =
       track.current!.querySelectorAll<HTMLElement>("[data-reveal]")
+    const stops: Array<() => void> = []
     const observer = new IntersectionObserver(
       (entries) => {
         for (const { target, isIntersecting } of entries) {
@@ -347,7 +372,7 @@ export default function Deck({
             el.getBoundingClientRect().top > 0 &&
             !el.contains(document.activeElement)
           )
-            el.classList.add("soft-reveal")
+            stops.push(animateEntrance(el))
           observer.unobserve(el)
         }
       },
@@ -356,9 +381,9 @@ export default function Deck({
     elements.forEach((el) => observer.observe(el))
     return () => {
       observer.disconnect()
-      elements.forEach((el) => el.classList.remove("soft-reveal"))
+      stops.forEach((stop) => stop())
     }
-  }, [wide, motion])
+  }, [wide, motion, mode])
 
   const current = pagesMeta[index]
   return (
@@ -375,13 +400,16 @@ export default function Deck({
       </p>
       <div
         data-deck-status
-        className="fixed inset-x-0 bottom-0 z-30 hidden h-14 items-center gap-6 border-t border-line bg-bg/85 px-8 font-sans text-xs text-muted backdrop-blur hz:flex"
+        className="site-status fixed inset-x-0 bottom-0 z-30 hidden h-14 items-center gap-6 bg-bg/85 px-8 font-sans text-xs text-muted backdrop-blur hz:flex"
       >
         <span className="w-16 shrink-0 tabular-nums text-fg">
           {pad(index + 1)}
           <span className="text-muted"> / {pad(pagesMeta.length || 1)}</span>
         </span>
-        <nav aria-label="Sections">
+        <nav
+          aria-label="Sections"
+          className="absolute left-1/2 -translate-x-1/2"
+        >
           <ul className="flex gap-1">
             {nav.map(([id, text]) => (
               <li key={id}>
@@ -398,27 +426,37 @@ export default function Deck({
         </nav>
         <div
           aria-hidden="true"
-          className="relative h-[3px] flex-1 overflow-hidden rounded bg-line"
+          className="relative mr-auto h-[3px] w-20 overflow-hidden rounded bg-line xl:w-28"
         >
-          <div
-            className="vivid-bar absolute inset-y-0 left-0 transition-[width] duration-700 ease-out"
-            style={{
-              width: `${
-                pagesMeta.length > 1
-                  ? (index / (pagesMeta.length - 1)) * 100
-                  : 0
-              }%`,
-            }}
-          />
-        </div>
-        <span aria-hidden="true" className="flex items-center gap-3">
-          {index < pagesMeta.length - 1 ? "keep scrolling" : "the end"}
-          <span className="relative h-[3px] w-14 overflow-hidden rounded bg-line">
-            <span
-              ref={meter}
-              className="vivid-bar absolute inset-0 origin-left scale-x-0"
+          {mode === "ascii" ? (
+            <span className="text-xs text-muted">
+              {"[" +
+                "=".repeat(index) +
+                ">" +
+                "-".repeat(Math.max(0, pagesMeta.length - index - 1)) +
+                "]"}
+            </span>
+          ) : (
+            <div
+              className="vivid-bar deck-progress absolute inset-y-0 left-0 w-full origin-left"
+              style={{
+                transform: `scaleX(${
+                  pagesMeta.length > 1 ? index / (pagesMeta.length - 1) : 0
+                })`,
+              }}
             />
-          </span>
+          )}
+        </div>
+        <span aria-hidden="true" className="ml-auto flex items-center gap-3">
+          {index < pagesMeta.length - 1 ? "keep scrolling" : "the end"}
+          {mode !== "ascii" && (
+            <span className="relative h-[3px] w-14 overflow-hidden rounded bg-line">
+              <span
+                ref={meter}
+                className="vivid-bar absolute inset-0 origin-left scale-x-0"
+              />
+            </span>
+          )}
         </span>
       </div>
     </>

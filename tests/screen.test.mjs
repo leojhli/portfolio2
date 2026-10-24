@@ -147,7 +147,7 @@ function isDisplaced({ args }, width, height) {
   )
 }
 
-test("screen timing stays opaque beyond the deck slide and keeps cells between two and four pixels", () => {
+test("screen timing stays opaque beyond the deck slide and keeps cells at a stable two pixels", () => {
   for (const progress of [-1, 0, 0.08, 0.3, 0.5, 0.7, 0.8, 0.86]) {
     assert.equal(geometry.screenOpacity(progress), 1)
   }
@@ -157,14 +157,14 @@ test("screen timing stays opaque beyond the deck slide and keeps cells between t
     geometry.screenOpacity(0.93) > 0 && geometry.screenOpacity(0.93) < 1,
   )
   assert.equal(geometry.screenPixelSize(0), 2)
-  assert.equal(geometry.screenPixelSize(0.41), 4)
+  assert.equal(geometry.screenPixelSize(0.41), 2)
   assert.equal(geometry.screenPixelSize(0.8), 2)
   assert.equal(geometry.screenPixelSize(1), 2)
   for (const progress of [-1, 0, 0.1, 0.4, 0.86, 1, 2, NaN, Infinity]) {
     assert.ok(Number.isInteger(geometry.screenPixelSize(progress)))
     assert.ok(
       geometry.screenPixelSize(progress) >= 2 &&
-        geometry.screenPixelSize(progress) <= 4,
+        geometry.screenPixelSize(progress) <= 2,
     )
     assert.ok(
       geometry.screenOpacity(progress) >= 0 &&
@@ -284,7 +284,7 @@ test("liquid masks are deterministic and move continuously instead of jittering 
   }
 })
 
-test("partial frames mask the entire viewport, sample within bounds, and reuse six fixed mosaics", () => {
+test("partial frames mask the entire viewport, sample within bounds, and reuse two fixed mosaics", () => {
   for (const [width, height] of [
     [1, 1],
     [1, 67],
@@ -303,7 +303,7 @@ test("partial frames mask the entire viewport, sample within bounds, and reuse s
           direction,
           ascii: true,
         })
-        assert.equal(buffers.length, 6)
+        assert.equal(buffers.length, 2)
         for (let index = 0; index < buffers.length; index++) {
           const size = 2 + Math.floor(index / 2),
             buffer = buffers[index]
@@ -332,12 +332,12 @@ test("partial frames mask the entire viewport, sample within bounds, and reuse s
           )
           assertInBounds(ctx.calls, width, height)
           assert.ok(
-            ctx.calls.length < 12000,
+            ctx.calls.length < 2000,
             "strip count remains bounded at 4K",
           )
           assert.equal(
             buffers.length,
-            6,
+            2,
             "paint does not allocate new canvases",
           )
           assert.ok(
@@ -438,7 +438,7 @@ test("dispose releases every mosaic and makes future paints inert", () => {
   })
   transition.dispose()
   transition.dispose()
-  assert.equal(buffers.length, 6)
+  assert.equal(buffers.length, 2)
   assert.ok(
     buffers.every((buffer) => buffer.width === 0 && buffer.height === 0),
   )
@@ -449,7 +449,7 @@ test("dispose releases every mosaic and makes future paints inert", () => {
 })
 
 test("failed mosaic allocation releases complete and partial pairs", () => {
-  for (const failAt of [0, 1, 3, 5]) {
+  for (const failAt of [0, 1]) {
     const { from, into, buffers } = fixture(1024, 768, failAt)
     assert.throws(
       () =>

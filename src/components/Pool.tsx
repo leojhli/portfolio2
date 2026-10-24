@@ -4,7 +4,27 @@ import { usePrefs } from "../state/preferences"
 const PoolView = lazy(() => import("../three/PoolView"))
 
 /** Static stand-in when WebGL is unavailable: four lanes with palette ropes. */
-function FlatPool() {
+function FlatPool({ ascii }: { ascii: boolean }) {
+  if (ascii)
+    return (
+      <pre
+        role="img"
+        aria-label="A four-lane swimming pool"
+        className="absolute inset-6 overflow-hidden text-xs leading-relaxed text-muted"
+      >
+        {[
+          "+----------------------------------+",
+          "|  . . . . . . . . . . . . . . .   |",
+          "|==================================|",
+          "|              _o/ ~~~             |",
+          "|==================================|",
+          "|  . . . . . . . . . . . . . . .   |",
+          "|==================================|",
+          "|  . . . . . . . . . . . . . . .   |",
+          "+----------------------------------+",
+        ].join("\n")}
+      </pre>
+    )
   return (
     <div
       role="img"
@@ -28,7 +48,7 @@ function FlatPool() {
 }
 
 export default function Pool() {
-  const { motion } = usePrefs()
+  const { motion, mode } = usePrefs()
   const [failed, setFailed] = useState(false)
   return (
     <figure
@@ -37,7 +57,7 @@ export default function Pool() {
     >
       <div data-fx className="relative aspect-[4/3] max-h-[50vh] w-full">
         {failed ? (
-          <FlatPool />
+          <FlatPool ascii={mode === "ascii"} />
         ) : (
           <Suspense fallback={null}>
             <PoolView onFail={() => setFailed(true)} />

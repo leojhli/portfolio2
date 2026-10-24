@@ -433,10 +433,96 @@ test("viewport rasters include navigation and status text as well as the panel",
     const raster = snapshotModule.captureRaster(d.getElementById("panel"))
     assert.equal(raster.width, 1280)
     assert.equal(raster.height, 800)
-    const painted = raster._ctx.textCalls.join("")
+    const painted = raster._ctx.textCalls.join("").replace(/\s/gu, "")
     assert.ok(painted.includes("Navigation"))
     assert.ok(painted.includes("Pagestatus"))
     assert.ok(painted.includes("Paneltext"))
+  } finally {
+    f.dom.window.close()
+  }
+})
+
+test("ASCII navigation draws character accents without cursor displacement or viewport raster copies", () => {
+  const f = fixture(),
+    d = f.dom.window.document
+  d.documentElement.dataset.motion = "on"
+  d.documentElement.dataset.mode = "ascii"
+  d.body.insertAdjacentHTML(
+    "beforeend",
+    '<section id="ascii-one"><h2>First screen</h2></section><section id="ascii-two"><h2>Second screen</h2></section>',
+  )
+  const canvas = d.createElement("canvas")
+  d.body.append(canvas)
+  const renderer = rendererModule.createRenderer(canvas)
+  try {
+    movePointer(120, 240)
+    f.advance(240)
+    assert.equal(canvas._ctx.frameCalls.length, 0)
+    assert.equal(canvas._ctx.imageCalls.length, 0)
+    assert.equal(
+      f.frames.size,
+      0,
+      "ASCII pointer motion does not start a field",
+    )
+    renderer.transition(
+      d.getElementById("ascii-one"),
+      d.getElementById("ascii-two"),
+      { variant: "pools" },
+    )
+    f.advance(240)
+    assert.ok(canvas._ctx.textCalls.length > 0)
+    assert.ok(
+      canvas._ctx.textCalls.every((text) => /^[\x20-\x7e]*$/.test(text)),
+    )
+    assert.equal(
+      canvas._ctx.imageCalls.length,
+      0,
+      "no full-page pixel surfaces or image copies",
+    )
+    assert.equal(canvas._ctx.frameCalls.length, 0, "no pixel rectangles")
+    assert.equal(d.querySelector("[data-screen-pixelation]"), null)
+    f.advance(1000)
+    assert.equal(f.frames.size, 0)
+    assert.equal(d.getElementById("ascii-two").textContent, "Second screen")
+  } finally {
+    renderer.dispose()
+    f.dom.window.close()
+  }
+})
+
+test("full-viewport captures measure text runs while local cursor captures retain individual glyphs", () => {
+  const f = fixture(),
+    d = f.dom.window.document
+  d.body.insertAdjacentHTML(
+    "beforeend",
+    '<section id="text-runs"><p>This interface stays responsive while every small character remains available.</p></section>',
+  )
+  const original = f.dom.window.Range.prototype.getBoundingClientRect
+  let measurements = 0
+  f.dom.window.Range.prototype.getBoundingClientRect = function () {
+    measurements++
+    return original.call(this)
+  }
+  try {
+    const root = d.getElementById("text-runs")
+    const raster = snapshotModule.captureRaster(root)
+    const full = measurements
+    assert.ok(
+      full < 20,
+      "full-page capture measures words instead of every letter",
+    )
+    assert.ok(raster._ctx.textCalls.some((text) => text.includes("responsive")))
+    measurements = 0
+    snapshotModule.snapshot(root, 20000, false, 2, true, {
+      left: 0,
+      top: 0,
+      right: 272,
+      bottom: 400,
+    })
+    assert.ok(
+      measurements > full * 3,
+      "the local path keeps precise glyph placement",
+    )
   } finally {
     f.dom.window.close()
   }
@@ -566,9 +652,13 @@ async function mountApp(f) {
   }
 }
 const byText = (selector, text) =>
-  [...document.querySelectorAll(selector)].find(
-    (el) => el.textContent.trim() === text,
-  )
+  [...document.querySelectorAll(selector)].find((el) => {
+    const copy = el.cloneNode(true)
+    copy
+      .querySelectorAll('[aria-hidden="true"]')
+      .forEach((node) => node.remove())
+    return copy.textContent.trim() === text
+  })
 const click = async (el) => {
   assert.ok(el, "control exists")
   await act(async () => el.click())
@@ -632,6 +722,64 @@ test("real React navigation gives each adjacent page boundary a distinct liquid 
     assert.equal(location.hash, `#${ids[0]}`)
   } finally {
     disconnect()
+    await unmount()
+  }
+})
+
+test("ASCII presentation uses character controls and frames, keeps media mounted, and cleans up on leaving", async () => {
+  const f = fixture(),
+    unmount = await mountApp(f)
+  try {
+    const footerNav = document.querySelector("[data-deck-status] nav")
+    assert.ok(footerNav.classList.contains("left-1/2"))
+    assert.ok(footerNav.classList.contains("-translate-x-1/2"))
+    assert.ok(!document.querySelector("header").classList.contains("border-b"))
+    assert.ok(
+      !document
+        .querySelector("[data-deck-status]")
+        .classList.contains("border-t"),
+    )
+    assert.equal(document.querySelector("header > .palette-strip"), null)
+    await click(document.querySelector('[aria-label="Play"]'))
+    const audio = f.audioInstances[0]
+    await click(byText("button", "ASCII"))
+    await act(async () => f.advance(1200))
+    const frames = [...document.querySelectorAll("[data-ascii-decor]")]
+    assert.ok(frames.length > 10)
+    assert.ok(
+      frames.every(
+        (el) =>
+          el.getAttribute("aria-hidden") === "true" &&
+          /^[+|\- \n]+$/.test(el.textContent),
+      ),
+    )
+    assert.ok(
+      document
+        .querySelector('[aria-label="Play"],[aria-label="Pause"]')
+        .querySelector("[data-ascii-icon]"),
+    )
+    assert.equal(document.querySelector(".brand-home svg"), null)
+    assert.ok(
+      document.querySelector(".brand-home").textContent.includes("[LL]"),
+    )
+    assert.equal(
+      document
+        .querySelector('[aria-label="Volume"]')
+        .closest(".ascii-range") !== null,
+      true,
+    )
+    assert.equal(f.audioInstances.length, 1)
+    assert.equal(audio.paused, false)
+    await click(byText("a", "Contact"))
+    await act(async () => f.advance(1200))
+    assert.equal(location.hash, "#contact")
+    await click(byText("button", "Dynamic"))
+    await act(async () => f.advance(1200))
+    assert.equal(document.querySelector("[data-ascii-decor]"), null)
+    assert.equal(document.querySelector("[data-ascii-framed]"), null)
+    assert.ok(document.querySelector(".brand-home svg"))
+    assert.equal(audio.paused, false)
+  } finally {
     await unmount()
   }
 })

@@ -1,32 +1,20 @@
-import {
-  assemblyAt,
-  clamp,
-  noise,
-  particleBudget,
-  type Point,
-} from "./geometry"
+import { clamp, type Point } from "./geometry"
 import { captureRaster, snapshot, type Fragment } from "./snapshot"
 import { createScreenTransition, type ScreenTransition } from "./screen"
+import { createScreenSurface } from "./screenSurface"
 import { screenVariant } from "./screenGeometry"
 import { createLiquidField } from "./liquid"
 import { LIQUID_INFLUENCE } from "./liquidGeometry"
 import type { EffectDriver, EffectOptions } from "./coordinator"
 import { visiblePanel } from "./coordinator"
+import { animateEntrance } from "./entrances"
+import { createAsciiTransition } from "./asciiTransition"
 
-type Flight = {
-  from: Fragment
-  to: Fragment
-  seed: number
-  delay: number
-}
 type Sequence = {
-  flights: Flight[]
   born: number
   life: number
-  exiting: boolean
   done?: () => void
 }
-const GLYPHS = "+*:#=%@"
 const TILE = 64
 
 /** One scheduler owns a local liquid field and explicit navigation/reveal effects. */
@@ -69,18 +57,11 @@ export function createRenderer(
     }>
   } | null = null
   let animations: Animation[] = []
+  let stopEntrance = () => {}
   const screenLayers = new Set<HTMLElement>()
   const ascii = () => document.documentElement.dataset.mode === "ascii"
   const enabled = () =>
     document.documentElement.dataset.motion === "on" && !document.hidden
-  const budget = () => {
-    const pixels = particleBudget(
-      innerWidth,
-      innerHeight,
-      matchMedia("(pointer: coarse)").matches,
-    )
-    return ascii() ? Math.min(6500, pixels) : pixels
-  }
   const editing = () =>
     document.activeElement?.matches(
       'input,textarea,select,[contenteditable="true"]',
@@ -97,10 +78,13 @@ export function createRenderer(
     if (canvas.parentElement !== parent) parent.appendChild(canvas)
   }
   const cleanAnimations = () => {
+    stopEntrance()
+    stopEntrance = () => {}
     animations.forEach((a) => a.cancel())
     animations = []
     screenLayers.forEach((el) => delete el.dataset.screenPixelation)
     screenLayers.clear()
+    delete document.documentElement.dataset.pageTransition
   }
   const cancel = () => {
     cancelAnimationFrame(raf)
@@ -132,25 +116,9 @@ export function createRenderer(
         }
       })
   }
-  const draw = (
-    p: Point,
-    size: number,
-    color: string,
-    alpha: number,
-    seed: number,
-  ) => {
-    ctx.globalAlpha = clamp(alpha)
-    ctx.fillStyle = color
-    if (ascii())
-      ctx.fillText(GLYPHS[Math.floor(noise(seed) * GLYPHS.length)], p.x, p.y)
-    else
-      ctx.fillRect(
-        Math.round(p.x),
-        Math.round(p.y),
-        Math.max(1, Math.round(size)),
-        Math.max(1, Math.round(size)),
-      )
-  }
+  // Compile once while mounting, reuse across navigation, and render directly
+  // to its own composited canvas (no WebGL-to-2D copy on every frame).
+  const surface = createScreenSurface(canvas, cancel)
   const captureLocal = (point: Point, now: number) => {
     if (editing() || !getSelection()?.isCollapsed) return
     const root =
@@ -214,9 +182,11 @@ export function createRenderer(
       cancel()
       return
     }
-    ctx.clearRect(0, 0, innerWidth, innerHeight)
-    ctx.font = '600 7px "Geist Mono", monospace'
-    ctx.textBaseline = "middle"
+    if (!screen?.effect.composited) {
+      ctx.clearRect(0, 0, innerWidth, innerHeight)
+      ctx.font = '600 7px "Geist Mono", monospace'
+      ctx.textBaseline = "middle"
+    }
     let moving = false
     if (screen) {
       const s = screen
@@ -231,17 +201,6 @@ export function createRenderer(
     } else if (sequence) {
       const s = sequence,
         age = Math.max(0, now - s.born)
-      for (const [i, f] of s.flights.entries()) {
-        const end = f.to.rank === 0 ? 0.78 : 1
-        const p = clamp((age / s.life - f.delay) / (end - f.delay))
-        draw(
-          assemblyAt(f.from, f.to, p, f.seed),
-          Math.max(0.8, f.to.size * (0.6 + Math.sin(Math.PI * p) * 0.4)),
-          p < 0.45 ? f.from.color : f.to.color,
-          s.exiting ? (1 - p) * 0.85 : Math.sin(Math.PI * p) * 0.92,
-          i,
-        )
-      }
       if (age >= s.life) {
         sequence = null
         cleanAnimations()
@@ -267,6 +226,7 @@ export function createRenderer(
     if (screen || sequence || moving || pointerDirty) kick()
   }
   const revealScreen = () => {
+    document.documentElement.dataset.pageTransition = ""
     // Only lifecycle markers: the single opaque canvas owns the pixelation.
     for (const el of document.querySelectorAll<HTMLElement>(
       "header,.deck,[data-deck-status]",
@@ -275,89 +235,18 @@ export function createRenderer(
       el.dataset.screenPixelation = ""
     }
   }
-  const reveal = (root: HTMLElement, duration: number) => {
-    // Never fade or mask a control/hit area. Only inert text and visual leaves soften.
-    const leaves = [...root.querySelectorAll<HTMLElement>("h1,h2,h3,[data-fx]")]
-      .filter(
-        (el) =>
-          !el.closest('button,a,[role="button"]') &&
-          !el.querySelector('button,a,input,select,textarea,[tabindex="0"]'),
-      )
-      .slice(0, 28)
-    for (const el of leaves) {
-      if (typeof el.animate !== "function") continue
-      animations.push(
-        el.animate(
-          [
-            { opacity: 0.65 },
-            {
-              opacity: 0.75,
-              offset: 0.7,
-            },
-            { opacity: 1 },
-          ],
-          {
-            duration: el.matches("h1,h2,h3") ? duration * 0.78 : duration,
-            easing: "ease-out",
-          },
-        ),
-      )
-    }
-  }
-  const flights = (
-    from: Fragment[],
-    to: Fragment[],
-    origin?: Point,
-  ): Flight[] => {
-    if (!to.length) return []
-    return to.map((target, i) => {
-      const seed = noise(i)
-      const source = from.length
-        ? from[Math.floor((i / to.length) * from.length)]
-        : {
-            ...target,
-            x: origin?.x ?? target.x - 20,
-            y: origin?.y ?? target.y + 16,
-          }
-      return {
-        from: source,
-        to: target,
-        seed,
-        delay: target.rank * 0.1 + seed * 0.09,
-      }
-    })
-  }
-  const start = (
-    from: Fragment[],
-    into: HTMLElement,
-    options: EffectOptions = {},
-    duration = 1000,
-  ) => {
+  const start = (root: HTMLElement, duration = 620) => {
     if (!enabled()) return
-    const to = snapshot(
-      into,
-      budget(),
-      options.align,
-      ascii() ? 4 : 2,
-      options.screen,
-    )
-    if (!to.length) return
-
     home()
-    sequence = {
-      flights: flights(from, to, options.origin),
-      born: performance.now(),
-      life: duration,
-      exiting: false,
-    }
-    reveal(into, duration)
+    sequence = { born: performance.now(), life: duration + 160 }
+    stopEntrance = animateEntrance(root)
     kick()
   }
   const startScreen = (
     from: HTMLCanvasElement,
     into: HTMLElement,
     align = false,
-    life = 900,
+    life = 720,
     options: EffectOptions = {},
   ) => {
     let to: HTMLCanvasElement | null = null
@@ -365,14 +254,17 @@ export function createRenderer(
       if (!enabled()) return
       to = captureRaster(into, align)
       if (!to) return
-      const effect = createScreenTransition(from, to, {
+      const screenOptions = {
         width: innerWidth,
         height: innerHeight,
         ascii: ascii(),
         variant: options.variant ?? screenVariant(turn++),
         direction: options.direction,
-      })
+      }
       home()
+      const effect =
+        surface?.start(from, to, screenOptions) ??
+        createScreenTransition(from, to, screenOptions)
       screen = { effect, born: performance.now(), life }
       revealScreen()
       // Cover the moving DOM before Deck changes its transform.
@@ -384,6 +276,25 @@ export function createRenderer(
       if (to) to.width = to.height = 0
     }
   }
+  const startAscii = (options: EffectOptions = {}) => {
+    if (!enabled()) return
+    home()
+    screen = {
+      effect: createAsciiTransition({
+        width: innerWidth,
+        height: innerHeight,
+        color:
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--c-muted")
+            .trim() || "#999999",
+        variant: options.variant ?? screenVariant(turn++),
+        direction: options.direction,
+      }),
+      born: performance.now(),
+      life: 560,
+    }
+    kick()
+  }
   const releasePointer = () => {
     pointer = null
     pointerDirty = false
@@ -391,7 +302,7 @@ export function createRenderer(
     if (liquid.size()) kick()
   }
   const onMove = (e: PointerEvent) => {
-    if (screen || sequence || !enabled()) return
+    if (screen || sequence || !enabled() || ascii()) return
     if (e.pointerType === "touch" || e.buttons || editing()) {
       releasePointer()
       return
@@ -461,9 +372,13 @@ export function createRenderer(
     transition(from, into, options = {}) {
       cancel()
       if (!enabled()) return
+      if (ascii()) {
+        startAscii(options)
+        return
+      }
       try {
         const raster = captureRaster(from)
-        if (raster) startScreen(raster, into, options.align, 900, options)
+        if (raster) startScreen(raster, into, options.align, 720, options)
       } catch {
         cancel()
       }
@@ -471,7 +386,7 @@ export function createRenderer(
     assemble(root) {
       cancel()
       try {
-        start([], root, {}, 460)
+        start(root)
       } catch {
         cancel()
       }
@@ -482,16 +397,16 @@ export function createRenderer(
       try {
         const wholeScreen = !root.closest("dialog")
         pendingRaster = wholeScreen ? captureRaster(root) : null
-        const from = wholeScreen
-          ? []
-          : snapshot(root, budget(), false, ascii() ? 4 : 2)
         pendingMorph = requestAnimationFrame(() => {
           pendingMorph = 0
           const raster = pendingRaster
           pendingRaster = null
           try {
-            if (raster) startScreen(raster, root, false, 560)
-            else start(from, root, {}, 560)
+            if (ascii()) {
+              if (raster) raster.width = raster.height = 0
+              startAscii()
+            } else if (raster) startScreen(raster, root, false, 560)
+            else start(root)
           } catch {
             cancel()
           }
@@ -507,27 +422,24 @@ export function createRenderer(
         return
       }
       try {
-        const from = snapshot(
-          root,
-          Math.min(8000, budget()),
-          false,
-          ascii() ? 4 : 2,
-        )
-        if (!from.length) {
-          done()
-          return
-        }
         home()
-        const to = from.map((p, i) => ({
-          ...p,
-          x: p.x + (noise(i) - 0.5) * 90,
-          y: p.y - 35 - noise(i + 1) * 40,
-        }))
+        if (typeof root.animate === "function")
+          animations.push(
+            root.animate(
+              [
+                { opacity: 1, transform: "translate3d(0,0,0) scale(1)" },
+                { opacity: 0, transform: "translate3d(0,8px,0) scale(0.985)" },
+              ],
+              {
+                duration: 180,
+                easing: "cubic-bezier(0.4,0,1,1)",
+                fill: "forwards",
+              },
+            ),
+          )
         sequence = {
-          flights: flights(from, to),
           born: performance.now(),
-          life: 240,
-          exiting: true,
+          life: 180,
           done,
         }
         kick()
@@ -541,6 +453,7 @@ export function createRenderer(
       presentation.disconnect()
       document.fonts?.removeEventListener("loadingdone", invalidate)
       cancel()
+      surface?.dispose()
       removeEventListener("pointermove", onMove)
       removeEventListener("pointerout", onOut)
       removeEventListener("pointerdown", releasePointer)

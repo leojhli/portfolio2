@@ -52,13 +52,21 @@ export function Swatches({
   colors: readonly string[]
   className?: string
 }) {
+  const { mode } = usePrefs()
+  const ascii = mode === "ascii"
   return (
     <span
       aria-hidden="true"
       className={`inline-flex overflow-hidden rounded-[5px] border-[1.5px] border-fg ${className}`}
     >
       {colors.map((c, i) => (
-        <span key={i} className="h-full flex-1" style={{ background: c }} />
+        <span
+          key={i}
+          className="h-full flex-1"
+          style={ascii ? { color: c } : { background: c }}
+        >
+          {ascii ? String(i + 1) : null}
+        </span>
       ))}
     </span>
   )
@@ -207,7 +215,7 @@ export default function Controls() {
                               aria-hidden="true"
                               className="font-sans text-xs text-accent"
                             >
-                              ●
+                              {p.mode === "ascii" ? "*" : "●"}
                             </span>
                           )}
                         </label>
@@ -255,8 +263,17 @@ export default function Controls() {
                     value={m}
                     checked={p.motionPref === m}
                     onChange={() => p.setMotionPref(m)}
-                    className="accent-[var(--c-accent)]"
+                    className={
+                      p.mode === "ascii"
+                        ? "sr-only"
+                        : "accent-[var(--c-accent)]"
+                    }
                   />
+                  {p.mode === "ascii" && (
+                    <span aria-hidden="true">
+                      {p.motionPref === m ? "(*)" : "( )"}
+                    </span>
+                  )}
                   {m === "system" ? "System" : m === "on" ? "On" : "Off"}
                 </label>
               ))}

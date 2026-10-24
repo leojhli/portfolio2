@@ -1,4 +1,22 @@
 import type { SVGProps } from "react"
+import { usePrefs } from "../state/preferences"
+
+const characters: Record<string, string> = {
+  play: ">",
+  pause: "||",
+  prev: "|<",
+  next: ">|",
+  volume: "))",
+  close: "x",
+  shuffle: "~",
+  reset: "<-",
+  palette: "#",
+  chevron: ">",
+  settings: "*",
+  arrow: "->",
+  sun: "(*)",
+  moon: "(",
+}
 
 const paths: Record<string, string> = {
   play: "M8 5v14l11-7z",
@@ -29,6 +47,25 @@ export default function Icon({
   name: keyof typeof paths | string
   size?: number
 } & SVGProps<SVGSVGElement>) {
+  const prefs = usePrefs()
+  if (prefs?.mode === "ascii")
+    return (
+      <span
+        data-ascii-icon
+        aria-hidden="true"
+        className={rest.className}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: size,
+          fontSize: Math.min(size, 14),
+          lineHeight: 1,
+        }}
+      >
+        {characters[name] ?? "+"}
+      </span>
+    )
   const fill = filled.has(name)
   return (
     <svg

@@ -1,0 +1,51 @@
+/* A small shared motion vocabulary: quick response, soft deceleration. */
+:root {
+  --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-settle: cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes chrome-in {
+  from { opacity: 0; translate: 0 -8px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes status-in {
+  from { opacity: 0; translate: 0 8px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes surface-in {
+  from { opacity: 0; transform: translate3d(0, -6px, 0) scale(.975); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+html[data-motion='on'] .site-header { animation: chrome-in 640ms var(--motion-ease) both; }
+html[data-motion='on'] .site-status { animation: status-in 640ms 80ms var(--motion-ease) both; }
+html[data-motion='on'] .popover {
+  transform-origin: top right;
+  animation: surface-in 280ms var(--motion-ease) both;
+}
+html[data-motion='on'] dialog[open]::backdrop { animation: backdrop-in 240ms ease both; }
+.deck-progress { transition: transform 560ms var(--motion-settle); }
+html[data-motion='on'] :is(.pop, .brand-home, .game-tile, .spine, [role='group'] button) {
+  transition-property: transform, background-color, color, border-color, box-shadow;
+  transition-duration: 300ms;
+  transition-timing-function: var(--motion-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  html[data-motion='on'] .spine:hover { transform: translateY(-5px); }
+  html[data-motion='on'] :is(.game-tile, .brand-home):hover > svg { transform: translateY(-2px); }
+}
+html[data-motion='on'] :is(.pop, .game-tile, .brand-home, [role='group'] button):active {
+  transform: scale(.97);
+  transition-duration: 100ms;
+}
+html[data-motion='on'] .spine:active { transform: translateY(-2px) scale(.98); }
+html[data-motion='on'] .brand-home > svg { transition: transform 360ms var(--motion-ease); }
+/* No broad transition:all rules, infinite entrance loops or animated layout sizes. */
+html[data-motion='off'] :is(.site-header, .site-status, .popover, .soft-reveal),
+html[data-motion='off'] dialog::backdrop { animation: none; }
+html[data-motion='off'] :is(.deck-progress, .pop, .brand-home, .game-tile, .spine, .card, .kl, .planet-label, [role='group'] button) {
+  transition-duration: 0s;
+}
+

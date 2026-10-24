@@ -91,8 +91,8 @@ const short: Record<string, string> = {
   gd: "GD",
   clash: "CR",
   brawl: "BS",
-  poker: "♠",
-  chess: "♞",
+  poker: "PKR",
+  chess: "CHS",
 }
 
 function Mark({ g }: { g: Game }) {

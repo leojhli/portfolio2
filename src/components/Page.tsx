@@ -9,6 +9,7 @@ import Projects from "./Projects"
 import Pool from "./Pool"
 import Deck from "./Deck"
 import Logo from "./Logo"
+import AsciiDecorations from "./AsciiDecorations"
 import { AsciiArt, ContactLinks, Kinetic, Panel } from "./ui"
 
 const EffectsLayer = lazy(() => import("../effects/EffectsLayer"))
@@ -53,6 +54,7 @@ export default function Page() {
 
   return (
     <>
+      {ascii && <AsciiDecorations />}
       <a
         href="#main"
         className="sr-only z-50 rounded bg-accent px-4 py-2 text-on-accent focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
@@ -65,7 +67,7 @@ export default function Page() {
         </Suspense>
       )}
 
-      <header className="relative z-30 border-b border-line bg-bg/85 px-5 py-3 backdrop-blur sm:px-8 hz:fixed hz:inset-x-0 hz:top-0">
+      <header className="site-header relative z-30 bg-bg/85 px-5 py-3 backdrop-blur sm:px-8 hz:fixed hz:inset-x-0 hz:top-0">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-4">
             <a
@@ -92,10 +94,6 @@ export default function Page() {
           </div>
           <Controls />
         </div>
-        <div
-          aria-hidden="true"
-          className="palette-strip absolute inset-x-0 bottom-0 h-[3px]"
-        />
       </header>
 
       <main id="main" tabIndex={-1} className="outline-none">
@@ -129,7 +127,14 @@ export default function Page() {
                     lang="zh-Hans"
                     className="mt-4 block font-sans text-[0.34em] font-medium tracking-[0.12em] text-muted"
                   >
-                    {c.profile.chineseName}
+                    {ascii ? (
+                      <>
+                        <span aria-hidden="true">LI JIA HE</span>
+                        <span className="sr-only">{c.profile.chineseName}</span>
+                      </>
+                    ) : (
+                      c.profile.chineseName
+                    )}
                   </span>
                 </h1>
                 <p
@@ -374,7 +379,7 @@ export default function Page() {
             <div data-reveal style={d(2)}>
               <ContactLinks contacts={c.contacts} size="lg" />
             </div>
-            <footer className="mt-16 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-6 font-sans text-xs text-muted">
+            <footer className="mt-16 flex flex-wrap items-center justify-between gap-4 pt-6 font-sans text-xs text-muted">
               <p>
                 © {c.profile.displayName} ·{" "}
                 <span lang="zh-Hans">{c.profile.chineseName}</span>

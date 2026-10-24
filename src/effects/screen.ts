@@ -3,7 +3,6 @@ import {
   createFlowBand,
   screenFlowAt,
   screenOpacity,
-  screenPixelSize,
   type ScreenVariant,
 } from "./screenGeometry"
 
@@ -21,6 +20,7 @@ type MosaicPair = {
 }
 
 export type ScreenTransition = {
+  composited?: boolean
   paint(ctx: CanvasRenderingContext2D, progress: number): void
   dispose(): void
 }
@@ -29,7 +29,8 @@ export type ScreenTransition = {
  * Liquid fronts carry fine pixels from one viewport into the next. Fixed,
  * opaque destination strips prevent cracks; source-coordinate advection bends
  * both images near their shared boundary. No blur, DOM reads or frame buffers
- * are allocated during paint, and each navigation owns at most six mosaics.
+ * are allocated during paint. This is the lightweight fallback when WebGL is
+ * unavailable; the normal path renders a single fullscreen GPU triangle.
  */
 export function createScreenTransition(
   fromRaster: HTMLCanvasElement,
@@ -43,12 +44,12 @@ export function createScreenTransition(
     vertical = variant === "pour",
     length = vertical ? height : width,
     cross = vertical ? width : height,
-    bandSize = Math.max(2, Math.ceil(cross / 320 / 2) * 2),
+    bandSize = Math.max(2, Math.ceil(cross / 96 / 2) * 2),
     reach = Math.max(2, Math.round(Math.min(64, length * 0.065) / 2) * 2),
     strength = Math.min(38, Math.min(width, height) * 0.045),
     flow = createFlowBand(),
-    mosaics = new Map<number, MosaicPair>(),
     buffers: HTMLCanvasElement[] = []
+  let pair: MosaicPair
   let disposed = false
 
   const mosaic = (source: HTMLCanvasElement, pixelSize: number) => {
@@ -74,18 +75,15 @@ export function createScreenTransition(
   }
 
   try {
-    for (let size = 2; size <= 4; size++) {
-      mosaics.set(size, {
-        from: mosaic(fromRaster, size),
-        into: mosaic(intoRaster, size),
-      })
+    pair = {
+      from: mosaic(fromRaster, 2),
+      into: mosaic(intoRaster, 2),
     }
   } catch (error) {
     buffers.forEach((buffer) => {
       buffer.width = buffer.height = 0
     })
     buffers.length = 0
-    mosaics.clear()
     throw error
   }
 
@@ -119,8 +117,7 @@ export function createScreenTransition(
     )
   }
 
-  // Three neighboring slices ease the texture's flow into and out of a front.
-  // Only these narrow zones deform; the rest of each page stays at its source.
+  // The fallback uses one sample per edge; the GPU path evaluates every pixel.
   const edge = (
     ctx: CanvasRenderingContext2D,
     source: HTMLCanvasElement,
@@ -131,7 +128,7 @@ export function createScreenTransition(
     thickness: number,
     phase: number,
   ) => {
-    const steps = 3,
+    const steps = 1,
       step = Math.max(2, Math.ceil((end - start) / steps / 2) * 2)
     for (let a = start; a < end; a += step) {
       const b = Math.min(end, a + step),
@@ -156,7 +153,6 @@ export function createScreenTransition(
       const p = Number.isFinite(progress) ? clamp(progress) : 0,
         alpha = screenOpacity(p)
       if (!alpha) return
-      const pair = mosaics.get(screenPixelSize(p))!
       ctx.save()
       ctx.imageSmoothingEnabled = false
       ctx.globalAlpha = alpha
@@ -263,7 +259,6 @@ export function createScreenTransition(
         buffer.width = buffer.height = 0
       })
       buffers.length = 0
-      mosaics.clear()
     },
   }
 }

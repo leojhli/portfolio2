@@ -1,0 +1,82 @@
+/* ASCII is a separate character presentation, not a pixel filter over the UI. */
+html[data-mode='ascii'] { --font-sans: var(--font-mono); --font-display: var(--font-mono); }
+html[data-mode='ascii'] body,
+html[data-mode='ascii'] body * { font-family: var(--font-mono) !important; letter-spacing: 0 !important; }
+html[data-mode='ascii'] body {
+  background-image: none;
+  font-weight: 400;
+}
+html[data-mode='ascii'] body * {
+  border-style: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+}
+html[data-mode='ascii'] [class*='bg-'] {
+  background-color: transparent !important;
+  color: var(--c-fg) !important;
+}
+html[data-mode='ascii'] :is(.popover, dialog.box) {
+  background: var(--c-bg) !important;
+}
+html[data-mode='ascii'] :is(.box, .card, .pop, .game-tile, .planet-label, [role='group']) {
+  background: transparent;
+  color: var(--c-fg);
+}
+html[data-mode='ascii'] .ghost-num {
+  -webkit-text-stroke: 0;
+  color: var(--c-muted);
+  opacity: .1;
+  font-weight: 400;
+}
+html[data-mode='ascii'] h1 { font-size: clamp(2.6rem, 6.8vw, 6rem); }
+html[data-mode='ascii'] h2 { font-size: clamp(1.8rem, 3vw, 2.75rem); }
+html[data-mode='ascii'] :is(.text-link, .contact-link, .nav-link) {
+  text-decoration: none;
+  background: none;
+}
+html[data-mode='ascii'] .nav-link::after {
+  content: "_";
+  inset-inline: auto;
+  right: 0;
+  height: auto;
+  background: none;
+}
+html[data-mode='ascii'] .nav-link[aria-current='true']::before { content: "> "; }
+html[data-mode='ascii'] .pop::before,
+html[data-mode='ascii'] [role='group'] button::before { content: "["; }
+html[data-mode='ascii'] .pop::after,
+html[data-mode='ascii'] [role='group'] button::after { content: "]"; }
+html[data-mode='ascii'] [role='group'] button[aria-pressed='true'] { text-decoration: underline; text-underline-offset: 4px; }
+html[data-mode='ascii'] svg,
+html[data-mode='ascii'] img { display: none !important; }
+html[data-mode='ascii'] .panel :is(div, span, li)[aria-hidden='true']:empty { display: none; }
+html[data-mode='ascii'] .palette-strip::before { content: "12345"; }
+html[data-mode='ascii'] .site-status .vivid-bar { background: none; }
+html[data-mode='ascii'] .site-status .vivid-bar::before { content: "============>"; color: var(--c-accent); }
+html[data-mode='ascii'] .site-status .vivid-bar { height: 1em; overflow: hidden; }
+html[data-mode='ascii'] .site-status > div { height: 1.1em; background: none; }
+html[data-mode='ascii'] .ascii-range:focus-within { outline: 2px solid var(--c-focus); outline-offset: 2px; }
+html[data-mode='ascii'] [data-ascii-framed]:not(.popover) { position: relative; }
+[data-ascii-decor] {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  white-space: pre;
+  color: var(--c-muted);
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+html[data-mode='ascii'][data-motion='on'] :is(.pop, .brand-home, .game-tile, .spine, [role='group'] button):is(:hover, :active) {
+  transform: none;
+}
+html[data-mode='ascii'][data-motion='on'] :is(.site-header, .site-status, .popover) {
+  animation-name: backdrop-in;
+}
+

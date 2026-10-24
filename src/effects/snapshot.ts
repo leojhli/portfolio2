@@ -47,7 +47,8 @@ function rasterize(
   const canvas = document.createElement("canvas")
   canvas.width = width
   canvas.height = height
-  const ctx = canvas.getContext("2d", { willReadFrequently: true })
+  const fastText = viewport && !region
+  const ctx = canvas.getContext("2d", { willReadFrequently: !fastText })
   if (!ctx) return null
   const offsetX = shiftX - left,
     offsetY = shiftY - top
@@ -224,6 +225,55 @@ function rasterize(
       const heading = parent.closest("h1,h2,h3")
       if (heading && !headings.has(heading))
         headings.set(heading, heading.getBoundingClientRect())
+      if (fastText) {
+        // Full-page captures need text runs, not a forced layout measurement
+        // for every character. Local cursor samples retain the exact glyph path.
+        if ("letterSpacing" in ctx)
+          ctx.letterSpacing =
+            s.letterSpacing === "normal" ? "0px" : s.letterSpacing
+        const fontSize = parseFloat(s.fontSize)
+        const lineHeight = parseFloat(s.lineHeight) || fontSize * 1.6
+        for (const match of text.matchAll(/\S+[ \t]*/gu)) {
+          if (remaining <= 0) break
+          const start = match.index!,
+            token = match[0]
+          range.setStart(node, start)
+          range.setEnd(node, start + token.length)
+          const r = range.getBoundingClientRect()
+          if (
+            !r.width ||
+            r.bottom + o.y < 0 ||
+            r.top + o.y > height ||
+            r.right + o.x < 0 ||
+            r.left + o.x > width
+          )
+            continue
+          if (r.height <= lineHeight * 1.5) {
+            ctx.fillText(
+              token,
+              r.left + o.x,
+              r.top + o.y + (r.height + fontSize) / 2 - fontSize * 0.16,
+            )
+          } else {
+            // A long URL/CJK run may wrap within a word. Measure just that run
+            // character-by-character so it cannot be painted onto a single line.
+            for (let j = 0; j < token.length; ) {
+              const char = String.fromCodePoint(token.codePointAt(j)!)
+              range.setStart(node, start + j)
+              range.setEnd(node, start + j + char.length)
+              j += char.length
+              const cr = range.getBoundingClientRect()
+              ctx.fillText(
+                char,
+                cr.left + o.x,
+                cr.top + o.y + (cr.height + fontSize) / 2 - fontSize * 0.16,
+              )
+            }
+          }
+          remaining -= token.length
+        }
+        continue
+      }
       for (let i = 0; i < text.length && remaining > 0; ) {
         const char = String.fromCodePoint(text.codePointAt(i)!)
         range.setStart(node, i)
