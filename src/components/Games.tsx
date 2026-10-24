@@ -150,7 +150,7 @@ export default function Games({ games }: { games: Game[] }) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-center lg:gap-12">
-      <div data-game className="lg:order-2">
+      <div data-game data-depth="0.055" className="lg:order-2">
         <ClipScreen game={ai >= 0 ? games[ai] : null} channel={ai + 1} />
       </div>
       <div>

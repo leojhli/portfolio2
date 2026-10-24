@@ -1,25 +1,9 @@
-import type { Point } from "./geometry"
-import type { ScreenVariant } from "./screenGeometry"
-
-export type EffectOptions = {
-  origin?: Point
-  align?: boolean
-  screen?: boolean
-  direction?: 1 | -1
-  variant?: ScreenVariant
-}
 export type EffectDriver = {
-  transition(
-    from: HTMLElement,
-    into: HTMLElement,
-    options?: EffectOptions,
-  ): void
   assemble(root: HTMLElement): void
   morph(root: HTMLElement): void
   disperse(root: HTMLElement, done: () => void): void
   cancel(): void
 }
-
 let driver: EffectDriver | null = null
 export function connectEffects(next: EffectDriver) {
   driver = next
@@ -31,11 +15,6 @@ export function connectEffects(next: EffectDriver) {
   }
 }
 export const cancelEffects = () => driver?.cancel()
-export const transition = (
-  from: HTMLElement,
-  into: HTMLElement,
-  options?: EffectOptions,
-) => driver?.transition(from, into, options)
 export const assemble = (root: HTMLElement | null) => {
   if (root) driver?.assemble(root)
 }

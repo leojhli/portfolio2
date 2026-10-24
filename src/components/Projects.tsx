@@ -87,6 +87,7 @@ export default function Projects({ projects }: { projects: Project[] }) {
       {!failed && (
         <div
           data-reveal
+          data-depth="0.065"
           style={d(1)}
           className="relative mx-auto w-full max-w-[min(540px,58vh)]"
         >

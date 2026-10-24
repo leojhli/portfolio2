@@ -1,4 +1,5 @@
 import { useEffect } from "react"
+import { createAsciiText } from "../effects/asciiText"
 
 const SELECTOR =
   ".card,.box,.popover,.game-tile,[role='group'],#project-detail,[data-ascii-frame]"
@@ -6,6 +7,7 @@ const SELECTOR =
 /** Decorative character frames; native text, focus targets and media stay live. */
 export default function AsciiDecorations() {
   useEffect(() => {
+    const stopText = createAsciiText(document.body)
     const frames = new Map<HTMLElement, HTMLPreElement>()
     let raf = 0
     let active = true
@@ -66,7 +68,9 @@ export default function AsciiDecorations() {
           return false
         return [...record.addedNodes, ...record.removedNodes].some(
           (node) =>
-            node instanceof Element && !node.hasAttribute("data-ascii-decor"),
+            node instanceof Element &&
+            !node.hasAttribute("data-ascii-decor") &&
+            !node.hasAttribute("data-ascii-text"),
         )
       })
       if (changed) schedule()
@@ -75,6 +79,7 @@ export default function AsciiDecorations() {
     draw()
     document.fonts?.ready.then(schedule)
     return () => {
+      stopText()
       active = false
       mutation.disconnect()
       resize.disconnect()

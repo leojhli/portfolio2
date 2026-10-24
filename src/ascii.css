@@ -73,6 +73,23 @@ html[data-mode='ascii'] [data-ascii-framed]:not(.popover) { position: relative; 
   font-weight: 400;
   letter-spacing: 0;
 }
+/* The visible letters themselves are assembled from ASCII glyphs. Real DOM
+   text stays underneath for selection, search and assistive technology. */
+html[data-mode='ascii'] [data-ascii-text-host] { -webkit-text-fill-color: transparent; }
+html[data-mode='ascii'] [data-ascii-text-position='relative'] { position: relative; }
+html[data-mode='ascii'] :is([data-ascii-icon], [data-ascii-decor], pre) { -webkit-text-fill-color: currentColor; }
+html[data-mode='ascii'] [data-ascii-text-host]::before,
+html[data-mode='ascii'] [data-ascii-text-host]::after { -webkit-text-fill-color: currentColor; }
+[data-ascii-text] {
+  position: absolute;
+  inset: 0 auto auto 0;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+html:not([data-mode='ascii']) :is([data-ascii-text], [data-ascii-decor]) { display: none; }
 html[data-mode='ascii'][data-motion='on'] :is(.pop, .brand-home, .game-tile, .spine, [role='group'] button):is(:hover, :active) {
   transform: none;
 }

@@ -117,9 +117,6 @@ export class Stage {
     const dt = this.last ? Math.min(0.05, (now - this.last) / 1000) : 0
     this.last = now
     if (!this.visible || !this.w) return
-    // The liquid surface already contains the scene. Avoid competing GPU work
-    // until it hands back to live HTML; media clocks remain mounted.
-    if (document.documentElement.hasAttribute("data-page-transition")) return
     const { motion, ascii } = this.opts
     if (!motion && !this.dirty) return
     if (motion) this.clock += dt

@@ -5,7 +5,13 @@ import { JSDOM } from "jsdom"
 import React, { act } from "react"
 import { createRoot } from "react-dom/client"
 
-let server, geometry, rendererModule, snapshotModule, coordinatorModule, App
+let server,
+  geometry,
+  rendererModule,
+  snapshotModule,
+  coordinatorModule,
+  asciiTextModule,
+  App
 before(async () => {
   server = await createServer({
     server: { middlewareMode: true },
@@ -15,6 +21,7 @@ before(async () => {
   rendererModule = await server.ssrLoadModule("/src/effects/renderer.ts")
   snapshotModule = await server.ssrLoadModule("/src/effects/snapshot.ts")
   coordinatorModule = await server.ssrLoadModule("/src/effects/coordinator.ts")
+  asciiTextModule = await server.ssrLoadModule("/src/effects/asciiText.ts")
   // Resolve lazy module I/O before React's act scope so initial Suspense work
   // can finish within that scope, without timing-dependent resource warnings.
   await Promise.all(
@@ -126,14 +133,8 @@ function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
   w.HTMLElement.prototype.getBoundingClientRect = function () {
     const panel = this.closest("[data-panel]")
     const panels = [...w.document.querySelectorAll("[data-panel]")]
-    const slide = parseFloat(
-      w.document
-        .querySelector(".deck-track")
-        ?.style.transform.match(/translate3d\(([-\d.]+)/)?.[1] ?? "0",
-    )
-    const left = panel
-      ? panels.indexOf(panel) * currentWidth + (slide / 100) * currentWidth
-      : 0
+    const slide = w.document.querySelector(".deck")?.scrollLeft ?? 0
+    const left = panel ? panels.indexOf(panel) * currentWidth - slide : 0
     return this === panel
       ? bounds(left, 0, currentWidth, 800)
       : bounds(
@@ -190,7 +191,7 @@ function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
       if (paintCalls.length < 10000) paintCalls.push(args)
     },
     fillText(text, x, y) {
-      this.textCalls.push(text)
+      if (this.textCalls.length < 10000) this.textCalls.push(text)
       assert.ok(
         Number.isFinite(x) && Number.isFinite(y),
         `${text}: finite text coordinates`,
@@ -306,53 +307,34 @@ test("high-resolution snapshots keep 2px fragments and thousands of samples even
   }
 })
 
-test("renderer retargets, cancels work, and completes pending dialog closure on disposal", () => {
+test("renderer cancels native entrances and completes pending dialog closure on disposal", () => {
   const f = fixture(),
     d = f.dom.window.document
   d.documentElement.dataset.motion = "on"
   d.body.insertAdjacentHTML(
     "beforeend",
-    '<header>Navigation</header><div class="deck"><section id="one"><h2>李嘉和 stays intact</h2></section><section id="two"><h2>Projects</h2></section></div><footer data-deck-status>Pages</footer>',
+    '<section id="one"><h2>Original text</h2></section>',
   )
   const canvas = d.createElement("canvas")
   d.body.append(canvas)
   const renderer = rendererModule.createRenderer(canvas)
-  const one = d.getElementById("one"),
-    two = d.getElementById("two"),
-    text = one.textContent
-  renderer.transition(one, two)
-  assert.equal(d.querySelectorAll("[data-screen-pixelation]").length, 3)
-  assert.ok(
-    [...d.querySelectorAll("header,.deck,[data-deck-status]")].every(
-      (el) => !el.style.filter,
-    ),
-    "live content never receives blur-producing SVG filters",
-  )
-  assert.deepEqual(
-    canvas._ctx.imageCalls[0].slice(1),
-    [0, 0, 1280, 800],
-    "first paint covers the viewport synchronously",
-  )
-  assert.equal(canvas._ctx.imageSmoothingEnabled, false)
-  assert.equal(f.frames.size, 1)
-  renderer.transition(two, one)
-  assert.equal(
-    f.frames.size,
-    1,
-    "new navigation replaces the previous frame loop",
-  )
-  f.advance()
-  assert.equal(f.frames.size, 0)
-  assert.equal(d.querySelectorAll("[data-screen-pixelation]").length, 0)
-  assert.equal(one.textContent, text)
+  const one = d.getElementById("one")
+  assert.equal(renderer.transition, undefined, "page transitions are removed")
   renderer.assemble(one)
+  assert.equal(f.frames.size, 1)
+  renderer.morph(one)
+  f.advance(1200)
+  assert.equal(f.frames.size, 0)
+  assert.equal(one.textContent, "Original text")
   let closed = 0
   renderer.disperse(one, () => closed++)
   renderer.dispose()
   assert.equal(closed, 1)
   assert.equal(f.frames.size, 0)
-  d.body.click()
-  assert.equal(f.frames.size, 0, "listeners are removed")
+  assert.equal(
+    d.querySelector("[data-screen-pixelation],[data-liquid-surface]"),
+    null,
+  )
   f.dom.window.close()
 })
 
@@ -442,14 +424,14 @@ test("viewport rasters include navigation and status text as well as the panel",
   }
 })
 
-test("ASCII navigation draws character accents without cursor displacement or viewport raster copies", () => {
+test("ASCII pointer motion never starts pixel displacement or copies viewport rasters", () => {
   const f = fixture(),
     d = f.dom.window.document
   d.documentElement.dataset.motion = "on"
   d.documentElement.dataset.mode = "ascii"
   d.body.insertAdjacentHTML(
     "beforeend",
-    '<section id="ascii-one"><h2>First screen</h2></section><section id="ascii-two"><h2>Second screen</h2></section>',
+    "<section><h2>Original text</h2></section>",
   )
   const canvas = d.createElement("canvas")
   d.body.append(canvas)
@@ -459,33 +441,69 @@ test("ASCII navigation draws character accents without cursor displacement or vi
     f.advance(240)
     assert.equal(canvas._ctx.frameCalls.length, 0)
     assert.equal(canvas._ctx.imageCalls.length, 0)
-    assert.equal(
-      f.frames.size,
-      0,
-      "ASCII pointer motion does not start a field",
-    )
-    renderer.transition(
-      d.getElementById("ascii-one"),
-      d.getElementById("ascii-two"),
-      { variant: "pools" },
-    )
-    f.advance(240)
-    assert.ok(canvas._ctx.textCalls.length > 0)
-    assert.ok(
-      canvas._ctx.textCalls.every((text) => /^[\x20-\x7e]*$/.test(text)),
-    )
-    assert.equal(
-      canvas._ctx.imageCalls.length,
-      0,
-      "no full-page pixel surfaces or image copies",
-    )
-    assert.equal(canvas._ctx.frameCalls.length, 0, "no pixel rectangles")
-    assert.equal(d.querySelector("[data-screen-pixelation]"), null)
-    f.advance(1000)
     assert.equal(f.frames.size, 0)
-    assert.equal(d.getElementById("ascii-two").textContent, "Second screen")
+    renderer.morph(d.querySelector("section"))
+    f.advance(1200)
+    assert.equal(canvas._ctx.imageCalls.length, 0)
+    assert.equal(canvas._ctx.frameCalls.length, 0)
+    assert.equal(d.querySelector("h2").textContent, "Original text")
   } finally {
     renderer.dispose()
+    f.dom.window.close()
+  }
+})
+
+test("visible text is literally redrawn from ASCII symbols while its real DOM text survives", async () => {
+  const f = fixture(),
+    d = f.dom.window.document
+  d.documentElement.dataset.mode = "ascii"
+  d.body.insertAdjacentHTML(
+    "beforeend",
+    '<h1 id="literal-ascii">Hello world</h1><p id="late-label" style="visibility:hidden">Later</p>',
+  )
+  const heading = d.getElementById("literal-ascii")
+  const stop = asciiTextModule.createAsciiText(d.body)
+  try {
+    f.advance(800)
+    const canvas = heading.querySelector("[data-ascii-text]")
+    assert.ok(canvas)
+    const late = d.getElementById("late-label")
+    assert.equal(late.querySelector("[data-ascii-text]"), null)
+    late.style.visibility = "visible"
+    await Promise.resolve()
+    f.advance(500)
+    assert.ok(
+      late.querySelector("[data-ascii-text]"),
+      "scene labels are converted when they become visible",
+    )
+    assert.equal(canvas.getAttribute("aria-hidden"), "true")
+    assert.equal(heading.textContent, "Hello world")
+    assert.ok(heading.hasAttribute("data-ascii-text-host"))
+    assert.ok(canvas._ctx.textCalls.length > 20)
+    assert.ok(
+      canvas._ctx.textCalls.every((char) => /^[.:+*#@]$/.test(char)),
+      "each visible drawing operation is an ASCII mark, never the original words",
+    )
+    const before = canvas._ctx.textCalls.length
+    d.body.dispatchEvent(new Event("scroll"))
+    f.advance(100)
+    assert.equal(
+      canvas._ctx.textCalls.length,
+      before,
+      "scrolling reuses the cached character artwork",
+    )
+    heading.firstChild.nodeValue = "Updated label"
+    await Promise.resolve()
+    f.advance(500)
+    assert.equal(heading.querySelectorAll("[data-ascii-text]").length, 1)
+    assert.equal(heading.textContent, "Updated label")
+    assert.equal(heading.querySelector("[data-ascii-text]"), canvas)
+    stop()
+    assert.equal(heading.querySelector("[data-ascii-text]"), null)
+    assert.ok(!heading.hasAttribute("data-ascii-text-host"))
+    assert.equal(heading.textContent, "Updated label")
+  } finally {
+    stop()
     f.dom.window.close()
   }
 })
@@ -626,7 +644,7 @@ test("a failed canvas leaves navigation/content usable and closes dialogs immedi
     "<h2>Content stays readable</h2><button>Still clickable</button>",
   )
   const before = d.body.textContent
-  renderer.transition(d.body, d.body)
+  renderer.assemble(d.body)
   renderer.morph(d.body)
   let closed = false
   renderer.disperse(d.body, () => (closed = true))
@@ -664,64 +682,97 @@ const click = async (el) => {
   await act(async () => el.click())
 }
 
-test("real React navigation gives each adjacent page boundary a distinct liquid transition in both directions", async () => {
+test("horizontal scrolling is continuous, proportional to input, and keeps depth linked to position", async () => {
   const f = fixture(),
-    unmount = await mountApp(f),
-    calls = [],
-    disconnect = coordinatorModule.connectEffects({
-      transition(from, into, options) {
-        calls.push({ from: from.id, into: into.id, ...options })
-      },
-      assemble() {},
-      morph() {},
-      disperse(_, done) {
-        done()
-      },
-      cancel() {},
-    })
+    unmount = await mountApp(f)
   try {
-    const ids = [...document.querySelectorAll("[data-panel]")].map(
-      (panel) => panel.id,
-    )
-    const variants = ["spill", "pools", "counterflow", "pour", "split", "drain"]
-    assert.equal(ids.length, variants.length + 1)
-    for (let i = 0; i < variants.length; i++) {
-      await act(async () =>
-        window.dispatchEvent(
-          new KeyboardEvent("keydown", { key: "ArrowRight" }),
-        ),
+    const deck = document.querySelector(".deck"),
+      track = document.querySelector(".deck-track")
+    const wheel = (delta) =>
+      deck.dispatchEvent(
+        new window.WheelEvent("wheel", {
+          deltaY: delta,
+          bubbles: true,
+          cancelable: true,
+        }),
       )
-      assert.deepEqual(calls[i], {
-        from: ids[i],
-        into: ids[i + 1],
-        origin: undefined,
-        align: true,
-        direction: 1,
-        variant: variants[i],
-      })
-    }
+    wheel(180)
+    await act(async () => f.advance(800))
+    assert.ok(
+      deck.scrollLeft > 170 && deck.scrollLeft < 190,
+      "small wheel input does not jump a page",
+    )
+    assert.equal(track.style.transform, "")
     assert.equal(
-      new Set(calls.map(({ variant }) => variant)).size,
-      variants.length,
+      document.querySelector("[data-liquid-surface],[data-screen-pixelation]"),
+      null,
     )
-    for (let i = variants.length - 1; i >= 0; i--) {
-      await act(async () =>
-        window.dispatchEvent(
-          new KeyboardEvent("keydown", { key: "ArrowLeft" }),
-        ),
-      )
-      assert.deepEqual(calls.at(-1), {
-        from: ids[i + 1],
-        into: ids[i],
-        origin: undefined,
-        align: true,
-        direction: -1,
-        variant: variants[i],
-      })
-    }
-    assert.equal(location.hash, `#${ids[0]}`)
+    const art = document.querySelector('[data-depth="0.075"]')
+    assert.ok(parseFloat(art.style.getPropertyValue("--depth-x")) > 0)
+    const first = document.querySelector("[data-panel]")
+    Object.defineProperty(first, "scrollHeight", {
+      value: 1200,
+      configurable: true,
+    })
+    Object.defineProperty(first, "clientHeight", {
+      value: 800,
+      configurable: true,
+    })
+    const inside = new window.WheelEvent("wheel", {
+      deltaY: 100,
+      bubbles: true,
+      cancelable: true,
+    })
+    first.dispatchEvent(inside)
+    await act(async () => f.advance(64))
+    assert.equal(
+      inside.defaultPrevented,
+      false,
+      "a tall section keeps its own vertical scrolling",
+    )
+    assert.ok(Math.abs(deck.scrollLeft - 180) < 1)
+    delete first.scrollHeight
+    delete first.clientHeight
+    const horizontal = new window.WheelEvent("wheel", {
+      deltaX: 80,
+      deltaY: 2,
+      bubbles: true,
+      cancelable: true,
+    })
+    deck.dispatchEvent(horizontal)
+    assert.equal(
+      horizontal.defaultPrevented,
+      false,
+      "trackpad horizontal momentum remains native",
+    )
+    wheel(210)
+    await act(async () => f.advance(800))
+    assert.ok(deck.scrollLeft > 380 && deck.scrollLeft < 400)
+    const before = deck.scrollLeft
+    await act(async () =>
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" })),
+    )
+    await act(async () => f.advance(800))
+    assert.ok(Math.abs(deck.scrollLeft - before - 96) < 1)
+    await click(byText("a", "Projects"))
+    await act(async () => f.advance(1100))
+    assert.ok(Math.abs(deck.scrollLeft - 2560) < 1)
+    assert.equal(location.hash, "#projects")
+    assert.equal(
+      document
+        .querySelector('[data-deck-status] a[href="#projects"]')
+        .getAttribute("aria-current"),
+      "true",
+    )
+    deck.scrollLeft = 3010
+    await act(async () => deck.dispatchEvent(new Event("scroll")))
+    await act(async () => f.advance(32))
+    assert.equal(
+      deck.scrollLeft,
+      3010,
+      "native scroll can rest at any fractional section",
+    )
   } finally {
-    disconnect()
     await unmount()
   }
 })
@@ -805,23 +856,18 @@ test("real React tree preserves audio and text through rapid navigation, history
     await click(byText("a", "Projects"))
     await click(byText("a", "About"))
     await click(byText("a", "Experience"))
+    await act(async () => f.advance(1000))
     assert.equal(location.hash, "#experience")
-    assert.match(
-      document.querySelector(".deck-track").style.transform,
-      /-100vw/,
-    )
+    assert.ok(Math.abs(document.querySelector(".deck").scrollLeft - 1280) < 1)
     await act(async () =>
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })),
     )
-    assert.equal(document.querySelector(".deck-track").style.transition, "none")
+    assert.equal(document.querySelector(".deck-track").style.transition, "")
     await act(async () => {
       history.replaceState(null, "", "#projects")
       window.dispatchEvent(new Event("popstate"))
     })
-    assert.match(
-      document.querySelector(".deck-track").style.transform,
-      /-200vw/,
-    )
+    assert.equal(document.querySelector(".deck").scrollLeft, 2560)
     await click(byText("button", "ASCII"))
     await act(async () => f.advance(1600))
     assert.equal(document.documentElement.dataset.mode, "ascii")
@@ -839,7 +885,7 @@ test("real React tree preserves audio and text through rapid navigation, history
     assert.equal(document.documentElement.dataset.motion, "off")
     assert.equal(document.querySelector("[data-effect-canvas]"), null)
     await click(byText("a", "Contact"))
-    assert.equal(document.querySelector(".deck-track").style.transition, "none")
+    assert.equal(document.querySelector(".deck-track").style.transition, "")
     assert.equal(location.hash, "#contact")
   } finally {
     await unmount()

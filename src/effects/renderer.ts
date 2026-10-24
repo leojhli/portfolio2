@@ -1,14 +1,10 @@
-import { clamp, type Point } from "./geometry"
-import { captureRaster, snapshot, type Fragment } from "./snapshot"
-import { createScreenTransition, type ScreenTransition } from "./screen"
-import { createScreenSurface } from "./screenSurface"
-import { screenVariant } from "./screenGeometry"
+import type { Point } from "./geometry"
+import { snapshot, type Fragment } from "./snapshot"
 import { createLiquidField } from "./liquid"
 import { LIQUID_INFLUENCE } from "./liquidGeometry"
-import type { EffectDriver, EffectOptions } from "./coordinator"
+import type { EffectDriver } from "./coordinator"
 import { visiblePanel } from "./coordinator"
 import { animateEntrance } from "./entrances"
-import { createAsciiTransition } from "./asciiTransition"
 
 type Sequence = {
   born: number
@@ -24,7 +20,6 @@ export function createRenderer(
   const context = canvas.getContext("2d")
   if (!context)
     return {
-      transition() {},
       assemble() {},
       morph() {},
       disperse: (_, done) => done(),
@@ -34,15 +29,8 @@ export function createRenderer(
   const ctx = context
   const liquid = createLiquidField()
   let raf = 0,
-    pendingMorph = 0,
-    turn = 0
+    pendingMorph = 0
   let sequence: Sequence | null = null
-  let screen: {
-    effect: ScreenTransition
-    born: number
-    life: number
-  } | null = null
-  let pendingRaster: HTMLCanvasElement | null = null
   let pointer: Point | null = null
   let pointerDirty = false
   let patch: {
@@ -58,7 +46,6 @@ export function createRenderer(
   } | null = null
   let animations: Animation[] = []
   let stopEntrance = () => {}
-  const screenLayers = new Set<HTMLElement>()
   const ascii = () => document.documentElement.dataset.mode === "ascii"
   const enabled = () =>
     document.documentElement.dataset.motion === "on" && !document.hidden
@@ -82,16 +69,11 @@ export function createRenderer(
     stopEntrance = () => {}
     animations.forEach((a) => a.cancel())
     animations = []
-    screenLayers.forEach((el) => delete el.dataset.screenPixelation)
-    screenLayers.clear()
-    delete document.documentElement.dataset.pageTransition
   }
   const cancel = () => {
     cancelAnimationFrame(raf)
     cancelAnimationFrame(pendingMorph)
     raf = pendingMorph = 0
-    if (pendingRaster) pendingRaster.width = pendingRaster.height = 0
-    pendingRaster = null
     pointer = null
     pointerDirty = false
     patch = null
@@ -100,8 +82,6 @@ export function createRenderer(
     cleanAnimations()
     const done = sequence?.done
     sequence = null
-    screen?.effect.dispose()
-    screen = null
     ctx.clearRect(0, 0, innerWidth, innerHeight)
     done?.()
     home()
@@ -116,13 +96,21 @@ export function createRenderer(
         }
       })
   }
-  // Compile once while mounting, reuse across navigation, and render directly
-  // to its own composited canvas (no WebGL-to-2D copy on every frame).
-  const surface = createScreenSurface(canvas, cancel)
   const captureLocal = (point: Point, now: number) => {
     if (editing() || !getSelection()?.isCollapsed) return
     const root =
       document.querySelector<HTMLElement>("dialog[open]") ??
+      [...document.querySelectorAll<HTMLElement>("[data-panel]")].find(
+        (panel) => {
+          const r = panel.getBoundingClientRect()
+          return (
+            point.x >= r.left &&
+            point.x < r.right &&
+            point.y >= r.top &&
+            point.y < r.bottom
+          )
+        },
+      ) ??
       visiblePanel() ??
       document.body
     const x = Math.floor(point.x / TILE) * TILE
@@ -182,23 +170,11 @@ export function createRenderer(
       cancel()
       return
     }
-    if (!screen?.effect.composited) {
-      ctx.clearRect(0, 0, innerWidth, innerHeight)
-      ctx.font = '600 7px "Geist Mono", monospace'
-      ctx.textBaseline = "middle"
-    }
+    ctx.clearRect(0, 0, innerWidth, innerHeight)
+    ctx.font = '600 7px "Geist Mono", monospace'
+    ctx.textBaseline = "middle"
     let moving = false
-    if (screen) {
-      const s = screen
-      const progress = clamp((now - s.born) / s.life)
-      s.effect.paint(ctx, progress)
-      if (progress >= 1) {
-        s.effect.dispose()
-        screen = null
-        cleanAnimations()
-        home()
-      }
-    } else if (sequence) {
+    if (sequence) {
       const s = sequence,
         age = Math.max(0, now - s.born)
       if (age >= s.life) {
@@ -223,76 +199,13 @@ export function createRenderer(
       }
     }
     ctx.globalAlpha = 1
-    if (screen || sequence || moving || pointerDirty) kick()
-  }
-  const revealScreen = () => {
-    document.documentElement.dataset.pageTransition = ""
-    // Only lifecycle markers: the single opaque canvas owns the pixelation.
-    for (const el of document.querySelectorAll<HTMLElement>(
-      "header,.deck,[data-deck-status]",
-    )) {
-      screenLayers.add(el)
-      el.dataset.screenPixelation = ""
-    }
+    if (sequence || moving || pointerDirty) kick()
   }
   const start = (root: HTMLElement, duration = 620) => {
     if (!enabled()) return
     home()
     sequence = { born: performance.now(), life: duration + 160 }
     stopEntrance = animateEntrance(root)
-    kick()
-  }
-  const startScreen = (
-    from: HTMLCanvasElement,
-    into: HTMLElement,
-    align = false,
-    life = 720,
-    options: EffectOptions = {},
-  ) => {
-    let to: HTMLCanvasElement | null = null
-    try {
-      if (!enabled()) return
-      to = captureRaster(into, align)
-      if (!to) return
-      const screenOptions = {
-        width: innerWidth,
-        height: innerHeight,
-        ascii: ascii(),
-        variant: options.variant ?? screenVariant(turn++),
-        direction: options.direction,
-      }
-      home()
-      const effect =
-        surface?.start(from, to, screenOptions) ??
-        createScreenTransition(from, to, screenOptions)
-      screen = { effect, born: performance.now(), life }
-      revealScreen()
-      // Cover the moving DOM before Deck changes its transform.
-      ctx.globalAlpha = 1
-      effect.paint(ctx, 0)
-      kick()
-    } finally {
-      from.width = from.height = 0
-      if (to) to.width = to.height = 0
-    }
-  }
-  const startAscii = (options: EffectOptions = {}) => {
-    if (!enabled()) return
-    home()
-    screen = {
-      effect: createAsciiTransition({
-        width: innerWidth,
-        height: innerHeight,
-        color:
-          getComputedStyle(document.documentElement)
-            .getPropertyValue("--c-muted")
-            .trim() || "#999999",
-        variant: options.variant ?? screenVariant(turn++),
-        direction: options.direction,
-      }),
-      born: performance.now(),
-      life: 560,
-    }
     kick()
   }
   const releasePointer = () => {
@@ -302,7 +215,7 @@ export function createRenderer(
     if (liquid.size()) kick()
   }
   const onMove = (e: PointerEvent) => {
-    if (screen || sequence || !enabled() || ascii()) return
+    if (sequence || !enabled() || ascii()) return
     if (e.pointerType === "touch" || e.buttons || editing()) {
       releasePointer()
       return
@@ -320,13 +233,13 @@ export function createRenderer(
     // Controls may change their content; refresh only the local source. A click
     // never emits an expanding ring or moves an entire element.
     patch = null
-    if (pointer && !screen && !sequence) {
+    if (pointer && !sequence) {
       pointerDirty = true
       kick()
     }
   }
   const onScroll = () => {
-    const active = screen ?? sequence
+    const active = sequence
     if (!active || performance.now() - active.born > 80) cancel()
   }
   const onResize = () => {
@@ -348,7 +261,7 @@ export function createRenderer(
   // Loaded fonts and presentation settings can invalidate cached pixel colors
   // or text geometry. Preserve explicit section/mode transitions while they run.
   const invalidate = () => {
-    if (!screen && !sequence && !pendingMorph) cancel()
+    if (!sequence && !pendingMorph) cancel()
   }
   const presentation = new window.MutationObserver(invalidate)
   presentation.observe(document.documentElement, {
@@ -369,20 +282,6 @@ export function createRenderer(
   document.addEventListener("visibilitychange", onVisibility)
   document.addEventListener("selectionchange", onSelection)
   return {
-    transition(from, into, options = {}) {
-      cancel()
-      if (!enabled()) return
-      if (ascii()) {
-        startAscii(options)
-        return
-      }
-      try {
-        const raster = captureRaster(from)
-        if (raster) startScreen(raster, into, options.align, 720, options)
-      } catch {
-        cancel()
-      }
-    },
     assemble(root) {
       cancel()
       try {
@@ -394,26 +293,14 @@ export function createRenderer(
     morph(root) {
       cancel()
       if (!enabled()) return
-      try {
-        const wholeScreen = !root.closest("dialog")
-        pendingRaster = wholeScreen ? captureRaster(root) : null
-        pendingMorph = requestAnimationFrame(() => {
-          pendingMorph = 0
-          const raster = pendingRaster
-          pendingRaster = null
-          try {
-            if (ascii()) {
-              if (raster) raster.width = raster.height = 0
-              startAscii()
-            } else if (raster) startScreen(raster, root, false, 560)
-            else start(root)
-          } catch {
-            cancel()
-          }
-        })
-      } catch {
-        cancel()
-      }
+      pendingMorph = requestAnimationFrame(() => {
+        pendingMorph = 0
+        try {
+          start(root)
+        } catch {
+          cancel()
+        }
+      })
     },
     disperse(root, done) {
       cancel()
@@ -453,7 +340,6 @@ export function createRenderer(
       presentation.disconnect()
       document.fonts?.removeEventListener("loadingdone", invalidate)
       cancel()
-      surface?.dispose()
       removeEventListener("pointermove", onMove)
       removeEventListener("pointerout", onOut)
       removeEventListener("pointerdown", releasePointer)

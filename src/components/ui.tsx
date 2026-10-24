@@ -35,7 +35,7 @@ export function Panel({
         } as CSSProperties
       }
     >
-      <span aria-hidden="true" className="ghost-num">
+      <span aria-hidden="true" data-depth="-0.03" className="ghost-num">
         {index}
       </span>
       <div data-reveal className="relative mb-10">

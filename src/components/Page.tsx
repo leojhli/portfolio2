@@ -127,14 +127,7 @@ export default function Page() {
                     lang="zh-Hans"
                     className="mt-4 block font-sans text-[0.34em] font-medium tracking-[0.12em] text-muted"
                   >
-                    {ascii ? (
-                      <>
-                        <span aria-hidden="true">LI JIA HE</span>
-                        <span className="sr-only">{c.profile.chineseName}</span>
-                      </>
-                    ) : (
-                      c.profile.chineseName
-                    )}
+                    {c.profile.chineseName}
                   </span>
                 </h1>
                 <p
@@ -151,6 +144,7 @@ export default function Page() {
 
               <div
                 data-reveal
+                data-depth="0.075"
                 style={d(2)}
                 className="mx-auto w-full max-w-[360px]"
               >
@@ -322,7 +316,7 @@ export default function Page() {
                   ))}
                 </dl>
               </div>
-              <div data-reveal style={d(3)}>
+              <div data-reveal data-depth="0.06" style={d(3)}>
                 <Pool />
               </div>
             </div>
@@ -337,11 +331,11 @@ export default function Page() {
             accent="on the shelf."
           >
             <div className="grid grid-cols-1 gap-14 lg:grid-cols-2 lg:items-end lg:gap-16">
-              <div data-reveal style={d(1)}>
+              <div data-reveal data-depth="0.045" style={d(1)}>
                 <p className="mb-4 font-sans text-xs text-muted">Now playing</p>
                 <CDPlayer />
               </div>
-              <div data-reveal style={d(2)}>
+              <div data-reveal data-depth="0.025" style={d(2)}>
                 <p className="mb-4 font-sans text-xs text-muted">Bookshelf</p>
                 <Bookshelf books={c.books} />
               </div>
