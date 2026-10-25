@@ -10,6 +10,7 @@ import {
 export default function ContourBackground() {
   const { motion, mode, palette } = usePrefs()
   const canvas = useRef<HTMLCanvasElement>(null)
+  const elapsed = useRef(0)
   const [ready, setReady] = useState(false)
   const path = useMemo(contourPath, []),
     characters = useMemo(contourCharacters, [])
@@ -35,6 +36,7 @@ export default function ContourBackground() {
       shaders: WebGLShader[] = []
     if (!program || !buffer) return
     let raf = 0,
+      last = 0,
       disposed = false,
       visible = scrollY > innerHeight * 0.12
     const compile = (kind: number, source: string) => {
@@ -88,7 +90,10 @@ export default function ContourBackground() {
     const draw = (now: number) => {
       raf = 0
       if (disposed) return
-      g.uniform1f(clock, motion ? now * 0.00013 : 0)
+      if (motion && visible && !document.hidden && last)
+        elapsed.current += Math.min(64, Math.max(0, now - last)) / 1000
+      last = now
+      g.uniform1f(clock, motion ? elapsed.current : 0)
       g.drawArrays(g.TRIANGLES, 0, 6)
       if (motion && visible && !document.hidden)
         raf = requestAnimationFrame(draw)
@@ -106,6 +111,7 @@ export default function ContourBackground() {
       if (document.hidden || !visible) {
         cancelAnimationFrame(raf)
         raf = 0
+        last = 0
       } else if (!raf) draw(performance.now())
     }
     const lost = (event: Event) => {

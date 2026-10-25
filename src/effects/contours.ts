@@ -23,9 +23,14 @@ function noise(x: number, y: number) {
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v
 }
 export function contourField(x: number, y: number, t = 0) {
-  const warp = noise(x * 0.55 + t * 0.08, y * 0.55 - t * 0.05)
-  const a = noise(x + warp * 0.9 + t * 0.025, y + warp * 0.8)
-  const b = noise(x * 2.03 + warp, y * 2.03 - warp + t * 0.03)
+  // Two independent currents deform the field rather than sliding a fixed texture.
+  const swell = 0.95 + Math.sin(t * 0.22) * 0.14
+  const wx = noise(x * 0.55 + t * 0.1, y * 0.55 - t * 0.07)
+  const wy = noise(x * 0.55 - t * 0.08 + 7.3, y * 0.55 + t * 0.09 + 3.1)
+  const px = x + (wx - 0.5) * 1.8 * swell
+  const py = y + (wy - 0.5) * 1.8 * swell
+  const a = noise(px + t * 0.045, py - t * 0.025)
+  const b = noise(px * 2.03 - t * 0.035, py * 2.03 + t * 0.04)
   return a * 0.76 + b * 0.24
 }
 /** Static marching-squares fallback shares the same original contour vocabulary. */
@@ -97,11 +102,14 @@ float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));
 return mix(a,b,u.x)+(c-a)*u.y*(1.-u.x)+(d-b)*u.x*u.y;}
 void main(){
 vec2 p=vec2(uv.x*resolution.x/resolution.y,uv.y)*3.2;
-float warp=noise(p*.55+vec2(time*.08,-time*.05));
-float n=noise(p+vec2(warp*.9+time*.025,warp*.8))*.76
-       +noise(p*2.03+vec2(warp,-warp+time*.03))*.24;
+float swell=.95+sin(time*.22)*.14;
+vec2 warp=vec2(noise(p*.55+vec2(time*.1,-time*.07)),
+               noise(p*.55+vec2(-time*.08+7.3,time*.09+3.1)));
+vec2 q=p+(warp-.5)*1.8*swell;
+float n=noise(q+vec2(time*.045,-time*.025))*.76
+       +noise(q*2.03+vec2(-time*.035,time*.04))*.24;
 float band=n*8.;float d=abs(fract(band+.5)-.5);
 float aa=max(fwidth(band),.0005);
 float line=1.-smoothstep(aa*.25,aa*1.35,d);
-color=vec4(ink,line*.38);
+color=vec4(ink,line*.5);
 }`
