@@ -6,6 +6,10 @@ import { heroInkProgress } from "../effects/signature"
 import { usePrefs } from "../state/preferences"
 
 const characters = [li, jia, he]
+const strokeCount = characters.reduce((total, character) => total + character.strokes.length, 0)
+const strokeOffsets = characters.map((_, index) =>
+  characters.slice(0, index).reduce((total, character) => total + character.strokes.length, 0),
+)
 // Original cursive lettering, following the pen rather than tracing glyph edges.
 const englishStrokes = [
   "M75 122 C150 105 185 25 143 30 C110 33 107 137 67 177 C40 202 20 170 57 163 C96 153 126 185 164 169 C191 151 205 129 187 127 C157 126 151 179 183 178 C206 177 225 151 230 138 C209 125 199 169 222 176 C251 185 272 138 250 132 C234 122 226 142 238 148 C250 155 275 143 285 135",
@@ -113,8 +117,8 @@ export default function NameDrawing() {
                           clipPath={`url(#${clip})`}
                           d={character.medians[stroke].map(([x, y], point) => `${point ? "L" : "M"}${x} ${y}`).join(" ")}
                           pathLength="1"
-                          data-ink-start={stroke / character.strokes.length}
-                          data-ink-end={(stroke + 1) / character.strokes.length}
+                          data-ink-start={(strokeOffsets[index] + stroke) / strokeCount}
+                          data-ink-end={(strokeOffsets[index] + stroke + 1) / strokeCount}
                         />
                       </g>
                     )

@@ -1390,14 +1390,30 @@ test("handwritten name replays on hover, keyboard and touch, and cleans up in AS
     const characters = [...button.querySelectorAll("[data-character]")]
     assert.deepEqual(characters.map(el => el.dataset.character), ["李", "嘉", "和"])
     assert.equal(button.querySelectorAll(".name-pen-stroke").length, 29)
+    let previousEnd = 0
     for (const character of characters) {
       const strokes = [...character.querySelectorAll(".name-pen-stroke")]
-      assert.equal(strokes[0].dataset.inkStart, "0")
+      assert.equal(Number(strokes[0].dataset.inkStart), previousEnd)
+      previousEnd = Number(strokes.at(-1).dataset.inkEnd)
       for (const stroke of strokes) {
         const id = stroke.getAttribute("clip-path").slice(5, -1)
         assert.ok(document.getElementById(id)?.querySelector("path").getAttribute("d"))
       }
     }
+    assert.equal(previousEnd, 1)
+    const paintChinese = async (progress) => act(async () => {
+      window.scrollTo({ top: progress * innerHeight / 1.65 })
+      f.advance(32)
+    })
+    await paintChinese(.2)
+    assert.ok(characters[0].querySelector('.name-pen-stroke').style.opacity === "1")
+    assert.ok([...characters[1].querySelectorAll('path.name-pen-stroke'), ...characters[2].querySelectorAll('path.name-pen-stroke')].every(path => path.style.opacity === "0"))
+    await paintChinese(.5)
+    assert.ok([...characters[0].querySelectorAll('.name-pen-stroke')].every(path => path.style.strokeDashoffset === "0"))
+    assert.ok([...characters[2].querySelectorAll('.name-pen-stroke')].every(path => path.style.opacity === "0"))
+    await paintChinese(.85)
+    assert.ok([...characters[1].querySelectorAll('.name-pen-stroke')].every(path => path.style.strokeDashoffset === "0"))
+    assert.equal(characters[2].querySelector('.name-pen-stroke').style.opacity, "1")
     await pointer("pointerout", "mouse")
     assert.equal(button.dataset.language, "english")
     await act(async () => button.focus())
