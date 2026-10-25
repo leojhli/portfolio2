@@ -5,6 +5,7 @@
 @import './ascii.css';
 @import './story.css';
 @import './spirit.css';
+@import './electric.css';
 
 @custom-variant hz (&:where(html[data-layout='h'] *));
 

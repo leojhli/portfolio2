@@ -1,0 +1,71 @@
+/* Electric Blue: concentrated neon light against deep navy. Raster photographs
+   retain their original colour; ASCII keeps its character-only presentation. */
+html[data-palette='electric-blue'][data-mode='dynamic'] {
+  --neon-blue: #268dff;
+  --neon-cyan: #44efff;
+  --neon-violet: #8b6dff;
+  --neon-edge: #268dff70;
+  --neon-halo: 0 0 12px #268dff55, 0 0 36px #1267ff35;
+
+  .contour-background { opacity: 1; color: var(--neon-cyan); }
+  .contour-background::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 3% 25%,#0066ff30,transparent 52%),radial-gradient(ellipse at 97% 70%,#00dfff22,transparent 48%),radial-gradient(ellipse at 65% 100%,#643dff24,transparent 48%);
+  }
+  .contour-background > svg { opacity: .6; }
+  .hero-shade {
+    background: radial-gradient(ellipse at 0% 55%,#0066ff35,transparent 58%),linear-gradient(90deg,#030711b8,transparent 85%),linear-gradient(0deg,#030611f2,transparent 78%);
+  }
+  .story-header, .story-status {
+    background: #030918ed;
+    box-shadow: 0 0 42px #087dff20;
+  }
+  .brand-home { color: var(--neon-cyan); }
+  .brand-home svg { filter: drop-shadow(0 0 5px #44efff8c) drop-shadow(0 0 14px #268dff66); }
+  .english-name-lettering, .chinese-name-lettering, .signature svg {
+    color: #d7faff;
+    filter: drop-shadow(0 0 3px #44efffa0) drop-shadow(0 0 12px #268dff80);
+  }
+  .chapter-title em, .contact-chapter h2 em { color: var(--neon-cyan); text-shadow: 0 0 24px #268dff65; }
+  .eyebrow > span, .entry-index, .interest-list span { color: var(--neon-cyan); text-shadow: 0 0 12px #44efff66; }
+  .nav-link:is(:hover,:focus-visible,[aria-current='true']),
+  :is(.text-link,.contact-link):is(:hover,:focus-visible) {
+    color: var(--neon-cyan); text-shadow: 0 0 14px #44efff75;
+  }
+  .nav-link::after { background: var(--neon-cyan); box-shadow: 0 0 7px #44efff,0 0 18px #268dff; }
+  .theme-dot { background: var(--neon-cyan); box-shadow: 0 0 10px #44efffb3; }
+  .story-progress > div { background: linear-gradient(90deg,#268dff,#44efff); box-shadow: 0 0 12px #268dffb3; }
+  .overlay-scrollbar > span { background: #268dff88; box-shadow: 0 0 10px #268dff55; }
+  .overlay-scrollbar:is(:hover,:focus-visible,[data-dragging='true']) > span { background: var(--neon-cyan); }
+
+  .project-panel {
+    background: linear-gradient(155deg,#09182f,#060c1d 70%);
+    border-color: var(--neon-edge);
+    box-shadow: inset 0 1px 0 #44efff26,0 0 26px #086dff1a;
+    transition: border-color .3s,box-shadow .3s;
+  }
+  .project-panel:is(:hover,:focus-within) { border-color: var(--neon-cyan); box-shadow: 0 0 16px #268dff55,0 0 52px #0066ff30,inset 0 0 24px #268dff0d; }
+  .project-visual { background: radial-gradient(ellipse at 50% 45%,#144ca445,transparent 68%),linear-gradient(135deg,#071d3a,#100a2c); }
+  .project-drawing { color: var(--neon-cyan); filter: drop-shadow(0 0 3px #44efff88); }
+  .drawing-1 { color: #aa96ff; filter: drop-shadow(0 0 4px #8b6dff99); }
+  .drawing-2 { color: #7dbbff; filter: drop-shadow(0 0 4px #268dff99); }
+  .technology-list li { color: #b8eaff; background: #0b2445; box-shadow: inset 0 0 0 1px #268dff35; }
+  .experience-list > li { border-color: #268dff48; }
+  .experience-list h3 { text-shadow: 0 0 24px #268dff26; }
+  .collection-chapter :is(.card,.game-tile,.box), .music-dock-panel, dialog.box {
+    border-color: var(--neon-edge);
+    box-shadow: inset 0 1px 0 #44efff20,0 0 30px #268dff1f;
+  }
+  .collection-chapter :is(.card,.game-tile):is(:hover,:focus-within) { border-color: var(--neon-cyan); box-shadow: var(--neon-halo); }
+  .pop:not(:disabled):not(.pop-off):is(:hover,:focus-visible) { border-color: var(--neon-cyan); box-shadow: var(--neon-halo); }
+  .pop-accent, .pop[aria-pressed='true'] { box-shadow: 0 0 18px #268dff55; }
+  .presentation-switch button[aria-pressed='true'] { background: #0b2c53; color: #b9faff; box-shadow: inset 0 0 0 1px #268dff80,0 0 12px #268dff30; }
+  :focus-visible { outline-color: var(--neon-cyan); }
+  .music-dock-disc { box-shadow: 0 0 0 1px #268dff90,0 0 12px #268dff65; }
+  .music-dock-disc::after { border-color: var(--neon-cyan); }
+  .music-dock-control { color: #a4dcff; }
+  .music-dock-control:is(:hover,:focus-visible) { color: var(--neon-cyan); filter: drop-shadow(0 0 5px #44efff80); }
+  .book-ribbon { background: var(--neon-cyan); }
+  .book-display:is(:hover,:focus-visible) .book-jacket { box-shadow: 3px 3px 0 #164d80,0 0 0 1px #268dff8c,0 0 24px #268dff55; }
+  .book-display:is(:hover,:focus-visible) .book-caption strong { color: var(--neon-cyan); }
+}

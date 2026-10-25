@@ -130,9 +130,6 @@ html[data-mode='ascii'] .overlay-scrollbar > span::after { content: '|\A|\A|\A|\
 .contour-background { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; color: var(--c-accent); opacity: .35; }
 .contour-background > :is(canvas,svg) { position: absolute; width: 100%; height: 100%; }
 .contour-background svg { opacity: .32; }
-html[data-palette='electric-blue'] .contour-background { opacity: .75; }
-html[data-palette='electric-blue'] .project-visual { background: linear-gradient(135deg,#0a1730,#111230); }
-html[data-palette='electric-blue'] .project-panel:hover { border-color: var(--c-accent); box-shadow: 0 0 45px #2688ff10; }
 .contour-ascii { color: var(--c-accent); font-size: max(8px,1.2vw); line-height: 1.4; opacity: .25; }
 html[data-layout='story'][data-motion='on'] .story [data-reveal] {
   opacity: var(--reveal-opacity,1); translate: 0 var(--reveal-y,0px); scale: var(--reveal-scale,1);

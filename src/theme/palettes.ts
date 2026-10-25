@@ -40,7 +40,7 @@ export const PALETTES: PaletteDef[] = [
   {
     id: "electric-blue",
     name: "Electric Blue",
-    colors: ["#070b14", "#4da3ff", "#4ce0ef", "#7274f8", "#eef5ff"],
+    colors: ["#030611", "#268dff", "#44efff", "#8b6dff", "#effaff"],
   },
 ]
 export const DEFAULT_PALETTE: ThemeId = "ink"
