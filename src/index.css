@@ -121,6 +121,8 @@ html[data-motion='off'] .soft-reveal { animation: none; }
 /* ---------- Surfaces ---------- */
 .box { position: relative; border: 1px solid var(--c-line); background: var(--c-surface); border-radius: 12px; }
 html[data-mode='ascii'] .box { border-style: dashed; border-color: var(--c-muted); border-radius: 0; background: transparent; }
+/* Card positioning must not override the browser's viewport dialog placement. */
+dialog.box { position: fixed; inset: 0; max-height: calc(100svh - 48px); overflow-y: auto; overscroll-behavior: contain; }
 html[data-mode='ascii'] dialog.box { background: var(--c-bg); }
 /* Floating panels get their own class: .box is unlayered, so its position: relative would beat Tailwind's `absolute`. */
 .popover { position: absolute; background: var(--c-surface); }

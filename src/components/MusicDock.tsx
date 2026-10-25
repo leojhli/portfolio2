@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react"
 import { useAudio } from "../state/audio"
+import { usePrefs } from "../state/preferences"
 import CDPlayer from "./CDPlayer"
 import Icon from "./Icons"
 
 /** A second control surface for the existing, app-wide audio instance. */
 export default function MusicDock() {
   const audio = useAudio()
+  const { mode } = usePrefs()
   const [open, setOpen] = useState(false)
   const host = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
@@ -33,7 +35,9 @@ export default function MusicDock() {
       <button ref={trigger} type="button" className="music-dock-track"
         aria-label="Music player details" aria-expanded={open} aria-controls="taskbar-music-panel"
         onClick={() => setOpen(value => !value)}>
-        <span className="music-dock-indicator" data-playing={playing} aria-hidden="true"><i /><i /><i /></span>
+        {mode === "ascii" ? <span aria-hidden="true" className="music-dock-ascii">((o))</span> :
+          <span className="music-dock-disc disc" data-playing={playing} aria-hidden="true"
+            style={audio.track?.artwork ? { backgroundImage: `url(${audio.track.artwork})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined} />}
         <span className="music-dock-copy"><strong>{audio.track?.title ?? "Music"}</strong><span>{audio.status === "error" ? "Track unavailable" : audio.track?.artist ?? "Select a track"}</span></span>
       </button>
       <button type="button" className="music-dock-control" aria-label={playing ? "Pause music" : "Play music"}

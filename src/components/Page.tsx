@@ -157,13 +157,12 @@ export default function Page() {
                 <div className="hero-byline">
                   <span>Engineering. Exploring. Always curious.</span>
                 </div>
-                <div className="hero-bottom">
-                  <span className="eyebrow">
-                    A little work.
-                    <br />A little off-screen.
-                  </span>
-                  <Signature hero />
-                </div>
+              </div>
+              <div className="hero-bottom">
+                <span className="eyebrow">
+                  A little work.<br />A little off-screen.
+                </span>
+                <Signature hero />
               </div>
               <figure className="hero-portrait">
                 <Photo

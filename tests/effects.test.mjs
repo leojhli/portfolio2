@@ -1084,6 +1084,8 @@ test("signature follows hero scroll, reverses, and draws Contact only once", asy
     assert.equal(document.querySelectorAll(".photo img").length, 5)
     const hero = document.querySelector(".signature-hero")
     const contact = document.querySelector(".contact-chapter .signature")
+    assert.equal(hero.closest(".hero-copy"), null, "signature is outside the expanding name layout")
+    assert.equal(hero.parentElement.parentElement.className, "hero-sticky")
     assert.equal(hero.dataset.started, "false")
     assert.equal(hero.style.getPropertyValue("--signature-progress"), "0")
     await act(async () => {
@@ -1288,7 +1290,17 @@ test("book dialogs reopen, close on cancel, and return focus without unmounting 
   try {
     assert.equal(document.documentElement.dataset.layout, "story")
     const book = document.querySelector('[aria-haspopup="dialog"]')
+    const showModal = window.HTMLDialogElement.prototype.showModal
+    window.HTMLDialogElement.prototype.showModal = function () {
+      assert.ok(this.querySelector('#book-title'), "book content exists before native autofocus")
+      showModal.call(this)
+      window.scrollTo({ top: 0 }) // Reproduce browsers scrolling during modal focus.
+    }
+    await act(async () => { window.scrollTo({ top: 5400 }); f.advance(32) })
+    const originalOverflow = document.documentElement.style.overflow
     await click(book)
+    assert.equal(scrollY, 5400)
+    assert.equal(document.documentElement.style.overflow, "hidden")
     const dialog = document.querySelector("dialog")
     assert.equal(dialog.open, true)
     const title = document.getElementById("book-title").textContent
@@ -1296,6 +1308,8 @@ test("book dialogs reopen, close on cancel, and return focus without unmounting 
     await act(async () => f.advance(240))
     assert.equal(dialog.open, false)
     assert.equal(document.activeElement, book)
+    assert.equal(scrollY, 5400)
+    assert.equal(document.documentElement.style.overflow, originalOverflow)
     await click(book)
     assert.equal(document.getElementById("book-title").textContent, title)
     await act(async () =>
@@ -1304,6 +1318,8 @@ test("book dialogs reopen, close on cancel, and return focus without unmounting 
     await act(async () => f.advance(240))
     assert.equal(dialog.open, false)
     assert.equal(document.activeElement, book)
+    assert.equal(scrollY, 5400)
+    assert.equal(document.documentElement.style.overflow, originalOverflow)
     assert.equal(document.documentElement.dataset.motion, "on")
   } finally {
     await unmount()
@@ -1365,15 +1381,19 @@ test("handwritten name replays on hover, keyboard and touch, and cleans up in AS
     assert.equal(document.querySelector(".hero-byline [lang]"), null)
     assert.equal(button.dataset.started, "false")
     assert.ok([...button.querySelectorAll("[data-ink-start]")].every(path => path.style.opacity === "0"))
-    await act(async () => { window.scrollTo({ top: 400 }); f.advance(32) })
-    const signature = document.querySelector(".signature-hero")
-    assert.equal(button.style.getPropertyValue("--signature-progress"), signature.style.getPropertyValue("--signature-progress"))
+    await act(async () => f.advance(1500))
+    assert.equal(scrollY, 0, "writing plays without scrolling")
     const english = [...button.querySelectorAll(".english-pen-stroke")]
-    assert.equal(english[0].style.strokeDashoffset, "0")
-    assert.ok(Number(english[1].style.strokeDashoffset) > 0 && Number(english[1].style.strokeDashoffset) < 1)
+    const partial = Number(button.style.getPropertyValue("--signature-progress"))
+    assert.ok(partial > .45 && partial < .55)
+    assert.ok(Number(english[0].style.strokeDashoffset) > 0 && Number(english[0].style.strokeDashoffset) < 1)
     assert.equal(english[2].style.opacity, "0", "dot stays hidden until the pen reaches it")
+    await act(async () => { window.scrollTo({ top: 400 }); f.advance(32) })
+    assert.ok(Number(button.style.getPropertyValue("--signature-progress")) >= partial, "scroll does not reset the writing")
+    await act(async () => f.advance(1700))
+    assert.equal(button.dataset.complete, "true")
     await act(async () => { window.scrollTo({ top: 0 }); f.advance(32) })
-    assert.equal(button.dataset.started, "false", "scrolling back unwrites the name exactly like the signature")
+    assert.equal(button.dataset.complete, "true", "returning to the top does not erase the name")
     await click(document.querySelector(".name-replay"))
     await act(async () => f.advance(1500))
     assert.equal(button.dataset.started, "true")
@@ -1401,17 +1421,13 @@ test("handwritten name replays on hover, keyboard and touch, and cleans up in AS
       }
     }
     assert.equal(previousEnd, 1)
-    const paintChinese = async (progress) => act(async () => {
-      window.scrollTo({ top: progress * innerHeight / 1.65 })
-      f.advance(32)
-    })
-    await paintChinese(.2)
+    await act(async () => f.advance(600))
     assert.ok(characters[0].querySelector('.name-pen-stroke').style.opacity === "1")
     assert.ok([...characters[1].querySelectorAll('path.name-pen-stroke'), ...characters[2].querySelectorAll('path.name-pen-stroke')].every(path => path.style.opacity === "0"))
-    await paintChinese(.5)
+    await act(async () => f.advance(900))
     assert.ok([...characters[0].querySelectorAll('.name-pen-stroke')].every(path => path.style.strokeDashoffset === "0"))
     assert.ok([...characters[2].querySelectorAll('.name-pen-stroke')].every(path => path.style.opacity === "0"))
-    await paintChinese(.85)
+    await act(async () => f.advance(1050))
     assert.ok([...characters[1].querySelectorAll('.name-pen-stroke')].every(path => path.style.strokeDashoffset === "0"))
     assert.equal(characters[2].querySelector('.name-pen-stroke').style.opacity, "1")
     await pointer("pointerout", "mouse")
@@ -1438,6 +1454,7 @@ test("taskbar music shares playback and cover shelves keep book details accessib
   try {
     const dock = document.querySelector('[aria-label="Taskbar music player"]')
     assert.ok(dock.closest('[data-deck-status]'))
+    assert.equal(dock.querySelector('.music-dock-disc').dataset.playing, "false")
     await click(dock.querySelector('[aria-label="Play music"]'))
     const audio = f.audioInstances[0]
     assert.equal(audio.paused, false)
@@ -1445,6 +1462,8 @@ test("taskbar music shares playback and cover shelves keep book details accessib
     await click(dock.querySelector('[aria-label="Music player details"]'))
     const panel = document.getElementById('taskbar-music-panel')
     assert.ok(panel)
+    assert.equal(dock.querySelector('.music-dock-disc').dataset.playing, "true")
+    assert.equal(panel.querySelector('.disc').dataset.playing, "true")
     assert.ok(panel.querySelector('[aria-label="Pause"]'))
     assert.equal(f.audioInstances.length, 1)
     await click(panel.querySelector('[aria-label="Pause"]'))

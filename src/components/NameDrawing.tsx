@@ -2,7 +2,6 @@ import { useEffect, useId, useRef, useState } from "react"
 import li from "../assets/name/li.json"
 import jia from "../assets/name/jia.json"
 import he from "../assets/name/he.json"
-import { heroInkProgress } from "../effects/signature"
 import { usePrefs } from "../state/preferences"
 
 const characters = [li, jia, he]
@@ -29,8 +28,7 @@ export default function NameDrawing() {
     if (!el || mode === "ascii") return
     const strokes = [...el.querySelectorAll<SVGPathElement>("[data-ink-start]")]
     let raf = 0, last = 0, elapsed = 0
-    let previousScroll = window.scrollY
-    let replaying = replay > 0
+    let replaying = true
     const paint = (progress: number) => {
       el.style.setProperty("--signature-progress", String(progress))
       el.dataset.started = String(progress > 0)
@@ -53,27 +51,16 @@ export default function NameDrawing() {
       if (progress < 1) raf = requestAnimationFrame(tick)
       else replaying = false
     }
-    const frame = (event: Event) => {
-      const detail = (event as CustomEvent<{ heroProgress: number }>).detail
-      // An explicit replay owns the ink until the visitor actually scrolls.
-      if (replaying && window.scrollY === previousScroll) return
-      previousScroll = window.scrollY
-      replaying = false
-      cancelAnimationFrame(raf)
-      paint(heroInkProgress(detail.heroProgress))
-    }
     const visibility = () => {
       cancelAnimationFrame(raf)
       last = 0
       if (!document.hidden && replaying) raf = requestAnimationFrame(tick)
     }
-    paint(replaying ? 0 : heroInkProgress(window.scrollY / innerHeight))
+    paint(0)
     if (replaying) raf = requestAnimationFrame(tick)
-    addEventListener("portfolio:frame", frame)
     document.addEventListener("visibilitychange", visibility)
     return () => {
       cancelAnimationFrame(raf)
-      removeEventListener("portfolio:frame", frame)
       document.removeEventListener("visibilitychange", visibility)
     }
   }, [chinese, replay, mode])
@@ -137,7 +124,7 @@ export default function NameDrawing() {
         )}
       </span>
       <span className="name-drawing-hint" id={`${id}-hint`} aria-hidden="true">
-        {chinese ? "Tap to write in English" : "Scroll to write · hover for Chinese"}
+        {chinese ? "Tap to write in English" : "Hover or tap to write in Chinese"}
       </span>
     </button>
     <button type="button" className="name-replay" onClick={() => setReplay(n => n + 1)}>Replay writing</button>

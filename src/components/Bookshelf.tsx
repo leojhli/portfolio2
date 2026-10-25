@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { Book } from "../content/data"
 import { usePrefs } from "../state/preferences"
 import Icon from "./Icons"
@@ -13,9 +13,20 @@ export default function Bookshelf({ books }: { books: Book[] }) {
   const trigger = useRef<HTMLButtonElement | null>(null)
   const [active, setActive] = useState<Book | null>(null)
   const closing = useRef(false)
-  useEffect(() => {
-    if (active && dialog.current?.open) assemble(dialog.current)
+  const restorePage = useRef<(() => void) | null>(null)
+  const openingPosition = useRef({ x: 0, y: 0 })
+  useLayoutEffect(() => {
+    const el = dialog.current
+    if (!active || !el || el.open) return
+    // Populate the dialog before native autofocus runs; never open an empty shell.
+    el.showModal()
+    el.querySelector<HTMLButtonElement>('[aria-label="Close"]')?.focus({ preventScroll: true })
+    const { x, y } = openingPosition.current
+    if (window.scrollX !== x || window.scrollY !== y)
+      window.scrollTo({ left: x, top: y, behavior: "instant" })
+    assemble(el)
   }, [active])
+  useEffect(() => () => { restorePage.current?.(); restorePage.current = null }, [])
   const close = () => {
     const el = dialog.current
     if (!el?.open || closing.current) return
@@ -27,9 +38,20 @@ export default function Bookshelf({ books }: { books: Book[] }) {
   }
 
   const open = (b: Book, el: HTMLButtonElement) => {
+    if (dialog.current?.open || closing.current) return
     trigger.current = el
+    const html = document.documentElement
+    const overflow = html.style.overflow
+    const position = { x: window.scrollX, y: window.scrollY }
+    openingPosition.current = position
+    html.style.overflow = "hidden"
+    restorePage.current = () => {
+      html.style.overflow = overflow
+      if (trigger.current?.isConnected) trigger.current.focus({ preventScroll: true })
+      if (window.scrollX !== position.x || window.scrollY !== position.y)
+        window.scrollTo({ left: position.x, top: position.y, behavior: "instant" })
+    }
     setActive(b)
-    dialog.current?.showModal()
   }
   const shelves = [
     { title: "On my desk", books: books.filter(book => book.status === "Reading") },
@@ -76,7 +98,8 @@ export default function Bookshelf({ books }: { books: Book[] }) {
         onClose={() => {
           setActive(null)
           closing.current = false
-          trigger.current?.focus()
+          restorePage.current?.()
+          restorePage.current = null
         }}
         onCancel={(e) => {
           e.preventDefault()

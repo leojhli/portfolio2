@@ -1,4 +1,4 @@
-/** Shared scroll-to-ink timing for the signature and both handwritten names. */
+/** Scroll-to-ink timing for the hero signature. */
 export function heroInkProgress(progress: number) {
   return Math.min(1, Math.max(0, progress * 1.65))
 }
