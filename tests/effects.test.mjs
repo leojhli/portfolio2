@@ -1363,6 +1363,23 @@ test("handwritten name replays on hover, keyboard and touch, and cleans up in AS
     assert.equal(button.querySelectorAll(".english-pen-stroke").length, 3)
     assert.equal(document.querySelector(".chinese-name-drawing"), null)
     assert.equal(document.querySelector(".hero-byline [lang]"), null)
+    assert.equal(button.dataset.started, "false")
+    assert.ok([...button.querySelectorAll("[data-ink-start]")].every(path => path.style.opacity === "0"))
+    await act(async () => { window.scrollTo({ top: 400 }); f.advance(32) })
+    const signature = document.querySelector(".signature-hero")
+    assert.equal(button.style.getPropertyValue("--signature-progress"), signature.style.getPropertyValue("--signature-progress"))
+    const english = [...button.querySelectorAll(".english-pen-stroke")]
+    assert.equal(english[0].style.strokeDashoffset, "0")
+    assert.ok(Number(english[1].style.strokeDashoffset) > 0 && Number(english[1].style.strokeDashoffset) < 1)
+    assert.equal(english[2].style.opacity, "0", "dot stays hidden until the pen reaches it")
+    await act(async () => { window.scrollTo({ top: 0 }); f.advance(32) })
+    assert.equal(button.dataset.started, "false", "scrolling back unwrites the name exactly like the signature")
+    await click(document.querySelector(".name-replay"))
+    await act(async () => f.advance(1500))
+    assert.equal(button.dataset.started, "true")
+    assert.equal(button.dataset.complete, "false")
+    await act(async () => f.advance(1700))
+    assert.equal(button.dataset.complete, "true")
     const pointer = async (type, pointerType) => act(async () => {
       const event = new window.Event(type, { bubbles: true })
       Object.defineProperty(event, "pointerType", { value: pointerType })
@@ -1375,7 +1392,7 @@ test("handwritten name replays on hover, keyboard and touch, and cleans up in AS
     assert.equal(button.querySelectorAll(".name-pen-stroke").length, 29)
     for (const character of characters) {
       const strokes = [...character.querySelectorAll(".name-pen-stroke")]
-      assert.equal(strokes[0].style.getPropertyValue("--pen-delay"), "0s")
+      assert.equal(strokes[0].dataset.inkStart, "0")
       for (const stroke of strokes) {
         const id = stroke.getAttribute("clip-path").slice(5, -1)
         assert.ok(document.getElementById(id)?.querySelector("path").getAttribute("d"))

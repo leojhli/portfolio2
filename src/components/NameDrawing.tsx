@@ -1,7 +1,8 @@
-import { useId, useRef, useState, type CSSProperties } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import li from "../assets/name/li.json"
 import jia from "../assets/name/jia.json"
 import he from "../assets/name/he.json"
+import { heroInkProgress } from "../effects/signature"
 import { usePrefs } from "../state/preferences"
 
 const characters = [li, jia, he]
@@ -15,16 +16,72 @@ const englishStrokes = [
 export default function NameDrawing() {
   const id = useId().replace(/:/g, "")
   const { mode } = usePrefs()
+  const host = useRef<HTMLButtonElement>(null)
   const pointerFocus = useRef(false)
   const [chinese, setChinese] = useState(false)
   const [replay, setReplay] = useState(0)
+  useEffect(() => {
+    const el = host.current
+    if (!el || mode === "ascii") return
+    const strokes = [...el.querySelectorAll<SVGPathElement>("[data-ink-start]")]
+    let raf = 0, last = 0, elapsed = 0
+    let previousScroll = window.scrollY
+    let replaying = replay > 0
+    const paint = (progress: number) => {
+      el.style.setProperty("--signature-progress", String(progress))
+      el.dataset.started = String(progress > 0)
+      el.dataset.complete = String(progress >= 1)
+      strokes.forEach(stroke => {
+        const start = Number(stroke.dataset.inkStart)
+        const end = Number(stroke.dataset.inkEnd)
+        const local = Math.max(0, Math.min(1, (progress - start) / (end - start)))
+        stroke.style.strokeDashoffset = String(1 - local)
+        stroke.style.opacity = local > 0 ? "1" : "0"
+      })
+    }
+    const tick = (now: number) => {
+      raf = 0
+      if (document.hidden) { last = 0; return }
+      elapsed += last ? Math.min(64, now - last) : 0
+      last = now
+      const progress = Math.min(1, elapsed / 3000)
+      paint(progress)
+      if (progress < 1) raf = requestAnimationFrame(tick)
+      else replaying = false
+    }
+    const frame = (event: Event) => {
+      const detail = (event as CustomEvent<{ heroProgress: number }>).detail
+      // An explicit replay owns the ink until the visitor actually scrolls.
+      if (replaying && window.scrollY === previousScroll) return
+      previousScroll = window.scrollY
+      replaying = false
+      cancelAnimationFrame(raf)
+      paint(heroInkProgress(detail.heroProgress))
+    }
+    const visibility = () => {
+      cancelAnimationFrame(raf)
+      last = 0
+      if (!document.hidden && replaying) raf = requestAnimationFrame(tick)
+    }
+    paint(replaying ? 0 : heroInkProgress(window.scrollY / innerHeight))
+    if (replaying) raf = requestAnimationFrame(tick)
+    addEventListener("portfolio:frame", frame)
+    document.addEventListener("visibilitychange", visibility)
+    return () => {
+      cancelAnimationFrame(raf)
+      removeEventListener("portfolio:frame", frame)
+      document.removeEventListener("visibilitychange", visibility)
+    }
+  }, [chinese, replay, mode])
   if (mode === "ascii") return <>Leo Li<span className="hero-period">.</span><span className="sr-only"> / 李嘉和</span></>
   const show = (value: boolean) => {
     setChinese(value)
     setReplay(n => n + 1)
   }
   return (
+    <>
     <button
+      ref={host}
       type="button"
       className="name-drawing"
       aria-label="Leo Li — show or replay handwritten Chinese name"
@@ -56,7 +113,8 @@ export default function NameDrawing() {
                           clipPath={`url(#${clip})`}
                           d={character.medians[stroke].map(([x, y], point) => `${point ? "L" : "M"}${x} ${y}`).join(" ")}
                           pathLength="1"
-                          style={{ "--pen-delay": `${stroke * .18}s`, "--pen-duration": ".42s" } as CSSProperties}
+                          data-ink-start={stroke / character.strokes.length}
+                          data-ink-end={(stroke + 1) / character.strokes.length}
                         />
                       </g>
                     )
@@ -69,14 +127,16 @@ export default function NameDrawing() {
           <svg className="english-name-lettering" viewBox="0 0 560 230">
             {englishStrokes.map((d, index) => (
               <path key={index} d={d} className="english-pen-stroke" pathLength="1"
-                style={{ "--pen-delay": `${[0, 1.35, 2.55][index]}s`, "--pen-duration": `${[1.5, 1.3, .15][index]}s` } as CSSProperties} />
+                data-ink-start={[0, .52, .95][index]} data-ink-end={[.52, .95, 1][index]} />
             ))}
           </svg>
         )}
       </span>
       <span className="name-drawing-hint" id={`${id}-hint`} aria-hidden="true">
-        {chinese ? "Tap to write in English" : "Hover or tap to write in Chinese"}
+        {chinese ? "Tap to write in English" : "Scroll to write · hover for Chinese"}
       </span>
     </button>
+    <button type="button" className="name-replay" onClick={() => setReplay(n => n + 1)}>Replay writing</button>
+    </>
   )
 }

@@ -205,17 +205,15 @@ html[data-mode='ascii'] .story-progress { display: none; }
 .english-name-lettering { display: block; width: 100%; height: 100%; overflow: visible; }
 .chinese-name-lettering { display: flex; width: 100%; height: 100%; align-items: center; gap: .04em; }
 .chinese-name-lettering > svg { width: 33.333%; height: 100%; overflow: visible; }
-.name-pen-stroke, .english-pen-stroke { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: name-pen var(--pen-duration) cubic-bezier(.32,.1,.45,1) var(--pen-delay) both; }
+.name-pen-stroke, .english-pen-stroke { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; }
 .name-pen-stroke { stroke-width: 180; }
 .english-pen-stroke { stroke-width: 3.6; }
 .name-drawing-hint { display: block; margin-top: 8px; font: 400 10px/1.5 var(--font-sans); letter-spacing: .08em; color: #c6d3e5; opacity: .8; }
 .name-drawing:focus-visible { outline: 1px solid #afccff; outline-offset: 12px; border-radius: 4px; }
-@keyframes name-pen { 0% { stroke-opacity: 0; } 1% { stroke-opacity: 1; } 100% { stroke-dashoffset: 0; stroke-opacity: 1; } }
+.name-drawing[data-started="false"] .name-drawing-art { visibility: hidden; }
+.name-replay { display: block; margin-top: 12px; padding: 6px 0; color: #c6d3e5; font: 400 12px/1.5 var(--font-sans); letter-spacing: .04em; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 @media (max-width: 700px) {
   .hero-copy h1 .name-drawing { width: 100%; }
   .name-drawing-art { height: 1.36em; }
   .name-drawing-hint { font-size: 9px; letter-spacing: .04em; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .name-pen-stroke, .english-pen-stroke { animation: none; stroke-dashoffset: 0; }
 }

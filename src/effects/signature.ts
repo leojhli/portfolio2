@@ -1,3 +1,8 @@
+/** Shared scroll-to-ink timing for the signature and both handwritten names. */
+export function heroInkProgress(progress: number) {
+  return Math.min(1, Math.max(0, progress * 1.65))
+}
+
 // Centerline tracing of the user's actual transparent signature, in source pixels.
 export const SIGNATURE_STROKES = [
   "M264 52 L193 153 L251 108 Q248 122 258 123 Q280 120 308 102 L330 82 Q307 102 299 114 Q292 124 329 112 L350 106 Q365 102 352 116 L323 139 Q347 105 359 86 Q363 80 362 73 Q360 58 391 45 Q405 37 403 46 Q401 85 344 150 L385 134",

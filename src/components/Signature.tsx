@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from "react"
 import { usePrefs } from "../state/preferences"
-import { signatureProgress, SIGNATURE_STROKES } from "../effects/signature"
+import { heroInkProgress, signatureProgress, SIGNATURE_STROKES } from "../effects/signature"
 
 /** Trace masks reveal the supplied ink; completed geometry is never substituted. */
 export default function Signature({ hero = false }: { hero?: boolean }) {
@@ -79,7 +79,7 @@ export default function Signature({ hero = false }: { hero?: boolean }) {
     const frame = (event: Event) => {
       if (hero && motion) {
         const detail = (event as CustomEvent<{ heroProgress: number }>).detail
-        paint(Math.min(1, Math.max(0, detail.heroProgress * 1.65)))
+        paint(heroInkProgress(detail.heroProgress))
       }
     }
     const visibility = () => {
@@ -111,7 +111,7 @@ export default function Signature({ hero = false }: { hero?: boolean }) {
       !motion || (!hero && !io)
         ? 1
         : hero
-          ? Math.min(1, Math.max(0, (scrollY / innerHeight) * 1.65))
+          ? heroInkProgress(scrollY / innerHeight)
           : savedProgress.current,
     )
     addEventListener("portfolio:frame", frame)
