@@ -872,6 +872,65 @@ test("native vertical scrolling drives sideways chapters without intercepting wh
   }
 })
 
+test("background clicks, typing and object activation have distinct sound timbres", async () => {
+  const f = fixture(),
+    previous = globalThis.AudioContext,
+    played = []
+  const parameter = () => ({
+    setValueAtTime() {},
+    linearRampToValueAtTime() {},
+    exponentialRampToValueAtTime() {},
+  })
+  globalThis.AudioContext = class {
+    state = "running"
+    currentTime = 1
+    destination = {}
+    createOscillator() {
+      return {
+        frequency: parameter(),
+        connect() {},
+        disconnect() {},
+        start() {
+          played.push(this.type)
+        },
+        stop() {},
+      }
+    }
+    createGain() {
+      return { gain: parameter(), connect() {}, disconnect() {} }
+    }
+    async close() {}
+  }
+  const unmount = await mountApp(f)
+  try {
+    await click(document.body)
+    await act(async () =>
+      document.body.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "a", bubbles: true }),
+      ),
+    )
+    await click(document.querySelector('[aria-controls="theme-pop"]'))
+    assert.deepEqual(played, ["triangle", "square", "sine"])
+    await act(async () =>
+      document.body.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "c",
+          ctrlKey: true,
+          bubbles: true,
+        }),
+      ),
+    )
+    assert.equal(played.length, 3, "shortcuts stay silent")
+    await click(document.querySelector('[aria-label="Interface sounds"]'))
+    await click(document.body)
+    assert.equal(played.length, 3, "mute covers every sound category")
+  } finally {
+    await unmount()
+    if (previous === undefined) delete globalThis.AudioContext
+    else globalThis.AudioContext = previous
+  }
+})
+
 test("rail focus reveals hidden controls and resizing preserves chapter position", async () => {
   const f = fixture(),
     unmount = await mountApp(f)
@@ -908,33 +967,62 @@ test("rail focus reveals hidden controls and resizing preserves chapter position
 })
 
 test("overlay scrollbar supports keyboard and dragging without reserving a gutter; sounds persist", async () => {
-  const f = fixture(), unmount = await mountApp(f)
+  const f = fixture(),
+    unmount = await mountApp(f)
   try {
     const bar = document.querySelector('[role="scrollbar"]')
     assert.equal(document.documentElement.dataset.overlayScrollbar, "true")
     bar.setPointerCapture = () => {}
-    await act(async () => { window.scrollTo({top: 500}); f.advance(32) })
+    await act(async () => {
+      window.scrollTo({ top: 500 })
+      f.advance(32)
+    })
     const before = scrollY
-    await act(async () => bar.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true })))
+    await act(async () =>
+      bar.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "ArrowDown",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    )
     assert.equal(scrollY, before + 48)
     await act(async () => f.advance(32))
     const pointer = (type, y, target = bar) => {
-      const e = new MouseEvent(type, { clientY: y, button: 0, bubbles: true, cancelable: true })
-      Object.defineProperty(e, "pointerId", {value: 1})
+      const e = new MouseEvent(type, {
+        clientY: y,
+        button: 0,
+        bubbles: true,
+        cancelable: true,
+      })
+      Object.defineProperty(e, "pointerId", { value: 1 })
       target.dispatchEvent(e)
     }
     const start = scrollY
-    await act(async () => { pointer("pointerdown", 100, bar.firstElementChild); pointer("pointermove", 140); pointer("pointerup", 140); f.advance(32) })
+    await act(async () => {
+      pointer("pointerdown", 100, bar.firstElementChild)
+      pointer("pointermove", 140)
+      pointer("pointerup", 140)
+      f.advance(32)
+    })
     assert.ok(scrollY > start)
     assert.equal(bar.dataset.dragging, undefined)
-    await act(async () => { bar.dispatchEvent(new KeyboardEvent("keydown", {key: "Home", bubbles: true})); f.advance(32) })
+    await act(async () => {
+      bar.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Home", bubbles: true }),
+      )
+      f.advance(32)
+    })
     assert.equal(scrollY, 0)
     assert.equal(bar.getAttribute("aria-valuenow"), "0")
     const sound = document.querySelector('[aria-label="Interface sounds"]')
     await click(sound)
     assert.equal(sound.getAttribute("aria-pressed"), "false")
     assert.equal(localStorage.getItem("pf.sound"), "off")
-  } finally { await unmount() }
+  } finally {
+    await unmount()
+  }
 })
 
 test("signature follows hero scroll, reverses, and draws Contact only once", async () => {
