@@ -54,11 +54,13 @@
 .hero-portrait figcaption { font-size: 10px; letter-spacing: .04em; padding-top: 10px; text-align: right; color: #d4e2f5; }
 .hero-scroll { position: absolute; z-index: 3; bottom: 100px; left: 7%; display: flex; align-items: center; gap: 26px; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
 .hero-scroll span:last-child { font-size: 25px; }
-.signature { width: clamp(160px,23vw,330px); aspect-ratio: 240/135; color: var(--c-accent); --signature-progress: 1; }
+.signature { width: clamp(160px,23vw,330px); aspect-ratio: 240/135; color: var(--c-accent); --signature-progress: 0; visibility: hidden; }
+.signature[data-started='true'] { visibility: visible; }
 .signature svg, .signature canvas { display: block; width: 100%; height: 100%; }
 .signature-hero { color: #edf5ff; width: clamp(140px,18vw,230px); }
 .signature-stroke { stroke-dasharray: 1; stroke-dashoffset: calc(1 - clamp(0,calc(var(--signature-progress)/.94),1)); }
-.signature-stroke-1 { stroke-dashoffset: calc(1 - clamp(0,calc((var(--signature-progress) - .94)/.06),1)); }
+.signature-stroke-1 { opacity: clamp(0,calc((var(--signature-progress) - .94)*1000),1); stroke-dashoffset: calc(1 - clamp(0,calc((var(--signature-progress) - .94)/.06),1)); }
+.story-header button:disabled { opacity: .5; cursor: default; }
 .signature-finished { opacity: 0; }
 .signature[data-complete='true'] .signature-finished { opacity: 1; }
 .experience-list { margin-top: 12px; }

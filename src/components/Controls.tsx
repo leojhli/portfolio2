@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { usePrefs, type MotionPref } from "../state/preferences"
+import { usePrefs } from "../state/preferences"
 import { PALETTES, type ThemeId } from "../theme/palettes"
 import Icon from "./Icons"
 
@@ -188,53 +188,21 @@ export default function Controls() {
           </fieldset>
         )}
       </Popover>
-      <Popover
-        id="motion-pop"
-        label={
-          <>
-            Motion: <span className="capitalize">{p.motionPref}</span>
-          </>
+      <button
+        type="button"
+        className="pop pop-sm"
+        aria-label="Cursor barrier"
+        aria-pressed={p.mode === "dynamic" && p.cursorBarrier}
+        disabled={p.mode === "ascii"}
+        title={
+          p.mode === "ascii"
+            ? "Cursor barrier is available in Dynamic mode"
+            : "Toggle the liquid cursor barrier"
         }
-        trigger={<Icon name="settings" size={15} />}
+        onClick={() => p.setCursorBarrier(!p.cursorBarrier)}
       >
-        {() => (
-          <>
-            <fieldset>
-              <legend className="mb-2 font-sans text-xs uppercase tracking-wide text-muted">
-                Motion
-              </legend>
-              {(["system", "on", "off"] as MotionPref[]).map((m) => (
-                <label
-                  key={m}
-                  className="flex min-h-11 cursor-pointer items-center gap-3 rounded px-2 text-sm hover:bg-line/50"
-                >
-                  <input
-                    type="radio"
-                    name="motion"
-                    value={m}
-                    checked={p.motionPref === m}
-                    onChange={() => p.setMotionPref(m)}
-                    className={
-                      p.mode === "ascii"
-                        ? "sr-only"
-                        : "accent-[var(--c-accent)]"
-                    }
-                  />
-                  {p.mode === "ascii" && (
-                    <span aria-hidden="true">
-                      {p.motionPref === m ? "(*)" : "( )"}
-                    </span>
-                  )}
-                  {m === "system" ? "System" : m === "on" ? "On" : "Off"}
-                </label>
-              ))}
-            </fieldset>
-            <p className="mt-2 text-xs text-muted">
-              Effective: {p.motion ? "motion on" : "reduced motion"}
-            </p>
-          </>
-        )}
-      </Popover>
+        Cursor: {p.mode === "dynamic" && p.cursorBarrier ? "On" : "Off"}
+      </button>
       <p aria-live="polite" className="sr-only">
         Theme: {p.palette.name}
       </p>

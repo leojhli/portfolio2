@@ -4,9 +4,9 @@ The current design uses a vertical story with sticky sideways Projects and photo
 
 ## Native scrolling and depth
 
-`Deck.tsx` is the single scroll coordinator. Native document scrolling drives measured sideways track translations inside CSS sticky frames. Each horizontal chapter has viewport height plus its travel distance. There is no wheel interception, scroll snapping or page-switch transition. At widths below 1024px, heights below 700px, or with Motion Off, tracks become stacked content.
+`Deck.tsx` is the single scroll coordinator. Native document scrolling drives measured sideways track translations inside CSS sticky frames. Each horizontal chapter has viewport height plus its travel distance. There is no wheel interception, scroll snapping or page-switch transition. At widths below 1024px or heights below 700px, tracks become stacked content.
 
-Scroll updates are coalesced into one animation frame. Track travel clamps at both boundaries and reverses directly with scrolling. Text and artwork groups use opacity and small translations; photos receive bounded horizontal parallax. Layout reads happen during measurement, not for every reveal on every frame. Resize and motion changes preserve the reading chapter and fractional progress. Font and content sizing changes refresh geometry.
+Scroll updates are coalesced into one animation frame. Track travel clamps at both boundaries and reverses directly with scrolling. Text and artwork groups use opacity and small translations; photos receive bounded horizontal parallax. Layout reads happen during measurement, not for every reveal on every frame. Resizing preserves the reading chapter and fractional progress. Font and content sizing changes refresh geometry.
 
 Native anchors and history navigate to chapter positions. Focusing a control in an offscreen horizontal card brings it into view. Focused reveal groups become fully visible. Experience, Projects, About and Contact navigation stays centered at the bottom. Interactive collection chapters map to About. Media remains mounted across navigation and preference changes.
 
@@ -16,7 +16,7 @@ Supplied photographs are optimized into 640px and 1280px WebP variants. The nigh
 
 The original contour shader uses domain-warped noise to form flowing bands with antialiased boundaries. It follows the mechanism established by public-source investigation of the reference, without importing its shaders or branding. Drawing-buffer width is capped at 1400px. Hidden tabs and the fully covered hero pause continuous background work. A static SVG contour field remains available without WebGL; ASCII uses a character field. See [reference investigation](reference-motion.md) for evidence and limitations.
 
-The supplied signature silhouette is preserved through an alpha mask. Traced centerline paths reveal the actual ink in writing order, including the final dot. Hero scroll controls the drawing and reverses it when scrolling back. Contact draws once on entry, pauses while hidden/offscreen, and retains completion across theme or presentation changes. Motion Off shows completed ink. ASCII reveals character samples in pen order.
+The supplied signature silhouette is preserved through an alpha mask. Traced centerline paths reveal the actual ink in writing order, including the final dot. The hero signature is fully hidden at zero scroll, including round stroke caps. Scroll controls the drawing and reverses it when scrolling back. Contact draws once on entry, pauses while hidden/offscreen, and retains completion across theme or presentation changes. ASCII reveals character samples in pen order.
 
 ## Literal ASCII rendering
 
@@ -30,7 +30,7 @@ ASCII has no liquid pointer displacement. It shares native scrolling and sideway
 
 ## Local cursor behavior
 
-Dynamic mode retains a local circular obstacle in a dense pixel field. Its 48px barrier repels pixels within a 104px neighborhood. Only the local area changes; proximity never translates headings, cards or the whole background. There are no timed emissions, expanding click ripples or whole-screen cursor pulses.
+Dynamic mode has a separate Cursor On/Off toggle for the local circular obstacle in a dense pixel field. Turning it off clears displacement without stopping scrolling, signature, scene or dialog animations. ASCII disables this control and always omits the barrier. Its 48px barrier repels pixels within a 104px neighborhood. Only the local area changes; proximity never translates headings, cards or the whole background. There are no timed emissions, expanding click ripples or whole-screen cursor pulses.
 
 Persistent 2px source cells use critically damped motion and tangent waypoints around the barrier. A resting pointer holds the field without pulsing. Leaving restores original positions. Selection, editing and pointer drags release the effect. Scroll, Escape, resize, hidden tabs, presentation changes and disposal clear stale samples. Touch does not require decorative hover.
 
@@ -42,7 +42,7 @@ Hanken Grotesk is used throughout Dynamic mode. ASCII samples text shapes and dr
 
 Exactly three themes are available: Ink (default, near-black and subtle ice-blue/periwinkle), Paper (warm white, cobalt/sky/lavender), and Electric Blue (navy-black with stronger blue/cyan/indigo). Both minimal themes retain color. A single `pf.v4.theme` choice replaces separate appearance/palette selections. Legacy light preferences migrate to Paper, dark minimal choices to Ink, and colorful dark choices to Electric Blue. Valid new choices take precedence.
 
-Presentation remains in `pf.mode`, and motion in `pf.v2.motion`. The requested arrival default is Motion On; Motion Off disables decorative animation and stacks horizontal chapters. System follows the OS reduced-motion preference. Blocked storage falls back to in-memory state.
+Presentation remains in `pf.mode`; the cursor-barrier preference is saved in `pf.cursorBarrier` and defaults to on. Motion is always on, as requested; legacy motion preferences are ignored and the motion picker has been removed. Blocked storage falls back to in-memory state.
 
 Books, project details and media retain their existing interactions. Music does not autoplay and remains mounted while moving through chapters, changing themes or toggling presentation. All observers, listeners, animation frames and GPU resources are released during cleanup.
 

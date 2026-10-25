@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react"
 import {
@@ -21,10 +20,10 @@ import {
 import { morphPresentation } from "../effects/coordinator"
 
 export type Mode = "dynamic" | "ascii"
-export type MotionPref = "system" | "on" | "off"
 
 const preferenceKey = (name: string) => `pf.v2.${name}`
 const themeKey = "pf.v4.theme"
+const barrierKey = "pf.cursorBarrier"
 
 // Storage may be unavailable (private mode, blocked); everything still works in memory.
 const store = {
@@ -44,25 +43,14 @@ const store = {
   },
 }
 
-function useMedia(query: string) {
-  return useSyncExternalStore(
-    (cb) => {
-      const m = window.matchMedia(query)
-      m.addEventListener("change", cb)
-      return () => m.removeEventListener("change", cb)
-    },
-    () => window.matchMedia(query).matches,
-  )
-}
-
 type Prefs = {
   mode: Mode
   setMode: (m: Mode) => void
   appearance: Appearance
   themeId: ThemeId
   setTheme: (id: ThemeId) => void
-  motionPref: MotionPref
-  setMotionPref: (m: MotionPref) => void
+  cursorBarrier: boolean
+  setCursorBarrier: (enabled: boolean) => void
   motion: boolean
   palette: Palette
 }
@@ -70,14 +58,12 @@ const Ctx = createContext<Prefs | null>(null)
 export const usePrefs = () => useContext(Ctx)!
 
 export function PreferencesProvider({ children }: { children: ReactNode }) {
-  const systemReduce = useMedia("(prefers-reduced-motion: reduce)")
   const [mode, setModeS] = useState<Mode>(() =>
     store.get("pf.mode") === "ascii" ? "ascii" : "dynamic",
   )
-  const [motionPref, setMotionS] = useState<MotionPref>(() => {
-    const v = store.get(preferenceKey("motion"))
-    return v === "system" || v === "off" ? v : "on"
-  })
+  const [cursorBarrier, setBarrier] = useState(
+    () => store.get(barrierKey) !== "off",
+  )
   const [themeId, setThemeId] = useState<ThemeId>(() =>
     migrateTheme(
       store.get(themeKey),
@@ -87,8 +73,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   )
   const appearance = themeAppearance(themeId)
 
-  const motion =
-    motionPref === "on" ? true : motionPref === "off" ? false : !systemReduce
+  const motion = true
   const palette = useMemo<Palette>(
     () => derive(paletteById(themeId), appearance),
     [themeId, appearance],
@@ -122,6 +107,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     html.dataset.palette = themeId
     store.set(themeKey, themeId)
     html.dataset.motion = motion ? "on" : "off"
+    html.dataset.cursorBarrier = cursorBarrier ? "on" : "off"
     html.style.colorScheme = appearance
     for (const [k, v] of Object.entries(palette.vars))
       html.style.setProperty(`--c-${k}`, v)
@@ -133,7 +119,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       })
       anchor.current = null
     }
-  }, [mode, appearance, motion, palette])
+  }, [mode, appearance, motion, palette, cursorBarrier])
 
   const value = useMemo<Prefs>(
     () => ({
@@ -153,15 +139,15 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         setThemeId(id)
         store.set(themeKey, id)
       },
-      motionPref,
-      setMotionPref: (m) => {
-        setMotionS(m)
-        store.set(preferenceKey("motion"), m)
+      cursorBarrier,
+      setCursorBarrier: (enabled) => {
+        setBarrier(enabled)
+        store.set(barrierKey, enabled ? "on" : "off")
       },
       motion,
       palette,
     }),
-    [mode, appearance, motionPref, motion, palette, themeId, animateTheme],
+    [mode, appearance, cursorBarrier, motion, palette, themeId, animateTheme],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

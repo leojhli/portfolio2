@@ -215,7 +215,13 @@ export function createRenderer(
     if (liquid.size()) kick()
   }
   const onMove = (e: PointerEvent) => {
-    if (sequence || !enabled() || ascii()) return
+    if (
+      sequence ||
+      !enabled() ||
+      ascii() ||
+      document.documentElement.dataset.cursorBarrier === "off"
+    )
+      return
     if (e.pointerType === "touch" || e.buttons || editing()) {
       releasePointer()
       return
@@ -266,7 +272,13 @@ export function createRenderer(
   const presentation = new window.MutationObserver(invalidate)
   presentation.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ["style", "data-theme", "data-mode", "data-motion"],
+    attributeFilter: [
+      "style",
+      "data-theme",
+      "data-mode",
+      "data-motion",
+      "data-cursor-barrier",
+    ],
   })
   document.fonts?.addEventListener("loadingdone", invalidate)
   resize()

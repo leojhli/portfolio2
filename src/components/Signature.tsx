@@ -30,6 +30,7 @@ export default function Signature({ hero = false }: { hero?: boolean }) {
       if (!hero) savedProgress.current = p
       el.style.setProperty("--signature-progress", String(p))
       el.dataset.complete = p >= 1 ? "true" : "false"
+      el.dataset.started = p > 0 ? "true" : "false"
       const out = canvas.current,
         g = out?.getContext("2d")
       if (!out || !g || !alpha) return
@@ -40,6 +41,7 @@ export default function Signature({ hero = false }: { hero?: boolean }) {
         out.height = h
       }
       g.clearRect(0, 0, w, h)
+      if (p <= 0) return
       g.fillStyle = hero ? "#edf5ff" : palette.vars.accent
       g.font = '600 10px "Geist Mono", monospace'
       for (let y = 0; y < 38; y++)
@@ -77,7 +79,7 @@ export default function Signature({ hero = false }: { hero?: boolean }) {
     const frame = (event: Event) => {
       if (hero && motion) {
         const detail = (event as CustomEvent<{ heroProgress: number }>).detail
-        paint(Math.min(1, Math.max(0, detail.heroProgress * 1.65 + 0.015)))
+        paint(Math.min(1, Math.max(0, detail.heroProgress * 1.65)))
       }
     }
     const visibility = () => {
@@ -109,7 +111,7 @@ export default function Signature({ hero = false }: { hero?: boolean }) {
       !motion || (!hero && !io)
         ? 1
         : hero
-          ? Math.min(1, (scrollY / innerHeight) * 1.65 + 0.015)
+          ? Math.min(1, Math.max(0, (scrollY / innerHeight) * 1.65))
           : savedProgress.current,
     )
     addEventListener("portfolio:frame", frame)

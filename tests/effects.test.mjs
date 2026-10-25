@@ -543,6 +543,49 @@ test("ASCII pointer motion never starts pixel displacement or copies viewport ra
   }
 })
 
+test("cursor toggle persists independently and clears active displacement while motion stays on", async () => {
+  let f = fixture({ reduced: true, stored: { "pf.v2.motion": "off" } }),
+    unmount = await mountApp(f)
+  try {
+    assert.equal(document.documentElement.dataset.motion, "on")
+    assert.equal(document.querySelector('[aria-controls="motion-pop"]'), null)
+    const button = document.querySelector('[aria-label="Cursor barrier"]')
+    const canvas = document.querySelector("[data-effect-canvas]")
+    movePointer(120, 240)
+    await act(async () => f.advance(240))
+    await click(button)
+    await act(async () => f.advance(32))
+    assert.equal(button.getAttribute("aria-pressed"), "false")
+    assert.equal(localStorage.getItem("pf.cursorBarrier"), "off")
+    canvas._ctx.frameCalls = []
+    canvas._ctx.imageCalls = []
+    movePointer(160, 260)
+    await act(async () => f.advance(240))
+    assert.equal(canvas._ctx.frameCalls.length, 0)
+    assert.equal(canvas._ctx.imageCalls.length, 0)
+    await click(button)
+    assert.equal(button.getAttribute("aria-pressed"), "true")
+    assert.equal(localStorage.getItem("pf.cursorBarrier"), "on")
+  } finally {
+    await unmount()
+  }
+  f = fixture({
+    stored: { "pf.cursorBarrier": "off", "pf.v2.motion": "system" },
+  })
+  unmount = await mountApp(f)
+  try {
+    assert.equal(document.documentElement.dataset.motion, "on")
+    assert.equal(
+      document
+        .querySelector('[aria-label="Cursor barrier"]')
+        .getAttribute("aria-pressed"),
+      "false",
+    )
+  } finally {
+    await unmount()
+  }
+})
+
 test("visible text is literally redrawn from ASCII symbols while its real DOM text survives", async () => {
   const f = fixture(),
     d = f.dom.window.document
@@ -815,15 +858,14 @@ test("native vertical scrolling drives sideways chapters without intercepting wh
         .getAttribute("aria-current"),
       "true",
     )
-    await click(document.querySelector('[aria-controls="motion-pop"]'))
-    await click(document.querySelector('input[name="motion"][value="off"]'))
-    assert.equal(document.documentElement.dataset.rails, "off")
-    assert.equal(track.style.transform, "")
-    assert.equal(chapter.style.height, "")
+    await click(document.querySelector('[aria-label="Cursor barrier"]'))
+    assert.equal(document.documentElement.dataset.rails, "on")
+    assert.equal(document.documentElement.dataset.motion, "on")
+    assert.equal(document.documentElement.dataset.cursorBarrier, "off")
     assert.equal(
       document.getElementById("about").getBoundingClientRect().top,
       0,
-      "motion changes preserve the current chapter",
+      "cursor changes preserve the current chapter",
     )
   } finally {
     await unmount()
@@ -887,12 +929,15 @@ test("signature follows hero scroll, reverses, and draws Contact only once", asy
     assert.equal(document.querySelectorAll(".photo img").length, 5)
     const hero = document.querySelector(".signature-hero")
     const contact = document.querySelector(".contact-chapter .signature")
+    assert.equal(hero.dataset.started, "false")
+    assert.equal(hero.style.getPropertyValue("--signature-progress"), "0")
     await act(async () => {
       window.scrollTo({ top: 400 })
       f.advance(32)
     })
     const partial = Number(hero.style.getPropertyValue("--signature-progress"))
     assert.ok(partial > 0.5 && partial < 1)
+    assert.equal(hero.dataset.started, "true")
     await act(async () => {
       window.scrollTo({ top: 0 })
       f.advance(32)
@@ -913,9 +958,8 @@ test("signature follows hero scroll, reverses, and draws Contact only once", asy
       "true",
       "theme changes do not replay the signature",
     )
-    await click(document.querySelector('[aria-controls="motion-pop"]'))
-    await click(document.querySelector('input[name="motion"][value="off"]'))
-    assert.equal(hero.dataset.complete, "true")
+    assert.equal(hero.dataset.started, "false")
+    assert.equal(hero.style.getPropertyValue("--signature-progress"), "0")
   } finally {
     await unmount()
     delete globalThis.IntersectionObserver
@@ -980,7 +1024,7 @@ test("ASCII presentation uses character controls and frames, keeps media mounted
   }
 })
 
-test("real React tree preserves audio and text through rapid navigation, history, mode changes and motion-off", async () => {
+test("real React tree preserves audio and text through rapid navigation, history, mode changes and cursor toggles", async () => {
   const f = fixture(),
     unmount = await mountApp(f)
   try {
@@ -1028,14 +1072,15 @@ test("real React tree preserves audio and text through rapid navigation, history
     assert.equal(f.audioInstances.length, 1)
     assert.equal(audio.currentTime, 37)
     assert.equal(audio.paused, false)
-    await click(
-      [...document.querySelectorAll("button")].find((el) =>
-        el.textContent.includes("Motion:"),
-      ),
+    assert.equal(
+      document.querySelector('[aria-label="Cursor barrier"]').disabled,
+      true,
     )
-    await click(document.querySelector('input[name="motion"][value="off"]'))
-    assert.equal(document.documentElement.dataset.motion, "off")
-    assert.equal(document.querySelector("[data-effect-canvas]"), null)
+    await click(byText("button", "Dynamic"))
+    await click(document.querySelector('[aria-label="Cursor barrier"]'))
+    assert.equal(document.documentElement.dataset.motion, "on")
+    assert.equal(document.documentElement.dataset.cursorBarrier, "off")
+    assert.equal(audio.paused, false)
     await click(byText("a", "Contact"))
     assert.equal(document.querySelector(".rail-track").style.transition, "")
     assert.equal(location.hash, "#contact")
@@ -1093,6 +1138,7 @@ test("book dialogs reopen, close on cancel, and return focus without unmounting 
     assert.equal(dialog.open, true)
     const title = document.getElementById("book-title").textContent
     await click(dialog.querySelector('[aria-label="Close"]'))
+    await act(async () => f.advance(240))
     assert.equal(dialog.open, false)
     assert.equal(document.activeElement, book)
     await click(book)
@@ -1100,9 +1146,10 @@ test("book dialogs reopen, close on cancel, and return focus without unmounting 
     await act(async () =>
       dialog.dispatchEvent(new Event("cancel", { cancelable: true })),
     )
+    await act(async () => f.advance(240))
     assert.equal(dialog.open, false)
     assert.equal(document.activeElement, book)
-    assert.equal(document.querySelector("[data-effect-canvas]"), null)
+    assert.equal(document.documentElement.dataset.motion, "on")
   } finally {
     await unmount()
   }
@@ -1142,7 +1189,7 @@ test("new defaults replace legacy preferences once, while new explicit choices r
   unmount = await mountApp(f)
   try {
     assert.equal(document.documentElement.dataset.theme, "light")
-    assert.equal(document.documentElement.dataset.motion, "off")
+    assert.equal(document.documentElement.dataset.motion, "on")
     assert.ok(
       document
         .querySelector('[aria-controls="theme-pop"]')

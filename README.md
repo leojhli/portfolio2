@@ -19,9 +19,9 @@ Run `npm test` for interaction and state-preservation checks (Node 22.22.2+, 24.
 
 The arrival preset is **Ink / Motion On**. Three themes share natural-color photography: Ink (near-black with restrained blue accents), Paper (warm white with cobalt and lavender), and Electric Blue (deep navy with vivid blue/cyan). One saved theme replaces the former appearance/palette combination, with migration for existing preferences.
 
-The page uses native vertical scrolling. Projects and the personal photo gallery travel sideways inside sticky desktop chapters; small screens and Motion Off use stacked layouts. Night-city photography opens the page, followed by an original flowing contour background. Scroll-linked reveals, photo parallax, and a traced handwriting animation provide motion without snapping or wheel interception. Bottom navigation remains centered.
+The page uses native vertical scrolling. Projects and the personal photo gallery travel sideways inside sticky desktop chapters; small screens use stacked layouts. Night-city photography opens the page, followed by an original flowing contour background. Scroll-linked reveals, photo parallax, and a traced handwriting animation provide motion without snapping or wheel interception. Bottom navigation remains centered.
 
-Dynamic mode uses Hanken Grotesk, animated hairline links and a local liquid cursor. ASCII mode literally draws letter shapes from tiny ASCII symbols, alongside character frames, controls, photography, signature and colored scene artwork. Original text remains selectable and accessible beneath cached character canvases. ASCII disables liquid pixel displacement. Presentation, theme and motion choices remain saved locally.
+Dynamic mode uses Hanken Grotesk, animated hairline links and a local liquid cursor. ASCII mode literally draws letter shapes from tiny ASCII symbols, alongside character frames, controls, photography, signature and colored scene artwork. Original text remains selectable and accessible beneath cached character canvases. ASCII disables liquid pixel displacement. Presentation, theme and the separate cursor-barrier toggle remain saved locally. Motion stays on.
 
 The header and favicon share a custom angular LL monogram. Reusable SVG/PNG assets and size previews are described in [brand assets](docs/brand/README.md).
 
