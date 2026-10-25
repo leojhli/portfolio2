@@ -12,6 +12,7 @@ import Logo from "./Logo"
 import Photo from "./Photo"
 import Signature from "./Signature"
 import ContourBackground from "./ContourBackground"
+import OverlayScrollbar from "./OverlayScrollbar"
 import AsciiDecorations from "./AsciiDecorations"
 import { ContactLinks } from "./ui"
 
@@ -105,6 +106,7 @@ export default function Page() {
   return (
     <>
       <ContourBackground />
+      <OverlayScrollbar />
       {ascii && <AsciiDecorations />}
       <a href="#main" className="skip-link">
         Skip to content

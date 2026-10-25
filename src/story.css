@@ -1,4 +1,13 @@
 /* Editorial chapters, with ordinary document scrolling as the single owner. */
+html[data-overlay-scrollbar='true'] { scrollbar-width: none; }
+html[data-overlay-scrollbar='true']::-webkit-scrollbar { display: none; width: 0; }
+.overlay-scrollbar { position: fixed; inset: 4px 0 4px auto; width: 14px; z-index: 70; background: transparent; touch-action: none; user-select: none; }
+.overlay-scrollbar[hidden] { display: none; }
+.overlay-scrollbar > span { display: block; margin-left: 5px; width: 6px; min-height: 40px; border-radius: 99px; background: color-mix(in srgb,var(--c-fg) 28%,transparent); }
+.overlay-scrollbar:is(:hover,:focus-visible,[data-dragging='true']) > span { background: color-mix(in srgb,var(--c-fg) 55%,transparent); }
+.overlay-scrollbar:focus-visible { outline-offset: -2px; }
+html[data-mode='ascii'] .overlay-scrollbar > span { background: none; overflow: hidden; }
+html[data-mode='ascii'] .overlay-scrollbar > span::after { content: '|\A|\A|\A|\A|\A|\A|\A|'; white-space: pre; color: var(--c-muted); }
 @layer base { body { background-image: none; background-attachment: initial; } }
 .story { position: relative; z-index: 1; }
 .story-header { position: fixed; inset: 0 0 auto; display: flex; align-items: center; gap: 24px; z-index: 50; padding: 18px clamp(20px,4vw,72px); background: color-mix(in srgb,var(--c-bg) 88%,transparent); backdrop-filter: blur(14px); }

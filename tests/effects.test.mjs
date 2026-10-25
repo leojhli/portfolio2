@@ -907,6 +907,36 @@ test("rail focus reveals hidden controls and resizing preserves chapter position
   }
 })
 
+test("overlay scrollbar supports keyboard and dragging without reserving a gutter; sounds persist", async () => {
+  const f = fixture(), unmount = await mountApp(f)
+  try {
+    const bar = document.querySelector('[role="scrollbar"]')
+    assert.equal(document.documentElement.dataset.overlayScrollbar, "true")
+    bar.setPointerCapture = () => {}
+    await act(async () => { window.scrollTo({top: 500}); f.advance(32) })
+    const before = scrollY
+    await act(async () => bar.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true })))
+    assert.equal(scrollY, before + 48)
+    await act(async () => f.advance(32))
+    const pointer = (type, y, target = bar) => {
+      const e = new MouseEvent(type, { clientY: y, button: 0, bubbles: true, cancelable: true })
+      Object.defineProperty(e, "pointerId", {value: 1})
+      target.dispatchEvent(e)
+    }
+    const start = scrollY
+    await act(async () => { pointer("pointerdown", 100, bar.firstElementChild); pointer("pointermove", 140); pointer("pointerup", 140); f.advance(32) })
+    assert.ok(scrollY > start)
+    assert.equal(bar.dataset.dragging, undefined)
+    await act(async () => { bar.dispatchEvent(new KeyboardEvent("keydown", {key: "Home", bubbles: true})); f.advance(32) })
+    assert.equal(scrollY, 0)
+    assert.equal(bar.getAttribute("aria-valuenow"), "0")
+    const sound = document.querySelector('[aria-label="Interface sounds"]')
+    await click(sound)
+    assert.equal(sound.getAttribute("aria-pressed"), "false")
+    assert.equal(localStorage.getItem("pf.sound"), "off")
+  } finally { await unmount() }
+})
+
 test("signature follows hero scroll, reverses, and draws Contact only once", async () => {
   const f = fixture(),
     observers = []

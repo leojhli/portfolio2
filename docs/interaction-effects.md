@@ -10,6 +10,8 @@ Scroll updates are coalesced into one animation frame. Track travel clamps at bo
 
 Native anchors and history navigate to chapter positions. Focusing a control in an offscreen horizontal card brings it into view. Focused reveal groups become fully visible. Experience, Projects, About and Contact navigation stays centered at the bottom. Interactive collection chapters map to About. Media remains mounted across navigation and preference changes.
 
+The page scrollbar is a translucent overlay, so it reserves no gutter and photography extends to the viewport edge. It supports pointer dragging, track clicks, arrow keys, Page Up/Down, Space, Home and End. Its accessible scrollbar value follows native document scrolling. The native scrollbar is hidden only while the overlay is mounted; cleanup restores it. Nested content keeps its own native scrolling.
+
 ## Photography, contours and signature
 
 Supplied photographs are optimized into 640px and 1280px WebP variants. The night city opens the story; the fairground portrait is offset in the hero, and school, hallway and fairground photographs form the personal gallery. Photography retains its natural colors in every theme.
@@ -45,6 +47,8 @@ Exactly three themes are available: Ink (default, near-black and subtle ice-blue
 Presentation remains in `pf.mode`; the cursor-barrier preference is saved in `pf.cursorBarrier` and defaults to on. Motion is always on, as requested; legacy motion preferences are ignored and the motion picker has been removed. Blocked storage falls back to in-memory state.
 
 Books, project details and media retain their existing interactions. Music does not autoplay and remains mounted while moving through chapters, changing themes or toggling presentation. All observers, listeners, animation frames and GPU resources are released during cleanup.
+
+Interface sounds are original synthesized tap, hover and selection cues. The Sound toggle stores `pf.sound`; it starts on, but no audio context is created before a user clicks. Hover cues are throttled, simultaneous voices are bounded, and muting stops pending tones. Media controls are excluded from interface clicks and the music player remains independent. Public script inspection of [Justin Wu](https://www.justinzwu.com/) identified click/select/deselect/menu cues, while [Justin Lam](https://www.justinhylam.com/about) uses tap/modern-click/hover cues. Those interaction categories informed the implementation; no third-party sound assets are bundled.
 
 ## Verification limits
 

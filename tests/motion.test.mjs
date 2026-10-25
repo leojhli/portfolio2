@@ -7,7 +7,8 @@ let server,
   scrollModule,
   textModule,
   signatureModule,
-  contourModule
+  contourModule,
+  soundsModule
 before(async () => {
   server = await createServer({
     server: { middlewareMode: true },
@@ -18,8 +19,45 @@ before(async () => {
   textModule = await server.ssrLoadModule("/src/effects/asciiText.ts")
   signatureModule = await server.ssrLoadModule("/src/effects/signature.ts")
   contourModule = await server.ssrLoadModule("/src/effects/contours.ts")
+  soundsModule = await server.ssrLoadModule("/src/effects/sounds.ts")
 })
 after(async () => server?.close())
+
+test("interface sounds wait for a gesture, throttle hovers, and mute/dispose voices", () => {
+  let created = 0, starts = 0, closed = false
+  const nodes = []
+  const parameter = () => ({ setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} })
+  const context = {
+    currentTime: 1, state: "running", destination: {},
+    createOscillator() {
+      const node = { frequency: parameter(), connect() {}, disconnect() {}, start() { starts++ }, stop() { this.stopped = true }, stopped: false }
+      nodes.push(node)
+      return node
+    },
+    createGain() { return { gain: parameter(), connect() {}, disconnect() {} } },
+    async close() { closed = true },
+  }
+  const sound = soundsModule.createInterfaceSounds(() => { created++; return context })
+  sound.play("hover")
+  assert.equal(created, 0)
+  sound.play("tap", true)
+  assert.equal(created, 1)
+  assert.equal(starts, 1)
+  sound.play("hover")
+  sound.play("hover")
+  assert.equal(starts, 2)
+  sound.setEnabled(false)
+  sound.play("tap", true)
+  assert.equal(starts, 2)
+  assert.ok(nodes.every(n => n.stopped))
+  sound.setEnabled(true)
+  sound.play("select", true)
+  assert.equal(starts, 3)
+  sound.dispose()
+  sound.play("tap", true)
+  assert.equal(starts, 3)
+  assert.equal(closed, true)
+})
 
 test("sideways travel clamps at both boundaries and reverses exactly", () => {
   assert.equal(scrollModule.railPosition(100, 500, 1200), 0)

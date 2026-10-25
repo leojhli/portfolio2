@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { usePrefs } from "../state/preferences"
 import { PALETTES, type ThemeId } from "../theme/palettes"
 import Icon from "./Icons"
+import SoundControl from "./SoundControl"
 
 function Segmented<T extends string>({
   label,
@@ -203,6 +204,7 @@ export default function Controls() {
       >
         Cursor: {p.mode === "dynamic" && p.cursorBarrier ? "On" : "Off"}
       </button>
+      <SoundControl />
       <p aria-live="polite" className="sr-only">
         Theme: {p.palette.name}
       </p>
