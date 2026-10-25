@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { usePrefs, type MotionPref } from "../state/preferences"
-import { PALETTES, PALETTE_GROUPS } from "../theme/palettes"
+import { PALETTES, type ThemeId } from "../theme/palettes"
 import Icon from "./Icons"
 
 function Segmented<T extends string>({
@@ -22,7 +22,7 @@ function Segmented<T extends string>({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex rounded-[10px] border-[1.5px] border-fg bg-surface p-0.5 shadow-[3px_3px_0_var(--c-fg)]"
+      className="presentation-switch inline-flex p-0.5"
     >
       {options.map((o) => (
         <button
@@ -155,88 +155,39 @@ export default function Controls() {
           { v: "ascii", text: "ASCII" },
         ]}
       />
-      <Segmented
-        label="Appearance"
-        value={p.appearance}
-        onChange={p.setAppearance}
-        options={[
-          { v: "light", text: "Light", icon: "sun" },
-          { v: "dark", text: "Dark", icon: "moon" },
-        ]}
-      />
-      <div className="flex">
-        <Popover
-          id="palette-pop"
-          wide
-          trigger={<Swatches colors={p.palette.colors} className="h-4 w-10" />}
-          label={
-            <>
-              <span className="sr-only">Palette: </span>
-              {/* Swatch-only on phones so the controls fit two rows; the name stays for screen readers. */}
-              <span className="max-sm:sr-only">{p.palette.name}</span>
-            </>
-          }
-        >
-          {() => (
-            <fieldset>
-              <legend className="mb-2 flex w-full items-baseline justify-between font-sans text-xs uppercase tracking-wide text-muted">
-                Palette{" "}
-                <span className="normal-case tracking-normal">
-                  {PALETTES.length} sets · 5 colours each
-                </span>
-              </legend>
-              <div className="max-h-[min(65vh,32rem)] space-y-4 overflow-y-auto pr-1">
-                {PALETTE_GROUPS.map((group) => (
-                  <fieldset key={group.name}>
-                    <legend className="mb-1 px-2 font-sans text-xs text-muted">
-                      {group.name}
-                    </legend>
-                    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                      {group.palettes.map((def) => (
-                        <label
-                          key={def.id}
-                          className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm has-[:checked]:bg-line has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus hover:bg-line/60"
-                        >
-                          <input
-                            type="radio"
-                            name="palette"
-                            value={def.id}
-                            checked={p.palette.id === def.id}
-                            onChange={() => p.setPalette(def.id)}
-                            className="sr-only"
-                          />
-                          <Swatches
-                            colors={def.colors}
-                            className="h-6 w-16 shrink-0"
-                          />
-                          <span className="flex-1 truncate">{def.name}</span>
-                          {p.palette.id === def.id && (
-                            <span
-                              aria-hidden="true"
-                              className="font-sans text-xs text-accent"
-                            >
-                              {p.mode === "ascii" ? "*" : "●"}
-                            </span>
-                          )}
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                ))}
-              </div>
-            </fieldset>
-          )}
-        </Popover>
-        <button
-          type="button"
-          onClick={() => p.cyclePalette(1)}
-          aria-label="Next palette"
-          title="Next palette"
-          className="pop pop-sm ml-1.5 !px-2.5"
-        >
-          <Icon name="chevron" size={15} />
-        </button>
-      </div>
+      <Popover
+        id="theme-pop"
+        label={p.palette.name}
+        trigger={<span aria-hidden="true" className="theme-dot" />}
+      >
+        {(close) => (
+          <fieldset>
+            <legend className="eyebrow mb-3">Choose your atmosphere</legend>
+            {PALETTES.map((def) => (
+              <label key={def.id} className="theme-option">
+                <input
+                  type="radio"
+                  name="theme"
+                  value={def.id}
+                  checked={p.themeId === def.id}
+                  className={p.mode === "ascii" ? "sr-only" : undefined}
+                  onChange={() => {
+                    p.setTheme(def.id as ThemeId)
+                    close()
+                  }}
+                />
+                {p.mode === "ascii" && (
+                  <span aria-hidden="true">
+                    {p.themeId === def.id ? "(*)" : "( )"}
+                  </span>
+                )}
+                <Swatches colors={def.colors} className="h-5 w-12" />
+                <span>{def.name}</span>
+              </label>
+            ))}
+          </fieldset>
+        )}
+      </Popover>
       <Popover
         id="motion-pop"
         label={
@@ -285,7 +236,7 @@ export default function Controls() {
         )}
       </Popover>
       <p aria-live="polite" className="sr-only">
-        Palette: {p.palette.name}
+        Theme: {p.palette.name}
       </p>
     </div>
   )

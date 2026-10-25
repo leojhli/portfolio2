@@ -1,35 +1,25 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type ReactNode,
-} from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { usePrefs } from "../state/preferences"
 import { cancelEffects } from "../effects/coordinator"
-import { animateEntrance } from "../effects/entrances"
-import {
-  clampScroll,
-  depthOffset,
-  scrollStep,
-  scrollReveal,
-} from "../effects/scrollGeometry"
+import { railPosition, revealProgress } from "../effects/scrollGeometry"
 
-const Q = "(min-width: 1024px) and (min-height: 700px)"
-const subscribe = (cb: () => void) => {
-  const query = matchMedia(Q)
-  query.addEventListener("change", cb)
-  return () => query.removeEventListener("change", cb)
+type Rail = {
+  root: HTMLElement
+  track: HTMLElement
+  top: number
+  travel: number
+  x: number
 }
-const pad = (n: number) => String(n).padStart(2, "0")
-type PanelMeta = {
-  id: string
-  label: string
+type Reveal = {
+  node: HTMLElement
+  top: number
+  left: number
+  width: number
+  rail?: Rail
+  artwork: boolean
 }
 
-/** A native, unsnapped horizontal document; compact screens keep vertical flow. */
+/** Native vertical document; selected chapters travel sideways inside sticky frames. */
 export default function Deck({
   nav,
   children,
@@ -37,300 +27,220 @@ export default function Deck({
   nav: Array<[string, string]>
   children: ReactNode
 }) {
-  const wide = useSyncExternalStore(subscribe, () => matchMedia(Q).matches)
   const { motion, mode } = usePrefs()
-  const viewport = useRef<HTMLDivElement>(null)
-  const track = useRef<HTMLDivElement>(null)
+  const root = useRef<HTMLDivElement>(null)
   const progress = useRef<HTMLDivElement>(null)
-  const index = useRef(0)
-  const fraction = useRef(0)
-  const navigate = useRef<(i: number, smooth?: boolean) => void>(() => {})
-  const [active, setActive] = useState(0)
-  const [meta, setMeta] = useState<PanelMeta[]>([])
-  const panels = useCallback(
-    () =>
-      track.current
-        ? [...track.current.children].filter(
-            (el): el is HTMLElement =>
-              el instanceof HTMLElement && el.hasAttribute("data-panel"),
-          )
-        : [],
-    [],
-  )
-
-  useLayoutEffect(() => {
-    const html = document.documentElement,
-      ps = panels(),
-      el = viewport.current
-    if (!el) return
-    const prior = html.dataset.layout
-    html.dataset.layout = wide ? "h" : "v"
-    const hash = ps.findIndex((p) => "#" + p.id === location.hash)
-    if (hash >= 0 && prior !== "h") index.current = hash
-    if (wide) {
-      const left =
-        (prior === "h" ? fraction.current : index.current) *
-        (el.clientWidth || innerWidth)
-      el.scrollLeft = left
-      fraction.current = left / (el.clientWidth || innerWidth)
-    } else {
-      el.scrollLeft = 0
-      if (prior === "h" || hash >= 0)
-        ps[index.current]?.scrollIntoView({
-          block: "start",
-          behavior: "instant",
-        })
-    }
-    setActive(index.current)
-    setMeta(ps.map((p) => ({ id: p.id, label: p.dataset.panel ?? "" })))
-    return cancelEffects
-  }, [wide, panels])
-
+  const bookmark = useRef<{
+    id: string
+    fraction: number
+  } | null>(null)
+  const [active, setActive] = useState("intro")
   useEffect(() => {
-    const el = viewport.current,
-      ps = panels()
-    if (!el) return
-    let raf = 0,
-      paintRaf = 0,
-      last = 0,
-      target = el.scrollLeft,
-      authored = el.scrollLeft,
-      stopped = false
-    const width = () => el.clientWidth || innerWidth
-    const maximum = () => Math.max(0, ps.length * width() - width())
-    const layers = ps.flatMap((p, i) =>
-      [...p.querySelectorAll<HTMLElement>("[data-depth]")].map((node) => ({
-        node,
-        panel: i,
-        depth: Number(node.dataset.depth) || 0,
-      })),
-    )
-    const stops: Array<() => void> = []
-    const reveals = ps.flatMap((p, panel) =>
-      [...p.querySelectorAll<HTMLElement>("[data-reveal]")]
+    const host = root.current
+    if (!host) return
+    const html = document.documentElement
+    html.dataset.layout = "story"
+    const chapters = [...host.querySelectorAll<HTMLElement>("[data-panel]")]
+    const rails: Rail[] = [
+      ...host.querySelectorAll<HTMLElement>("[data-horizontal]"),
+    ].map((node) => ({
+      root: node,
+      track: node.querySelector<HTMLElement>(".rail-track")!,
+      top: 0,
+      travel: 0,
+      x: 0,
+    }))
+    let reveal: Reveal[] = [],
+      positions: number[] = [],
+      raf = 0,
+      dirty = true,
+      disposed = false
+    let current = "",
+      maxScroll = 1
+    let restore = bookmark.current !== null,
+      viewportWidth = innerWidth,
+      viewportHeight = innerHeight
+    const query = matchMedia("(min-width: 1024px) and (min-height: 700px)")
+    const measure = () => {
+      // Measure the layout position, never the previous decorative translation.
+      host.querySelectorAll<HTMLElement>("[data-reveal]").forEach((node) => {
+        node.style.setProperty("--reveal-y", "0px")
+        node.style.setProperty("--reveal-scale", "1")
+      })
+      const horizontal = query.matches && motion
+      html.dataset.rails = horizontal ? "on" : "off"
+      for (const rail of rails) {
+        rail.travel = horizontal
+          ? Math.max(0, rail.track.scrollWidth - innerWidth)
+          : 0
+        rail.root.style.height = rail.travel
+          ? `${innerHeight + rail.travel}px`
+          : ""
+        rail.track.style.transform = ""
+        rail.x = 0
+      }
+      for (const rail of rails)
+        rail.top = rail.root.getBoundingClientRect().top + scrollY
+      positions = chapters.map(
+        (node) => node.getBoundingClientRect().top + scrollY,
+      )
+      reveal = [...host.querySelectorAll<HTMLElement>("[data-reveal]")]
         .filter((node) => !node.parentElement?.closest("[data-reveal]"))
-        .map((node, order) => ({
-          node,
-          panel,
-          order,
-          artwork: node.hasAttribute("data-depth"),
-        })),
-    )
-    if (wide && motion)
-      reveals.forEach(({ node }) => node.setAttribute("data-scroll-reveal", ""))
-    const paint = () => {
-      paintRaf = 0
-      if (!wide) return
-      const w = width(),
-        left = el.scrollLeft,
-        max = maximum()
-      fraction.current = left / w
-      const i = Math.max(0, Math.min(ps.length - 1, Math.round(left / w)))
-      if (i !== index.current) {
-        index.current = i
-        setActive(i)
-        history.replaceState(null, "", "#" + ps[i].id)
-      }
-      if (progress.current)
-        progress.current.style.transform = `scaleX(${max ? left / max : 0})`
-      for (const layer of layers) {
-        const x = motion ? depthOffset(layer.panel, left, w, layer.depth) : 0
-        layer.node.style.setProperty("--depth-x", x.toFixed(2) + "px")
-      }
-      if (motion)
-        for (const group of reveals) {
-          const state = scrollReveal(
-            group.panel - left / w,
-            group.order,
-            group.artwork,
-          )
-          group.node.style.setProperty(
-            "--scroll-opacity",
-            state.opacity.toFixed(4),
-          )
-          group.node.style.setProperty(
-            "--scroll-y",
-            (mode === "ascii" ? 0 : state.y).toFixed(2) + "px",
-          )
-          group.node.style.setProperty(
-            "--scroll-scale",
-            (mode === "ascii" ? 1 : state.scale).toFixed(5),
-          )
+        .map((node) => {
+          const rect = node.getBoundingClientRect()
+          const rail = rails.find((r) => r.track.contains(node))
+          return {
+            node,
+            top: rect.top + scrollY,
+            left: rail
+              ? rect.left - rail.track.getBoundingClientRect().left
+              : 0,
+            width: rect.width,
+            rail,
+            artwork: node.hasAttribute("data-artwork"),
+          }
+        })
+      maxScroll = Math.max(
+        1,
+        document.documentElement.scrollHeight - innerHeight,
+      )
+      if (restore && bookmark.current) {
+        const index = chapters.findIndex(
+          (node) => node.id === bookmark.current!.id,
+        )
+        if (index >= 0) {
+          const end = positions[index + 1] ?? maxScroll
+          window.scrollTo({
+            top: Math.max(
+              0,
+              Math.min(
+                maxScroll,
+                positions[index] +
+                  bookmark.current.fraction *
+                    Math.max(0, end - positions[index]),
+              ),
+            ),
+            behavior: "instant",
+          })
         }
+      }
+      restore = false
+      dirty = false
+    }
+    const paint = () => {
+      raf = 0
+      if (disposed) return
+      if (dirty) measure()
+      const y = scrollY
+      let readingIndex = 0
+      for (let i = 0; i < positions.length; i++)
+        if (positions[i] <= y + 1) readingIndex = i
+      const span =
+        (positions[readingIndex + 1] ?? maxScroll) - positions[readingIndex]
+      if (chapters[readingIndex])
+        bookmark.current = {
+          id: chapters[readingIndex].id,
+          fraction: Math.max(
+            0,
+            Math.min(1, (y - positions[readingIndex]) / Math.max(1, span)),
+          ),
+        }
+      for (const rail of rails) {
+        rail.x = railPosition(y, rail.top, rail.travel)
+        rail.track.style.transform = rail.travel
+          ? `translate3d(${-rail.x}px,0,0)`
+          : ""
+      }
+      for (const item of reveal) {
+        const p = !motion
+          ? 1
+          : item.rail?.travel
+            ? revealProgress(
+                (innerWidth * 0.94 - (item.left - item.rail.x)) /
+                  Math.min(innerWidth * 0.65, Math.max(240, item.width)),
+              )
+            : revealProgress(
+                (innerHeight * 0.96 - (item.top - y)) / (innerHeight * 0.55),
+              )
+        item.node.style.setProperty("--reveal-opacity", String(0.12 + p * 0.88))
+        item.node.style.setProperty(
+          "--reveal-y",
+          `${
+            motion && mode !== "ascii" ? (1 - p) * (item.artwork ? 64 : 30) : 0
+          }px`,
+        )
+        item.node.style.setProperty(
+          "--reveal-scale",
+          String(mode !== "ascii" && item.artwork ? 0.96 + 0.04 * p : 1),
+        )
+        item.node.style.setProperty(
+          "--photo-x",
+          `${
+            motion && item.rail?.travel
+              ? Math.max(
+                  -24,
+                  Math.min(
+                    24,
+                    (item.left - item.rail.x - innerWidth * 0.35) * 0.055,
+                  ),
+                )
+              : 0
+          }px`,
+        )
+      }
+      const heroProgress = Math.max(
+        0,
+        Math.min(1, y / Math.max(1, innerHeight)),
+      )
+      host.style.setProperty(
+        "--hero-progress",
+        String(motion ? heroProgress : 0),
+      )
+      if (progress.current)
+        progress.current.style.transform = `scaleX(${Math.min(1, y / maxScroll)})`
+      let next = chapters[0]?.id ?? "intro"
+      for (let i = 0; i < chapters.length; i++)
+        if (positions[i] <= y + innerHeight * 0.38) next = chapters[i].id
+      if (current !== next) {
+        current = next
+        setActive(next)
+      }
+      dispatchEvent(
+        new CustomEvent("portfolio:frame", {
+          detail: { y, height: innerHeight, heroProgress },
+        }),
+      )
     }
     const schedule = () => {
-      if (!paintRaf && !stopped) paintRaf = requestAnimationFrame(paint)
-    }
-    const halt = () => {
-      cancelAnimationFrame(raf)
-      raf = 0
-      last = 0
-      target = el.scrollLeft
-    }
-    const frame = (now: number) => {
-      raf = 0
-      if (stopped) return
-      const dt = last ? (now - last) / 1000 : 1 / 60
-      last = now
-      const next = scrollStep(el.scrollLeft, target, dt)
-      authored = next
-      el.scrollLeft = next
-      schedule()
-      if (next !== target) raf = requestAnimationFrame(frame)
-      else last = 0
-    }
-    const to = (left: number, smooth = true) => {
-      target = clampScroll(left, maximum())
-      if (!smooth || !motion) {
-        cancelAnimationFrame(raf)
-        raf = 0
-        last = 0
-        el.scrollLeft = target
-        authored = target
-        schedule()
-      } else if (!raf) raf = requestAnimationFrame(frame)
-    }
-    navigate.current = (i, smooth = true) => {
-      const p = ps[Math.max(0, Math.min(ps.length - 1, i))]
-      if (!p) return
-      cancelEffects()
-      if (wide) to(ps.indexOf(p) * width(), smooth)
-      else
-        p.scrollIntoView({
-          block: "start",
-          behavior: smooth && motion ? "smooth" : "instant",
-        })
+      if (!raf && !disposed) raf = requestAnimationFrame(paint)
     }
     const scroll = () => {
-      if (raf && Math.abs(el.scrollLeft - authored) > 2) halt()
-      if (!raf) target = el.scrollLeft
       cancelEffects()
       schedule()
     }
-    const wheel = (event: WheelEvent) => {
-      if (!wide || event.ctrlKey || event.defaultPrevented) return
-      const element = event.target as HTMLElement
-      if (element.closest?.("dialog,input,textarea,select,[contenteditable]"))
-        return
-      const horizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY)
-      // Preserve native trackpad momentum and horizontal shelf scrolling.
-      if (horizontal) {
-        halt()
-        return
-      }
-      const dy =
-        event.deltaY *
-        (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1)
-      let parent: HTMLElement | null = element
-      while (parent && parent !== el) {
-        if (
-          parent.scrollHeight > parent.clientHeight + 2 &&
-          ((dy > 0 &&
-            parent.scrollTop + parent.clientHeight < parent.scrollHeight - 2) ||
-            (dy < 0 && parent.scrollTop > 0))
-        )
-          return
-        parent = parent.parentElement
-      }
-      const next = clampScroll((raf ? target : el.scrollLeft) + dy, maximum())
-      if (next === el.scrollLeft && !raf) return
-      event.preventDefault()
-      to(next)
-    }
-    const key = (event: KeyboardEvent) => {
-      const element =
-        event.target instanceof HTMLElement ? event.target : document.body
-      if (
-        !wide ||
-        event.defaultPrevented ||
-        event.altKey ||
-        event.ctrlKey ||
-        event.metaKey ||
-        element.closest(
-          'input,textarea,select,[contenteditable],dialog,[role="slider"]',
-        )
-      )
-        return
-      let delta = 0,
-        absolute: number | null = null
-      if (event.key === "ArrowRight" || event.key === "ArrowDown") delta = 96
-      else if (event.key === "ArrowLeft" || event.key === "ArrowUp") delta = -96
-      else if (event.key === "PageDown") delta = width() * 0.85
-      else if (event.key === "PageUp") delta = -width() * 0.85
-      else if (event.key === " " && !element.closest("button,a"))
-        delta = width() * 0.85 * (event.shiftKey ? -1 : 1)
-      else if (event.key === "Home") absolute = 0
-      else if (event.key === "End") absolute = maximum()
-      else if (event.key === "Escape") {
-        halt()
-        cancelEffects()
-        return
-      } else return
-      event.preventDefault()
-      to(absolute ?? (raf ? target : el.scrollLeft) + delta)
-    }
     const resize = () => {
-      const position = fraction.current
-      halt()
-      if (wide) {
-        el.scrollLeft = clampScroll(position * width(), maximum())
-        target = el.scrollLeft
+      if (viewportWidth !== innerWidth || viewportHeight !== innerHeight) {
+        restore = true
+        viewportWidth = innerWidth
+        viewportHeight = innerHeight
       }
+      dirty = true
       schedule()
     }
-    let observer: IntersectionObserver | undefined
-    if (!wide && motion && "IntersectionObserver" in window) {
-      const seen = new Set<Element>()
-      observer = new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            if (!entry.isIntersecting || seen.has(entry.target)) continue
-            seen.add(entry.target)
-            stops.push(animateEntrance(entry.target as HTMLElement))
-            observer?.unobserve(entry.target)
-          }
-        },
-        { root: wide ? el : null, threshold: 0.12 },
-      )
-      const reveal = [...el.querySelectorAll<HTMLElement>("[data-reveal]")]
-      for (const node of reveal) {
-        if (!node.parentElement?.closest("[data-reveal]"))
-          observer.observe(node)
-      }
-    }
-    el.addEventListener("scroll", scroll, { passive: true })
-    el.addEventListener("wheel", wheel, { passive: false })
-    el.addEventListener("pointerdown", halt, { passive: true })
-    el.addEventListener("touchstart", halt, { passive: true })
-    addEventListener("keydown", key)
-    addEventListener("resize", resize)
-    schedule()
-    return () => {
-      stopped = true
-      cancelAnimationFrame(raf)
-      cancelAnimationFrame(paintRaf)
-      observer?.disconnect()
-      stops.forEach((stop) => stop())
-      layers.forEach(({ node }) => node.style.removeProperty("--depth-x"))
-      reveals.forEach(({ node }) => {
-        node.removeAttribute("data-scroll-reveal")
-        for (const property of [
-          "--scroll-opacity",
-          "--scroll-y",
-          "--scroll-scale",
-        ])
-          node.style.removeProperty(property)
+    const navigate = (id: string, smooth: boolean) => {
+      const target = document.getElementById(id)
+      if (!target) return
+      if (dirty) measure()
+      const chapter = chapters.findIndex((p) => p === target)
+      window.scrollTo({
+        top:
+          chapter >= 0
+            ? positions[chapter]
+            : target.getBoundingClientRect().top + scrollY - 96,
+        behavior: smooth && motion ? "smooth" : "instant",
       })
-      el.removeEventListener("scroll", scroll)
-      el.removeEventListener("wheel", wheel)
-      el.removeEventListener("pointerdown", halt)
-      el.removeEventListener("touchstart", halt)
-      removeEventListener("keydown", key)
-      removeEventListener("resize", resize)
+      schedule()
     }
-  }, [wide, motion, mode, panels])
-
-  useEffect(() => {
     const click = (event: MouseEvent) => {
       if (
         event.defaultPrevented ||
@@ -341,98 +251,112 @@ export default function Deck({
         event.altKey
       )
         return
-      const link = (event.target as Element).closest?.(
+      const link = (event.target as Element).closest<HTMLAnchorElement>(
         'a[href^="#"]',
-      ) as HTMLAnchorElement | null
-      const into = link && document.getElementById(link.hash.slice(1))
-      const ps = panels(),
-        page = into?.closest<HTMLElement>("[data-panel]")
-      if (!page || !track.current?.contains(page)) return
+      )
+      if (!link || !document.getElementById(link.hash.slice(1))) return
       event.preventDefault()
-      if (location.hash !== "#" + page.id)
-        history.pushState(null, "", "#" + page.id)
-      navigate.current(ps.indexOf(page))
+      history.pushState(null, "", link.hash)
+      navigate(link.hash.slice(1), true)
       if (event.detail === 0)
-        (page.querySelector<HTMLElement>("h1,h2") ?? page).focus({
-          preventScroll: true,
-        })
+        document
+          .getElementById(link.hash.slice(1))
+          ?.focus({ preventScroll: true })
     }
-    const historyChange = () => {
-      const ps = panels(),
-        i = ps.findIndex((p) => "#" + p.id === location.hash)
-      navigate.current(i < 0 ? 0 : i, false)
+    const historyChange = () =>
+      navigate(location.hash.slice(1) || "intro", false)
+    const focus = (event: FocusEvent) => {
+      const target = event.target as HTMLElement
+      const rail = rails.find((r) => r.travel > 0 && r.track.contains(target))
+      if (!rail) return
+      const rect = target.getBoundingClientRect()
+      if (rect.left >= 24 && rect.right <= innerWidth - 24) return
+      window.scrollTo({
+        top:
+          rail.top +
+          Math.max(0, Math.min(rail.travel, rail.x + rect.left - 80)),
+        behavior: "instant",
+      })
+      schedule()
     }
-    document.addEventListener("click", click)
-    addEventListener("hashchange", historyChange)
+    const ro =
+      typeof ResizeObserver === "function" ? new ResizeObserver(resize) : null
+    ro?.observe(host)
+    rails.forEach((r) => ro?.observe(r.track))
+    addEventListener("scroll", scroll, { passive: true })
+    addEventListener("resize", resize)
     addEventListener("popstate", historyChange)
+    addEventListener("hashchange", historyChange)
+    query.addEventListener("change", resize)
+    document.addEventListener("click", click)
+    host.addEventListener("focusin", focus)
+    document.fonts?.addEventListener("loadingdone", resize)
+    measure()
+    if (location.hash && !host.dataset.positioned) historyChange()
+    host.dataset.positioned = "true"
+    paint()
     return () => {
-      document.removeEventListener("click", click)
-      removeEventListener("hashchange", historyChange)
+      disposed = true
+      cancelAnimationFrame(raf)
+      ro?.disconnect()
+      removeEventListener("scroll", scroll)
+      removeEventListener("resize", resize)
       removeEventListener("popstate", historyChange)
+      removeEventListener("hashchange", historyChange)
+      query.removeEventListener("change", resize)
+      document.removeEventListener("click", click)
+      host.removeEventListener("focusin", focus)
+      document.fonts?.removeEventListener("loadingdone", resize)
+      rails.forEach((r) => {
+        r.root.style.height = ""
+        r.track.style.transform = ""
+      })
+      reveal.forEach(({ node }) =>
+        [
+          "--reveal-opacity",
+          "--reveal-y",
+          "--reveal-scale",
+          "--photo-x",
+        ].forEach((p) => node.style.removeProperty(p)),
+      )
+      delete html.dataset.rails
     }
-  }, [panels])
-
-  const current = meta[active]
+  }, [motion, mode])
+  const navActive = ["gallery", "playground", "listening", "games"].includes(
+    active,
+  )
+    ? "about"
+    : active
   return (
     <>
-      <div ref={viewport} className="deck" data-horizontal-scroll>
-        <div ref={track} className="deck-track">
-          {children}
-        </div>
+      <div ref={root} className="story">
+        {children}
       </div>
-      <p aria-live="polite" className="sr-only">
-        {wide && current
-          ? `Section ${active + 1} of ${meta.length}: ${current.label}`
-          : ""}
-      </p>
-      <div
-        data-deck-status
-        className="site-status fixed inset-x-0 bottom-0 z-30 hidden h-14 items-center gap-6 bg-bg/85 px-8 font-sans text-xs text-muted backdrop-blur hz:flex"
-      >
-        <span className="w-16 shrink-0 tabular-nums text-fg">
-          {pad(active + 1)}
-          <span className="text-muted"> / {pad(meta.length || 1)}</span>
-        </span>
-        <nav
-          aria-label="Sections"
-          className="absolute left-1/2 -translate-x-1/2"
-        >
-          <ul className="flex gap-1">
-            {nav.map(([id, text]) => (
+      <div className="story-status site-status" data-deck-status>
+        <a href="#intro" className="status-home" aria-label="Back to start">
+          LL / <span>portfolio</span>
+        </a>
+        <nav aria-label="Sections">
+          <ul>
+            {nav.map(([id, label]) => (
               <li key={id}>
                 <a
                   href={`#${id}`}
-                  aria-current={current?.id === id ? "true" : undefined}
-                  className="nav-link inline-flex min-h-11 items-center px-2"
+                  className="nav-link"
+                  aria-current={navActive === id ? "true" : undefined}
                 >
-                  {text}
+                  {label}
                 </a>
               </li>
             ))}
           </ul>
         </nav>
-        <div
-          aria-hidden="true"
-          className="relative mr-auto h-[3px] w-20 overflow-hidden rounded bg-line xl:w-28"
-        >
-          {mode === "ascii" ? (
-            <span className="text-xs text-muted">
-              {"[" +
-                "=".repeat(active) +
-                ">" +
-                "-".repeat(Math.max(0, meta.length - active - 1)) +
-                "]"}
-            </span>
-          ) : (
-            <div
-              ref={progress}
-              className="vivid-bar absolute inset-0 origin-left scale-x-0"
-            />
-          )}
-        </div>
-        <span aria-hidden="true" className="ml-auto text-xs">
-          {active < meta.length - 1 ? "scroll to explore" : "the end"}
+        <span className="status-hint">
+          {active === "contact" ? "let’s connect" : "scroll to explore ↓"}
         </span>
+        <div className="story-progress" aria-hidden="true">
+          <div ref={progress} />
+        </div>
       </div>
     </>
   )

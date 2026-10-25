@@ -2,7 +2,12 @@ import assert from "node:assert/strict"
 import { before, after, test } from "node:test"
 import { createServer } from "vite"
 import { JSDOM } from "jsdom"
-let server, entranceModule, scrollModule, textModule
+let server,
+  entranceModule,
+  scrollModule,
+  textModule,
+  signatureModule,
+  contourModule
 before(async () => {
   server = await createServer({
     server: { middlewareMode: true },
@@ -11,33 +16,50 @@ before(async () => {
   entranceModule = await server.ssrLoadModule("/src/effects/entrances.ts")
   scrollModule = await server.ssrLoadModule("/src/effects/scrollGeometry.ts")
   textModule = await server.ssrLoadModule("/src/effects/asciiText.ts")
+  signatureModule = await server.ssrLoadModule("/src/effects/signature.ts")
+  contourModule = await server.ssrLoadModule("/src/effects/contours.ts")
 })
 after(async () => server?.close())
 
-test("scroll damping is continuous and consistent at 60Hz and 120Hz", () => {
-  const simulate = (hz) => {
-    let position = 0
-    for (let i = 0; i < hz / 2; i++)
-      position = scrollModule.scrollStep(position, 1375, 1 / hz)
-    return position
+test("sideways travel clamps at both boundaries and reverses exactly", () => {
+  assert.equal(scrollModule.railPosition(100, 500, 1200), 0)
+  assert.equal(scrollModule.railPosition(700, 500, 1200), 200)
+  assert.equal(scrollModule.railPosition(650, 500, 1200), 150)
+  assert.equal(scrollModule.railPosition(2000, 500, 1200), 1200)
+  assert.equal(scrollModule.railPosition(800, 500, 0), 0)
+  assert.equal(scrollModule.revealProgress(-1), 0)
+  assert.equal(scrollModule.revealProgress(2), 1)
+  let last = 0
+  for (let i = 0; i <= 100; i++) {
+    const p = scrollModule.revealProgress(i / 100)
+    assert.ok(p >= last && p <= 1)
+    last = p
   }
-  assert.ok(Math.abs(simulate(60) - simulate(120)) < 0.2)
-  assert.equal(scrollModule.clampScroll(-10, 300), 0)
-  assert.equal(scrollModule.clampScroll(500, 300), 300)
-  assert.equal(scrollModule.clampScroll(NaN, 300), 0)
-  const partial = scrollModule.scrollStep(0, 180, 1 / 60)
-  assert.ok(
-    partial > 0 && partial < 180,
-    "input moves part of the document, never a whole-page jump",
-  )
 })
 
-test("depth follows scroll position with bounded opposing layers and exact center alignment", () => {
-  assert.equal(scrollModule.depthOffset(1, 1280, 1280, 0.075), 0)
-  assert.ok(scrollModule.depthOffset(0, 180, 1280, 0.075) > 0)
-  assert.ok(scrollModule.depthOffset(0, 180, 1280, -0.03) < 0)
-  for (const position of [-1000, 0, 123, 1500, 8000])
-    assert.ok(Math.abs(scrollModule.depthOffset(3, position, 1280, 0.2)) <= 54)
+test("signature follows pen movement across the supplied silhouette, with its dot last", () => {
+  assert.ok(signatureModule.signatureProgress(264, 52) < 0.02)
+  assert.ok(signatureModule.signatureProgress(193, 153) > 0.1)
+  assert.ok(signatureModule.signatureProgress(385, 134) > 0.85)
+  assert.equal(signatureModule.signatureProgress(394, 113), 0.97)
+  assert.equal(signatureModule.SIGNATURE_STROKES.length, 2)
+  for (let y = 30; y < 165; y += 10)
+    for (let x = 180; x < 420; x += 10) {
+      const p = signatureModule.signatureProgress(x, y)
+      assert.ok(p >= 0 && p <= 1)
+    }
+})
+
+test("organic background has deterministic finite static and literal ASCII fallbacks", () => {
+  const path = contourModule.contourPath()
+  assert.ok(path.startsWith("M") && path.includes("L"))
+  assert.ok(!path.includes("NaN"))
+  assert.equal(contourModule.contourPath(), path)
+  assert.match(contourModule.contourCharacters(), /^[ .:\n]+$/)
+  assert.notEqual(
+    contourModule.contourField(1, 2, 0),
+    contourModule.contourField(1, 2, 10),
+  )
 })
 
 test("literal ASCII text glyphs come only from printable ASCII marks", () => {
@@ -51,34 +73,6 @@ test("literal ASCII text glyphs come only from printable ASCII marks", () => {
     marks.add(glyph)
   }
   assert.ok(marks.size >= 6)
-})
-
-test("scroll reveals settle fully, stagger, and reverse continuously without overshoot", () => {
-  for (let order = 0; order <= 6; order++) {
-    assert.deepEqual(scrollModule.scrollReveal(0, order, true), {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-    })
-    let previous = 0
-    for (let step = 100; step >= 0; step--) {
-      const state = scrollModule.scrollReveal(step / 100, order, true)
-      assert.ok(state.opacity >= previous && state.opacity <= 1)
-      assert.ok(state.y >= 0 && state.y <= 64)
-      assert.ok(state.scale >= 0.945 && state.scale <= 1)
-      previous = state.opacity
-    }
-  }
-  const early = scrollModule.scrollReveal(0.6, 0, true)
-  const late = scrollModule.scrollReveal(0.6, 3, true)
-  assert.ok(early.opacity > late.opacity)
-  assert.ok(early.y < late.y)
-  assert.equal(scrollModule.scrollReveal(-0.6, 0, true).opacity, early.opacity)
-  assert.ok(scrollModule.scrollReveal(-0.6, 0, true).y < 0)
-  assert.equal(scrollModule.scrollReveal(0.6, 0, false).scale, 1)
-  const a = scrollModule.scrollReveal(0.5, 2, true)
-  const b = scrollModule.scrollReveal(0.5001, 2, true)
-  assert.ok(Math.abs(a.y - b.y) < 0.02, "small scroll changes never jump")
 })
 
 function entranceFixture() {

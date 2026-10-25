@@ -25,139 +25,41 @@ export type Palette = {
   scene: SceneColors
 }
 
-/** Restrained themes come first, followed by the original colourful collection. */
-export const MINIMAL_PALETTES: PaletteDef[] = [
+export type ThemeId = "ink" | "paper" | "electric-blue"
+export const PALETTES: PaletteDef[] = [
   {
-    id: "graphite",
-    name: "Graphite",
-    colors: ["#0d0d0d", "#222222", "#686868", "#a0a0a0", "#f3f3f3"],
-  },
-  {
-    id: "slate",
-    name: "Slate",
-    colors: ["#0f172a", "#1e293b", "#6366f1", "#b7bfd0", "#f5f5f7"],
-  },
-  {
-    id: "sage",
-    name: "Sage",
-    colors: ["#232e21", "#465241", "#88917b", "#c3c5b5", "#f0e9df"],
+    id: "ink",
+    name: "Ink",
+    colors: ["#0b0b0c", "#8fbaff", "#9593ca", "#c3cfdf", "#f3f5f8"],
   },
   {
     id: "paper",
     name: "Paper",
-    colors: ["#1a1a1a", "#8b8784", "#973b3b", "#d7d2cb", "#faf9f7"],
+    colors: ["#182031", "#3562be", "#a8c4ef", "#c7bde5", "#f5f5f2"],
+  },
+  {
+    id: "electric-blue",
+    name: "Electric Blue",
+    colors: ["#070b14", "#4da3ff", "#4ce0ef", "#7274f8", "#eef5ff"],
   },
 ]
-export const COLORFUL_PALETTES: PaletteDef[] = [
-  {
-    id: "riso",
-    name: "Riso Print",
-    colors: ["#1b1b1e", "#f95738", "#ee964b", "#f4d35e", "#faf0ca"],
-  },
-  {
-    id: "sunset",
-    name: "Sunset Drive",
-    colors: ["#264653", "#2a9d8f", "#e9c46a", "#f4a261", "#e76f51"],
-  },
-  {
-    id: "harbor",
-    name: "Harbor Flags",
-    colors: ["#003049", "#d62828", "#f77f00", "#fcbf49", "#eae2b7"],
-  },
-  {
-    id: "lagoon",
-    name: "Deep Lagoon",
-    colors: ["#03045e", "#0077b6", "#00b4d8", "#90e0ef", "#caf0f8"],
-  },
-  {
-    id: "regatta",
-    name: "Regatta",
-    colors: ["#1d3557", "#e63946", "#457b9d", "#a8dadc", "#f1faee"],
-  },
-  {
-    id: "candy",
-    name: "Candy Shop",
-    colors: ["#9b5de5", "#f15bb5", "#fee440", "#00bbf9", "#00f5d4"],
-  },
-  {
-    id: "campfire",
-    name: "Campfire",
-    colors: ["#283618", "#606c38", "#dda15e", "#bc6c25", "#fefae0"],
-  },
-  {
-    id: "vapor",
-    name: "Vaporwave",
-    colors: ["#3a86ff", "#8338ec", "#ff006e", "#fb5607", "#ffbe0b"],
-  },
-  {
-    id: "pitlane",
-    name: "Pit Lane",
-    colors: ["#2b2d42", "#8d99ae", "#edf2f4", "#ef233c", "#d90429"],
-  },
-  {
-    id: "mesa",
-    name: "Mesa",
-    colors: ["#432818", "#99582a", "#bb9457", "#ffe6a7", "#6f1d1b"],
-  },
-  {
-    id: "reef",
-    name: "Reef",
-    colors: ["#05668d", "#028090", "#00a896", "#02c39a", "#f0f3bd"],
-  },
-  {
-    id: "peach",
-    name: "Peach Fizz",
-    colors: ["#355070", "#6d597a", "#b56576", "#e56b6f", "#eaac8b"],
-  },
-  {
-    id: "citrus",
-    name: "Citrus Grove",
-    colors: ["#033f63", "#28666e", "#7c9885", "#b5b682", "#fedc97"],
-  },
-  {
-    id: "bubble",
-    name: "Bubblegum",
-    colors: ["#cdb4db", "#ffc8dd", "#ffafcc", "#bde0fe", "#a2d2ff"],
-  },
-  {
-    id: "ember",
-    name: "Ember",
-    colors: ["#370617", "#6a040f", "#d00000", "#e85d04", "#ffba08"],
-  },
-  {
-    id: "glacier",
-    name: "Glacier",
-    colors: ["#0d1b2a", "#1b263b", "#415a77", "#778da9", "#e0e1dd"],
-  },
-  {
-    id: "matcha",
-    name: "Matcha",
-    colors: ["#344e41", "#3a5a40", "#588157", "#a3b18a", "#dad7cd"],
-  },
-  {
-    id: "tropic",
-    name: "Tropic",
-    colors: ["#006d77", "#83c5be", "#edf6f9", "#ffddd2", "#e29578"],
-  },
-  {
-    id: "grape",
-    name: "Grape Soda",
-    colors: ["#10002b", "#3c096c", "#7b2cbf", "#c77dff", "#e0aaff"],
-  },
-  {
-    id: "arcade",
-    name: "Arcade",
-    colors: ["#0b0c10", "#f72585", "#7209b7", "#4cc9f0", "#f8f9fa"],
-  },
-]
-export const PALETTE_GROUPS = [
-  { name: "Minimal", palettes: MINIMAL_PALETTES },
-  { name: "Colorful", palettes: COLORFUL_PALETTES },
-]
-export const PALETTES: PaletteDef[] = PALETTE_GROUPS.flatMap(
-  ({ palettes }) => palettes,
-)
-export const DEFAULT_PALETTE = "graphite"
+export const DEFAULT_PALETTE: ThemeId = "ink"
+export const themeAppearance = (id: string): Appearance =>
+  id === "paper" ? "light" : "dark"
+export function migrateTheme(
+  saved: string | null,
+  appearance: string | null,
+  previous: string | null,
+): ThemeId {
+  if (PALETTES.some((p) => p.id === saved)) return saved as ThemeId
+  if (appearance === "light") return "paper"
+  if (
+    previous &&
+    !["ink", "graphite", "slate", "sage", "paper"].includes(previous)
+  )
+    return "electric-blue"
+  return "ink"
+}
 
 const rgb = (hex: string) => {
   const n = parseInt(hex.slice(1), 16)
@@ -201,7 +103,10 @@ const chroma = (h: string) => {
  * ink colour until they reach 4.5:1; raw swatches are used for fills, each with
  * its own readable "on" colour.
  */
-export function derive(def: PaletteDef, appearance: Appearance): Palette {
+export function derive(
+  def: PaletteDef,
+  appearance: Appearance = themeAppearance(def.id),
+): Palette {
   const sorted = [...def.colors].sort((a, b) => luminance(a) - luminance(b))
   const dark = sorted[0],
     light = sorted[4]
@@ -213,7 +118,7 @@ export function derive(def: PaletteDef, appearance: Appearance): Palette {
     if (i < 10 || i % 2) fg = mix(fg, isLight ? "#000000" : "#ffffff", 0.14)
     else bg = mix(bg, isLight ? "#ffffff" : "#000000", 0.14)
   }
-  const surface = isLight ? mix(bg, "#ffffff", 0.6) : mix(bg, light, 0.08)
+  const surface = mix(bg, def.colors[1], isLight ? 0.055 : 0.085)
   const readable = (c: string) => {
     let x = c
     for (

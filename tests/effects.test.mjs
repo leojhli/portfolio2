@@ -60,6 +60,8 @@ function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
     "SVGSVGElement",
     "NodeFilter",
     "Event",
+    "CustomEvent",
+    "Image",
     "MouseEvent",
     "KeyboardEvent",
     "PointerEvent",
@@ -83,14 +85,17 @@ function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   globalThis.getComputedStyle = w.getComputedStyle.bind(w)
   globalThis.getSelection = w.getSelection.bind(w)
+  globalThis.dispatchEvent = w.dispatchEvent.bind(w)
   globalThis.addEventListener = w.addEventListener.bind(w)
   globalThis.removeEventListener = w.removeEventListener.bind(w)
   globalThis.matchMedia = w.matchMedia = (query) => ({
-    matches: query.includes("min-width")
-      ? currentWidth >= 1024
-      : query.includes("reduced-motion")
-        ? reduced
-        : false,
+    get matches() {
+      return query.includes("min-width")
+        ? currentWidth >= 1024
+        : query.includes("reduced-motion")
+          ? reduced
+          : false
+    },
     addEventListener() {},
     removeEventListener() {},
   })
@@ -105,7 +110,20 @@ function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
     observe() {}
     disconnect() {}
   }
-  w.scrollBy = () => {}
+  let yPosition = 0
+  Object.defineProperty(w, "scrollY", {
+    get: () => yPosition,
+    configurable: true,
+  })
+  Object.defineProperty(globalThis, "scrollY", {
+    get: () => yPosition,
+    configurable: true,
+  })
+  w.scrollTo = ({ top }) => {
+    yPosition = Math.max(0, top)
+    w.dispatchEvent(new w.Event("scroll"))
+  }
+  w.scrollBy = ({ top }) => w.scrollTo({ top: yPosition + top })
   w.HTMLElement.prototype.scrollIntoView = function () {}
   w.HTMLElement.prototype.animate = function () {
     return { cancel() {} }
@@ -130,19 +148,87 @@ function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
     y: top,
     toJSON() {},
   })
+  const chapterBox = (chapter) => {
+    const story = w.document.querySelector(".story")
+    if (!story) return { top: 0, height: 800 }
+    let top = 0
+    for (const child of story.children) {
+      const height =
+        parseFloat(child.style.height) ||
+        (child.id === "intro" ? 1320 : child.id === "playground" ? 3000 : 1000)
+      if (child === chapter || child.contains(chapter))
+        return {
+          top:
+            top +
+            (chapter.id === "listening"
+              ? 1400
+              : chapter.id === "games"
+                ? 2300
+                : 0),
+          height,
+        }
+      top += height
+    }
+    return { top: 0, height: 800 }
+  }
+  Object.defineProperty(w.HTMLElement.prototype, "clientWidth", {
+    configurable: true,
+    get() {
+      return this.classList.contains("rail-track") ? 2680 : currentWidth
+    },
+  })
+  Object.defineProperty(w.HTMLElement.prototype, "clientHeight", {
+    configurable: true,
+    get() {
+      return 800
+    },
+  })
+  Object.defineProperty(w.HTMLElement.prototype, "scrollWidth", {
+    configurable: true,
+    get() {
+      return this.classList.contains("rail-track") ? 2680 : currentWidth
+    },
+  })
+  Object.defineProperty(w.document.documentElement, "scrollHeight", {
+    configurable: true,
+    get() {
+      return [...(w.document.querySelector(".story")?.children ?? [])].reduce(
+        (sum, n) =>
+          sum +
+          (parseFloat(n.style.height) ||
+            (n.id === "intro" ? 1320 : n.id === "playground" ? 3000 : 1000)),
+        0,
+      )
+    },
+  })
   w.HTMLElement.prototype.getBoundingClientRect = function () {
     const panel = this.closest("[data-panel]")
-    const panels = [...w.document.querySelectorAll("[data-panel]")]
-    const slide = w.document.querySelector(".deck")?.scrollLeft ?? 0
-    const left = panel ? panels.indexOf(panel) * currentWidth - slide : 0
-    return this === panel
-      ? bounds(left, 0, currentWidth, 800)
-      : bounds(
-          left + 40,
-          this.matches("h1,h2") ? 100 : 230,
-          Math.min(500, currentWidth - 80),
-          this.matches("h1,h2") ? 80 : 100,
-        )
+    const box = chapterBox(panel)
+    if (this === panel)
+      return bounds(0, box.top - yPosition, currentWidth, box.height)
+    const rail = this.closest("[data-horizontal]")
+    if (rail && w.document.documentElement.dataset.rails === "on") {
+      const track = rail.querySelector(".rail-track")
+      const x = Number(
+        track.style.transform.match(/translate3d\((-?[\d.]+)px/)?.[1] ?? 0,
+      )
+      const item = [...track.children].find(
+        (n) => n === this || n.contains(this),
+      )
+      const index = item ? [...track.children].indexOf(item) : 0
+      return bounds(
+        x + index * 600,
+        Math.max(0, box.top - yPosition) + 120,
+        this === track ? 2680 : 540,
+        400,
+      )
+    }
+    return bounds(
+      40,
+      box.top - yPosition + (this.matches("h1,h2") ? 100 : 230),
+      Math.min(500, currentWidth - 80),
+      this.matches("h1,h2") ? 80 : 100,
+    )
   }
   w.Range.prototype.getBoundingClientRect = function () {
     const r = this.startContainer.parentElement.getBoundingClientRect()
@@ -173,6 +259,10 @@ function fixture({ width = 1280, reduced = false, stored = {} } = {}) {
     strokeRect() {},
     save() {},
     restore() {},
+    createImageData(width, height) {
+      return { data: new Uint8ClampedArray(width * height * 4), width, height }
+    },
+    putImageData() {},
     translate() {},
     scale() {},
     createRadialGradient() {
@@ -682,114 +772,154 @@ const click = async (el) => {
   await act(async () => el.click())
 }
 
-test("horizontal scrolling is continuous, proportional to input, and keeps depth linked to position", async () => {
+test("native vertical scrolling drives sideways chapters without intercepting wheel or keys", async () => {
   const f = fixture(),
     unmount = await mountApp(f)
   try {
-    const deck = document.querySelector(".deck"),
-      track = document.querySelector(".deck-track")
-    const wheel = (delta) =>
-      deck.dispatchEvent(
-        new window.WheelEvent("wheel", {
-          deltaY: delta,
-          bubbles: true,
-          cancelable: true,
-        }),
-      )
-    wheel(180)
-    await act(async () => f.advance(800))
-    assert.ok(
-      deck.scrollLeft > 170 && deck.scrollLeft < 190,
-      "small wheel input does not jump a page",
-    )
-    assert.equal(track.style.transform, "")
-    assert.equal(
-      document.querySelector("[data-liquid-surface],[data-screen-pixelation]"),
-      null,
-    )
-    const art = document.querySelector('[data-depth="0.075"]')
-    assert.ok(parseFloat(art.style.getPropertyValue("--depth-x")) > 0)
-    const first = document.querySelector("[data-panel]")
-    Object.defineProperty(first, "scrollHeight", {
-      value: 1200,
-      configurable: true,
-    })
-    Object.defineProperty(first, "clientHeight", {
-      value: 800,
-      configurable: true,
-    })
-    const inside = new window.WheelEvent("wheel", {
-      deltaY: 100,
+    assert.equal(document.documentElement.dataset.layout, "story")
+    assert.equal(document.documentElement.dataset.rails, "on")
+    assert.equal(document.querySelectorAll("[data-horizontal]").length, 2)
+    const chapter = document.getElementById("projects"),
+      track = chapter.querySelector(".rail-track")
+    const top = chapter.getBoundingClientRect().top + scrollY
+    assert.equal(chapter.style.height, "2200px")
+    const wheel = new window.WheelEvent("wheel", {
+      deltaY: 240,
       bubbles: true,
       cancelable: true,
     })
-    first.dispatchEvent(inside)
-    await act(async () => f.advance(64))
-    assert.equal(
-      inside.defaultPrevented,
-      false,
-      "a tall section keeps its own vertical scrolling",
-    )
-    assert.ok(Math.abs(deck.scrollLeft - 180) < 1)
-    delete first.scrollHeight
-    delete first.clientHeight
-    const horizontal = new window.WheelEvent("wheel", {
-      deltaX: 80,
-      deltaY: 2,
+    chapter.dispatchEvent(wheel)
+    assert.equal(wheel.defaultPrevented, false)
+    const key = new KeyboardEvent("keydown", {
+      key: "PageDown",
       bubbles: true,
       cancelable: true,
     })
-    deck.dispatchEvent(horizontal)
-    assert.equal(
-      horizontal.defaultPrevented,
-      false,
-      "trackpad horizontal momentum remains native",
-    )
-    wheel(210)
-    await act(async () => f.advance(800))
-    assert.ok(deck.scrollLeft > 380 && deck.scrollLeft < 400)
-    const before = deck.scrollLeft
-    await act(async () =>
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" })),
-    )
-    await act(async () => f.advance(800))
-    assert.ok(Math.abs(deck.scrollLeft - before - 96) < 1)
-    await click(byText("a", "Projects"))
-    await act(async () => f.advance(1100))
-    assert.ok(Math.abs(deck.scrollLeft - 2560) < 1)
-    assert.equal(location.hash, "#projects")
+    window.dispatchEvent(key)
+    assert.equal(key.defaultPrevented, false)
+    await act(async () => window.scrollTo({ top: top + 420 }))
+    await act(async () => f.advance(32))
+    assert.equal(track.style.transform, "translate3d(-420px,0,0)")
+    await act(async () => window.scrollTo({ top: top + 200 }))
+    await act(async () => f.advance(32))
+    assert.equal(track.style.transform, "translate3d(-200px,0,0)")
+    await act(async () => window.scrollTo({ top: top + 1800 }))
+    await act(async () => f.advance(32))
+    assert.equal(track.style.transform, "translate3d(-1400px,0,0)")
+    await click(byText("a", "About"))
+    await act(async () => f.advance(32))
+    assert.equal(location.hash, "#about")
     assert.equal(
       document
-        .querySelector('[data-deck-status] a[href="#projects"]')
+        .querySelector('[data-deck-status] a[href="#about"]')
         .getAttribute("aria-current"),
       "true",
     )
-    deck.scrollLeft = 3010
-    await act(async () => deck.dispatchEvent(new Event("scroll")))
-    await act(async () => f.advance(32))
+    await click(document.querySelector('[aria-controls="motion-pop"]'))
+    await click(document.querySelector('input[name="motion"][value="off"]'))
+    assert.equal(document.documentElement.dataset.rails, "off")
+    assert.equal(track.style.transform, "")
+    assert.equal(chapter.style.height, "")
     assert.equal(
-      deck.scrollLeft,
-      3010,
-      "native scroll can rest at any fractional section",
+      document.getElementById("about").getBoundingClientRect().top,
+      0,
+      "motion changes preserve the current chapter",
     )
-    const pool = document.querySelector('[data-depth="0.06"]')
-    assert.ok(pool.hasAttribute("data-scroll-reveal"))
-    const faded = Number(pool.style.getPropertyValue("--scroll-opacity"))
-    const lifted = parseFloat(pool.style.getPropertyValue("--scroll-y"))
-    assert.ok(faded > 0.16 && faded < 1)
-    assert.ok(lifted > 0)
-    deck.scrollLeft = 3700
-    await act(async () => deck.dispatchEvent(new Event("scroll")))
-    await act(async () => f.advance(32))
-    assert.equal(Number(pool.style.getPropertyValue("--scroll-opacity")), 1)
-    assert.equal(parseFloat(pool.style.getPropertyValue("--scroll-y")), 0)
-    deck.scrollLeft = 3010
-    await act(async () => deck.dispatchEvent(new Event("scroll")))
-    await act(async () => f.advance(32))
-    assert.equal(Number(pool.style.getPropertyValue("--scroll-opacity")), faded)
-    assert.equal(parseFloat(pool.style.getPropertyValue("--scroll-y")), lifted)
   } finally {
     await unmount()
+  }
+})
+
+test("rail focus reveals hidden controls and resizing preserves chapter position", async () => {
+  const f = fixture(),
+    unmount = await mountApp(f)
+  try {
+    const chapter = document.getElementById("projects")
+    const target = chapter.querySelectorAll("summary")[2]
+    await act(async () => target.focus())
+    await act(async () => f.advance(32))
+    const rect = target.getBoundingClientRect()
+    assert.ok(rect.left >= 0 && rect.right <= innerWidth)
+    await click(byText("a", "About"))
+    await act(async () => f.advance(32))
+    await act(async () => {
+      f.resize(390)
+      f.advance(32)
+    })
+    assert.equal(document.documentElement.dataset.rails, "off")
+    assert.equal(
+      document.getElementById("about").getBoundingClientRect().top,
+      0,
+    )
+    await act(async () => {
+      f.resize(1280)
+      f.advance(32)
+    })
+    assert.equal(document.documentElement.dataset.rails, "on")
+    assert.equal(
+      document.getElementById("about").getBoundingClientRect().top,
+      0,
+    )
+  } finally {
+    await unmount()
+  }
+})
+
+test("signature follows hero scroll, reverses, and draws Contact only once", async () => {
+  const f = fixture(),
+    observers = []
+  globalThis.IntersectionObserver = window.IntersectionObserver = class {
+    constructor(callback) {
+      this.callback = callback
+      this.targets = []
+      observers.push(this)
+    }
+    observe(target) {
+      this.targets.push(target)
+    }
+    unobserve() {}
+    disconnect() {
+      this.targets = []
+    }
+  }
+  const unmount = await mountApp(f)
+  try {
+    assert.equal(document.querySelectorAll(".photo img").length, 5)
+    const hero = document.querySelector(".signature-hero")
+    const contact = document.querySelector(".contact-chapter .signature")
+    await act(async () => {
+      window.scrollTo({ top: 400 })
+      f.advance(32)
+    })
+    const partial = Number(hero.style.getPropertyValue("--signature-progress"))
+    assert.ok(partial > 0.5 && partial < 1)
+    await act(async () => {
+      window.scrollTo({ top: 0 })
+      f.advance(32)
+    })
+    assert.ok(
+      Number(hero.style.getPropertyValue("--signature-progress")) < partial,
+    )
+    const io = observers.find((o) => o.targets.includes(contact))
+    await act(async () => {
+      io.callback([{ target: contact, isIntersecting: true }])
+      f.advance(2400)
+    })
+    assert.equal(contact.dataset.complete, "true")
+    await click(document.querySelector('[aria-controls="theme-pop"]'))
+    await click(document.querySelector('input[name="theme"][value="paper"]'))
+    assert.equal(
+      contact.dataset.complete,
+      "true",
+      "theme changes do not replay the signature",
+    )
+    await click(document.querySelector('[aria-controls="motion-pop"]'))
+    await click(document.querySelector('input[name="motion"][value="off"]'))
+    assert.equal(hero.dataset.complete, "true")
+  } finally {
+    await unmount()
+    delete globalThis.IntersectionObserver
+    delete window.IntersectionObserver
   }
 })
 
@@ -798,8 +928,7 @@ test("ASCII presentation uses character controls and frames, keeps media mounted
     unmount = await mountApp(f)
   try {
     const footerNav = document.querySelector("[data-deck-status] nav")
-    assert.ok(footerNav.classList.contains("left-1/2"))
-    assert.ok(footerNav.classList.contains("-translate-x-1/2"))
+    assert.ok(footerNav.querySelector('a[href="#about"]'))
     assert.ok(!document.querySelector("header").classList.contains("border-b"))
     assert.ok(
       !document
@@ -855,15 +984,15 @@ test("real React tree preserves audio and text through rapid navigation, history
   const f = fixture(),
     unmount = await mountApp(f)
   try {
-    assert.equal(document.documentElement.dataset.layout, "h")
+    assert.equal(document.documentElement.dataset.layout, "story")
     assert.equal(document.documentElement.dataset.theme, "dark")
     assert.equal(document.documentElement.dataset.motion, "on")
     assert.ok(
       document
-        .querySelector('[aria-controls="palette-pop"]')
-        .textContent.includes("Graphite"),
+        .querySelector('[aria-controls="theme-pop"]')
+        .textContent.includes("Ink"),
     )
-    assert.equal(document.querySelectorAll("[data-panel]").length, 7)
+    assert.equal(document.querySelectorAll("[data-panel]").length, 9)
     assert.equal(f.audioInstances.length, 0, "audio does not autoplay")
     await click(document.querySelector('[aria-label="Play"]'))
     const audio = f.audioInstances[0]
@@ -874,21 +1003,28 @@ test("real React tree preserves audio and text through rapid navigation, history
     await click(byText("a", "Experience"))
     await act(async () => f.advance(1000))
     assert.equal(location.hash, "#experience")
-    assert.ok(Math.abs(document.querySelector(".deck").scrollLeft - 1280) < 1)
+    assert.equal(
+      document.getElementById("experience").getBoundingClientRect().top,
+      0,
+    )
     await act(async () =>
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })),
     )
-    assert.equal(document.querySelector(".deck-track").style.transition, "")
+    assert.equal(document.querySelector(".rail-track").style.transition, "")
     await act(async () => {
       history.replaceState(null, "", "#projects")
       window.dispatchEvent(new Event("popstate"))
     })
-    assert.equal(document.querySelector(".deck").scrollLeft, 2560)
+    assert.equal(
+      document.getElementById("projects").getBoundingClientRect().top,
+      0,
+    )
     await click(byText("button", "ASCII"))
     await act(async () => f.advance(1600))
     assert.equal(document.documentElement.dataset.mode, "ascii")
-    assert.ok(document.getElementById("intro-h").textContent.includes("李嘉和"))
-    await click(byText("button", "Dark"))
+    assert.ok(document.getElementById("intro").textContent.includes("李嘉和"))
+    await click(document.querySelector('[aria-controls="theme-pop"]'))
+    await click(document.querySelector('input[name="theme"][value="paper"]'))
     assert.equal(f.audioInstances.length, 1)
     assert.equal(audio.currentTime, 37)
     assert.equal(audio.paused, false)
@@ -901,68 +1037,42 @@ test("real React tree preserves audio and text through rapid navigation, history
     assert.equal(document.documentElement.dataset.motion, "off")
     assert.equal(document.querySelector("[data-effect-canvas]"), null)
     await click(byText("a", "Contact"))
-    assert.equal(document.querySelector(".deck-track").style.transition, "")
+    assert.equal(document.querySelector(".rail-track").style.transition, "")
     assert.equal(location.hash, "#contact")
   } finally {
     await unmount()
   }
 })
 
-test("restored colourful palettes are grouped, selectable and remembered without reviving the old default", async () => {
+test("three curated themes migrate existing preferences and persist one explicit selection", async () => {
   let f = fixture({
-    stored: {
-      "pf.v2.palette": "candy",
-      "pf.v2.appearance": "light",
-      "pf.v2.motion": "off",
-    },
-  })
-  let unmount = await mountApp(f)
+      stored: { "pf.v3.palette": "candy", "pf.v2.motion": "off" },
+    }),
+    unmount = await mountApp(f)
   try {
-    const trigger = document.querySelector('[aria-controls="palette-pop"]')
-    assert.ok(trigger.textContent.includes("Graphite"))
-    assert.equal(document.documentElement.dataset.theme, "light")
-    assert.equal(document.documentElement.dataset.motion, "off")
-    await click(trigger)
-    const picker = document.getElementById("palette-pop")
+    assert.equal(document.documentElement.dataset.palette, "electric-blue")
+    await click(document.querySelector('[aria-controls="theme-pop"]'))
     assert.deepEqual(
-      [...picker.querySelectorAll("fieldset fieldset > legend")].map(
-        (el) => el.textContent,
-      ),
-      ["Minimal", "Colorful"],
+      [...document.querySelectorAll('input[name="theme"]')].map((n) => n.value),
+      ["ink", "paper", "electric-blue"],
     )
-    assert.equal(picker.querySelectorAll('input[name="palette"]').length, 24)
-    await click(picker.querySelector('input[value="candy"]'))
-    assert.ok(trigger.textContent.includes("Candy Shop"))
-    assert.equal(localStorage.getItem("pf.v3.palette"), "candy")
-    const visited = new Set()
-    for (let i = 0; i < 24; i++) {
-      visited.add(picker.querySelector('input[name="palette"]:checked').value)
-      await click(document.querySelector('[aria-label="Next palette"]'))
-    }
-    assert.equal(visited.size, 24, "cycling reaches both collections")
-    assert.equal(
-      picker.querySelector('input[name="palette"]:checked').value,
-      "candy",
-    )
-    assert.equal(localStorage.getItem("pf.v3.palette"), "candy")
+    assert.equal(byText("button", "Light"), undefined)
+    await click(document.querySelector('input[name="theme"][value="paper"]'))
+    assert.equal(localStorage.getItem("pf.v4.theme"), "paper")
+    assert.equal(document.documentElement.dataset.theme, "light")
   } finally {
     await unmount()
   }
   f = fixture({
     stored: {
+      "pf.v4.theme": "ink",
+      "pf.v2.appearance": "light",
       "pf.v3.palette": "candy",
-      "pf.v2.palette": "paper",
-      "pf.v2.motion": "off",
     },
   })
   unmount = await mountApp(f)
   try {
-    assert.ok(
-      document
-        .querySelector('[aria-controls="palette-pop"]')
-        .textContent.includes("Candy Shop"),
-      "a new explicit colourful choice takes precedence and survives reload",
-    )
+    assert.equal(document.documentElement.dataset.palette, "ink")
   } finally {
     await unmount()
   }
@@ -976,7 +1086,7 @@ test("book dialogs reopen, close on cancel, and return focus without unmounting 
     }),
     unmount = await mountApp(f)
   try {
-    assert.equal(document.documentElement.dataset.layout, "v")
+    assert.equal(document.documentElement.dataset.layout, "story")
     const book = document.querySelector('[aria-haspopup="dialog"]')
     await click(book)
     const dialog = document.querySelector("dialog")
@@ -1013,11 +1123,12 @@ test("new defaults replace legacy preferences once, while new explicit choices r
     assert.equal(document.documentElement.dataset.motion, "on")
     assert.ok(
       document
-        .querySelector('[aria-controls="palette-pop"]')
-        .textContent.includes("Graphite"),
+        .querySelector('[aria-controls="theme-pop"]')
+        .textContent.includes("Ink"),
     )
-    await click(byText("button", "Light"))
-    assert.equal(localStorage.getItem("pf.v2.appearance"), "light")
+    await click(document.querySelector('[aria-controls="theme-pop"]'))
+    await click(document.querySelector('input[name="theme"][value="paper"]'))
+    assert.equal(localStorage.getItem("pf.v4.theme"), "paper")
   } finally {
     await unmount()
   }
@@ -1034,7 +1145,7 @@ test("new defaults replace legacy preferences once, while new explicit choices r
     assert.equal(document.documentElement.dataset.motion, "off")
     assert.ok(
       document
-        .querySelector('[aria-controls="palette-pop"]')
+        .querySelector('[aria-controls="theme-pop"]')
         .textContent.includes("Paper"),
     )
   } finally {

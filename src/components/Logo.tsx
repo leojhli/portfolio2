@@ -1,6 +1,6 @@
 import { usePrefs } from "../state/preferences"
 
-/** Two forward-leaning Ls; character lettering in the terminal presentation. */
+/** Interlocking forward-cut Ls, drawn on one consistent diagonal grid. */
 export default function Logo() {
   const { mode } = usePrefs()
   if (mode === "ascii")
@@ -13,12 +13,12 @@ export default function Logo() {
     <svg
       width="38"
       height="38"
-      viewBox="0 0 42 42"
+      viewBox="0 0 48 40"
       fill="currentColor"
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M11 6H19L11.8 30H35L29 36H2L11 6ZM26 6H34L30.4 18H40L34 24H20.6L26 6Z" />
+      <path d="M12 4H21L10 29H29L25 37H0L12 4ZM29 4H38L31 20H48L43 28H18L29 4Z" />
     </svg>
   )
 }

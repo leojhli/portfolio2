@@ -10,8 +10,9 @@ import {
   type ReactNode,
 } from "react"
 import {
-  PALETTES,
-  MINIMAL_PALETTES,
+  migrateTheme,
+  themeAppearance,
+  type ThemeId,
   derive,
   paletteById,
   type Appearance,
@@ -22,10 +23,8 @@ import { morphPresentation } from "../effects/coordinator"
 export type Mode = "dynamic" | "ascii"
 export type MotionPref = "system" | "on" | "off"
 
-// Palette v3 keeps the minimal default even when an old colourful v2 choice
-// becomes available again. Explicit choices from this collection are remembered.
 const preferenceKey = (name: string) => `pf.v2.${name}`
-const paletteKey = "pf.v3.palette"
+const themeKey = "pf.v4.theme"
 
 // Storage may be unavailable (private mode, blocked); everything still works in memory.
 const store = {
@@ -60,14 +59,12 @@ type Prefs = {
   mode: Mode
   setMode: (m: Mode) => void
   appearance: Appearance
-  setAppearance: (a: Appearance) => void
+  themeId: ThemeId
+  setTheme: (id: ThemeId) => void
   motionPref: MotionPref
   setMotionPref: (m: MotionPref) => void
   motion: boolean
   palette: Palette
-  setPalette: (id: string) => void
-  /** Step through the fixed palette list (dir 1 = next, -1 = previous). */
-  cyclePalette: (dir: 1 | -1) => void
 }
 const Ctx = createContext<Prefs | null>(null)
 export const usePrefs = () => useContext(Ctx)!
@@ -77,28 +74,24 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const [mode, setModeS] = useState<Mode>(() =>
     store.get("pf.mode") === "ascii" ? "ascii" : "dynamic",
   )
-  const [appearance, setExplicit] = useState<Appearance>(() => {
-    const v = store.get(preferenceKey("appearance"))
-    return v === "light" ? "light" : "dark"
-  })
   const [motionPref, setMotionS] = useState<MotionPref>(() => {
     const v = store.get(preferenceKey("motion"))
     return v === "system" || v === "off" ? v : "on"
   })
-  const [paletteId, setPaletteId] = useState(() => {
-    const saved = store.get(paletteKey)
-    if (saved) return paletteById(saved).id
-    const previous = store.get(preferenceKey("palette"))
-    return paletteById(
-      MINIMAL_PALETTES.some(({ id }) => id === previous) ? previous : null,
-    ).id
-  })
+  const [themeId, setThemeId] = useState<ThemeId>(() =>
+    migrateTheme(
+      store.get(themeKey),
+      store.get(preferenceKey("appearance")),
+      store.get("pf.v3.palette") ?? store.get(preferenceKey("palette")),
+    ),
+  )
+  const appearance = themeAppearance(themeId)
 
   const motion =
     motionPref === "on" ? true : motionPref === "off" ? false : !systemReduce
   const palette = useMemo<Palette>(
-    () => derive(paletteById(paletteId), appearance),
-    [paletteId, appearance],
+    () => derive(paletteById(themeId), appearance),
+    [themeId, appearance],
   )
 
   // Keep the reading position anchored when a setting reflows the page (e.g. font change).
@@ -126,6 +119,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     const html = document.documentElement
     html.dataset.mode = mode
     html.dataset.theme = appearance
+    html.dataset.palette = themeId
+    store.set(themeKey, themeId)
     html.dataset.motion = motion ? "on" : "off"
     html.style.colorScheme = appearance
     for (const [k, v] of Object.entries(palette.vars))
@@ -140,11 +135,6 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     }
   }, [mode, appearance, motion, palette])
 
-  const choose = (id: string) => {
-    setPaletteId(id)
-    store.set(paletteKey, id)
-  }
-
   const value = useMemo<Prefs>(
     () => ({
       mode,
@@ -156,11 +146,12 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         store.set("pf.mode", m)
       },
       appearance,
-      setAppearance: (a) => {
+      themeId,
+      setTheme: (id) => {
         capture()
         animateTheme()
-        setExplicit(a)
-        store.set(preferenceKey("appearance"), a)
+        setThemeId(id)
+        store.set(themeKey, id)
       },
       motionPref,
       setMotionPref: (m) => {
@@ -169,17 +160,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       },
       motion,
       palette,
-      setPalette: (id) => {
-        animateTheme()
-        choose(id)
-      },
-      cyclePalette: (dir) => {
-        animateTheme()
-        const i = PALETTES.findIndex((p) => p.id === paletteId)
-        choose(PALETTES[(i + dir + PALETTES.length) % PALETTES.length].id)
-      },
     }),
-    [mode, appearance, motionPref, motion, palette, paletteId, animateTheme],
+    [mode, appearance, motionPref, motion, palette, themeId, animateTheme],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

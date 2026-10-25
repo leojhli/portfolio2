@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, type CSSProperties } from "react"
+import { lazy, Suspense, useEffect, type ReactNode } from "react"
 import { getContent } from "../content/data"
 import { usePrefs } from "../state/preferences"
 import Controls from "./Controls"
@@ -9,41 +9,92 @@ import Projects from "./Projects"
 import Pool from "./Pool"
 import Deck from "./Deck"
 import Logo from "./Logo"
+import Photo from "./Photo"
+import Signature from "./Signature"
+import ContourBackground from "./ContourBackground"
 import AsciiDecorations from "./AsciiDecorations"
-import { AsciiArt, ContactLinks, Kinetic, Panel } from "./ui"
+import { ContactLinks } from "./ui"
 
 const EffectsLayer = lazy(() => import("../effects/EffectsLayer"))
 const c = getContent()
-
-const PORTRAIT = [
-  "+------------------------+",
-  "|                        |",
-  '|       .-""""""-.       |',
-  "|      /  .    .  \\      |",
-  "|     |     __     |     |",
-  "|      \\   '--'   /      |",
-  "|       '-......-'       |",
-  "|                        |",
-  "|   [ portrait soon ]    |",
-  "+------------------------+",
-].join("\n")
-
 const NAV: Array<[string, string]> = [
   ["experience", "Experience"],
   ["projects", "Projects"],
   ["about", "About"],
   ["contact", "Contact"],
 ]
-const INTERESTS = ["Swimming", "Coaching", "Music", "Books", "Games"]
-const d = (n: number) => ({ "--d": n }) as CSSProperties
-const SWATCH = [
-  "bg-s1 text-on-s1",
-  "bg-s2 text-on-s2",
-  "bg-s3 text-on-s3",
-  "bg-s4 text-on-s4",
-  "bg-s5 text-on-s5",
-]
-const vivid = (i: number) => `var(--c-v${(i % 3) + 1})`
+
+function ChapterTitle({
+  number,
+  label,
+  children,
+}: {
+  number: string
+  label: string
+  children: ReactNode
+}) {
+  return (
+    <div className="chapter-title" data-reveal>
+      <p className="eyebrow">
+        <span>{number} /</span> {label}
+      </p>
+      <h2>{children}</h2>
+    </div>
+  )
+}
+function ProjectDrawing({ index }: { index: number }) {
+  const { mode } = usePrefs()
+  if (mode === "ascii")
+    return (
+      <pre className="project-ascii" aria-hidden="true">
+        {index % 2 === 0
+          ? "      .----.\n   .-' /  / '-.\n  /   /  /    /\n +---+--+----+\n |  /  /    |\n +-/--/-----+\n  '----'"
+          : "      /\\\n     /  \\\n    / /\\ \\\n   / /  \\ \\\n  /_/____\\_\\\n  +----------+"}
+      </pre>
+    )
+  return (
+    <svg
+      viewBox="0 0 500 320"
+      className={`project-drawing drawing-${index}`}
+      aria-hidden="true"
+      fill="none"
+    >
+      <defs>
+        <radialGradient id={`project-light-${index}`}>
+          <stop stopColor="currentColor" stopOpacity=".18" />
+          <stop offset="1" stopColor="currentColor" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <ellipse
+        cx="250"
+        cy="160"
+        rx="220"
+        ry="160"
+        fill={`url(#project-light-${index})`}
+      />
+      <g stroke="currentColor" strokeWidth="1.2">
+        {Array.from({ length: 7 }, (_, i) => (
+          <ellipse
+            key={i}
+            cx="250"
+            cy="160"
+            rx={130 - i * 13}
+            ry="96"
+            transform={`rotate(${index * 22 + i * 12} 250 160)`}
+          />
+        ))}
+        <path d="M52 160H448M250 38V282" strokeDasharray="3 8" opacity=".4" />
+        <circle cx="250" cy="160" r="142" opacity=".2" />
+        <circle
+          cx={index === 1 ? 250 : 380}
+          cy={index === 1 ? 64 : 160}
+          r="5"
+          fill="currentColor"
+        />
+      </g>
+    </svg>
+  )
+}
 
 export default function Page() {
   const { mode, motion } = usePrefs()
@@ -51,14 +102,11 @@ export default function Page() {
   useEffect(() => {
     document.title = `${c.profile.displayName} — ${c.profile.chineseName}`
   }, [])
-
   return (
     <>
+      <ContourBackground />
       {ascii && <AsciiDecorations />}
-      <a
-        href="#main"
-        className="sr-only z-50 rounded bg-accent px-4 py-2 text-on-accent focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
-      >
+      <a href="#main" className="skip-link">
         Skip to content
       </a>
       {motion && (
@@ -66,326 +114,401 @@ export default function Page() {
           <EffectsLayer />
         </Suspense>
       )}
-
-      <header className="site-header relative z-30 bg-bg/85 px-5 py-3 backdrop-blur sm:px-8 hz:fixed hz:inset-x-0 hz:top-0">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-4">
-            <a
-              href="#intro"
-              aria-label={`${c.profile.displayName}, back to start`}
-              className="brand-home"
-            >
-              <Logo />
-            </a>
-            <nav aria-label="Sections" className="hz:hidden">
-              <ul className="flex flex-wrap">
-                {NAV.map(([id, label]) => (
-                  <li key={id}>
-                    <a
-                      href={`#${id}`}
-                      className="nav-link inline-flex min-h-11 items-center px-2.5 font-sans text-xs text-muted"
-                    >
-                      {label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          </div>
-          <Controls />
-        </div>
+      <header className="site-header story-header">
+        <a
+          href="#intro"
+          aria-label={`${c.profile.displayName}, back to start`}
+          className="brand-home"
+        >
+          <Logo />
+        </a>
+        <span className="header-location">
+          LEO LI <span>/</span> WATERLOO, CA
+        </span>
+        <Controls />
       </header>
-
       <main id="main" tabIndex={-1} className="outline-none">
         <Deck nav={NAV}>
-          {/* ---------- HERO ---------- */}
           <section
             id="intro"
             data-panel="Intro"
             data-anchor
             tabIndex={-1}
             aria-labelledby="intro-h"
-            className="panel outline-none"
+            className="hero-chapter"
           >
-            <div className="grid gap-14 lg:grid-cols-[1.25fr_1fr] lg:items-center">
-              <div>
-                <p data-reveal className="font-sans text-sm text-accent">
-                  {c.profile.headline}
-                </p>
-                <h1
-                  id="intro-h"
-                  tabIndex={-1}
-                  data-reveal
-                  style={d(1)}
-                  className="mt-5 font-display text-[clamp(4rem,10vw,8.75rem)] font-normal leading-[0.88] tracking-[-0.065em]"
-                >
-                  <Kinetic text={c.profile.displayName} />
-                  <span aria-hidden="true" className="text-accent">
-                    .
-                  </span>
-                  <span
-                    lang="zh-Hans"
-                    className="mt-4 block font-sans text-[0.34em] font-medium tracking-[0.12em] text-muted"
-                  >
-                    {c.profile.chineseName}
-                  </span>
+            <div className="hero-sticky">
+              <Photo
+                name="city"
+                alt="A colorful illuminated bridge over the city at night"
+                className="hero-scenery"
+                eager
+              />
+              <div className="hero-shade" aria-hidden="true" />
+              <div className="hero-copy">
+                <p className="eyebrow">{c.profile.headline}</p>
+                <h1 id="intro-h" tabIndex={-1}>
+                  {c.profile.displayName}
+                  <span className="hero-period">.</span>
                 </h1>
-                <p
-                  data-reveal
-                  style={d(2)}
-                  className="mt-8 max-w-[50ch] text-lg leading-relaxed text-muted"
-                >
-                  {c.profile.intro}
-                </p>
-                <div data-reveal style={d(3)} className="mt-9">
-                  <ContactLinks contacts={c.contacts} />
+                <div className="hero-byline">
+                  <span lang="zh-Hans">{c.profile.chineseName}</span>
+                  <span>Engineering. Exploring. Always curious.</span>
+                </div>
+                <div className="hero-bottom">
+                  <span className="eyebrow">
+                    A little work.
+                    <br />A little off-screen.
+                  </span>
+                  <Signature hero />
                 </div>
               </div>
+              <figure className="hero-portrait">
+                <Photo
+                  name="fairground"
+                  alt="Leo at a fairground at night, wearing headphones"
+                  eager
+                />
+                <figcaption>Somewhere between work & play.</figcaption>
+              </figure>
+              <a href="#experience" className="hero-scroll">
+                <span>Keep exploring</span>
+                <span aria-hidden="true">↓</span>
+              </a>
+            </div>
+          </section>
 
-              <div
-                data-reveal
-                data-depth="0.075"
-                style={d(2)}
-                className="mx-auto w-full max-w-[360px]"
-              >
-                {ascii ? (
-                  <AsciiArt
-                    art={PORTRAIT}
-                    fallback="[ portrait coming soon ]"
-                    label="Portrait placeholder — image not yet added"
-                  />
-                ) : (
-                  <div data-fx data-spring className="card p-2">
-                    {c.profile.portrait ? (
-                      <img
-                        src={c.profile.portrait}
-                        alt={`Portrait of ${c.profile.displayName}`}
-                        className="aspect-[4/5] max-h-[48vh] w-full rounded-[9px] object-cover"
-                      />
-                    ) : (
-                      <div
-                        role="img"
-                        aria-label="Portrait placeholder — image not yet added"
-                        className="hatch grid aspect-[4/5] max-h-[48vh] w-full place-items-center rounded-[9px]"
-                      >
-                        <span className="font-sans text-xs text-muted">
-                          Portrait coming soon
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <p className="mt-6 font-sans text-xs text-muted">Off-screen</p>
-                <ul className="mt-2 flex flex-wrap gap-2">
-                  {INTERESTS.map((t, i) => (
-                    <li
-                      key={t}
-                      className={`rounded-full border-[1.5px] border-fg px-3 py-1 text-sm font-medium ${SWATCH[i % 5]}`}
-                    >
-                      {t}
-                    </li>
-                  ))}
+          <section
+            id="experience"
+            data-panel="Experience"
+            data-anchor
+            tabIndex={-1}
+            aria-labelledby="experience-h"
+            className="chapter experience-chapter"
+          >
+            <div className="chapter-layout">
+              <div>
+                <ChapterTitle number="01" label="Experience">
+                  <span id="experience-h" tabIndex={-1}>
+                    Learning by
+                    <br />
+                    <em>building.</em>
+                  </span>
+                </ChapterTitle>
+                <p className="chapter-note" data-reveal>
+                  {c.profile.intro}
+                </p>
+              </div>
+              <ol className="experience-list">
+                {c.experience.map((e, i) => (
+                  <li key={e.id} data-reveal>
+                    <span className="entry-index">0{i + 1}</span>
+                    <article>
+                      <p className="eyebrow">{e.dates}</p>
+                      <h3>{e.role}</h3>
+                      <p className="experience-org">{e.organization}</p>
+                      <ul>
+                        {e.points.map((point) => (
+                          <li key={point}>{point}</li>
+                        ))}
+                      </ul>
+                    </article>
+                  </li>
+                ))}
+                <li data-reveal>
+                  <span className="entry-index">
+                    0{c.experience.length + 1}
+                  </span>
+                  <article>
+                    <p className="eyebrow">Beyond engineering</p>
+                    <h3>Swim coaching</h3>
+                    <p className="experience-org">{c.beyond.coaching}</p>
+                  </article>
+                </li>
+              </ol>
+            </div>
+          </section>
+
+          <section
+            id="projects"
+            data-panel="Projects"
+            data-horizontal
+            data-anchor
+            tabIndex={-1}
+            aria-labelledby="projects-h"
+            className="rail-section"
+          >
+            <div className="rail-sticky">
+              <div className="rail-track">
+                <div className="rail-lead">
+                  <ChapterTitle number="02" label="Selected work">
+                    <span id="projects-h" tabIndex={-1}>
+                      Ideas into
+                      <br />
+                      <em>something real.</em>
+                    </span>
+                  </ChapterTitle>
+                  <p className="chapter-note">
+                    Experiments, projects, and things I’m figuring out along the
+                    way.
+                  </p>
+                  <span className="rail-direction" aria-hidden="true">
+                    Continue scrolling ↗
+                  </span>
+                </div>
+                {c.projects.map((p, i) => (
+                  <article
+                    key={p.id}
+                    className="project-panel"
+                    data-reveal
+                    data-artwork
+                  >
+                    <div className="project-visual">
+                      <ProjectDrawing index={i} />
+                      <span className="project-count">
+                        0{i + 1} / EXPLORATION
+                      </span>
+                    </div>
+                    <div className="project-caption">
+                      <span className="eyebrow">Project / 0{i + 1}</span>
+                      <h3>{p.title}</h3>
+                      <p>{p.summary}</p>
+                      <details>
+                        <summary>
+                          Project details <span aria-hidden="true">+</span>
+                        </summary>
+                        <ul className="technology-list">
+                          {p.technologies.map((t) => (
+                            <li key={t}>{t}</li>
+                          ))}
+                        </ul>
+                        <div className="project-links">
+                          {p.repoUrl && (
+                            <a
+                              className="text-link"
+                              href={p.repoUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Repository ↗
+                            </a>
+                          )}
+                          {p.liveUrl && (
+                            <a
+                              className="text-link"
+                              href={p.liveUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Live project ↗
+                            </a>
+                          )}
+                          {!p.repoUrl && !p.liveUrl && (
+                            <span className="text-muted">
+                              Links coming soon.
+                            </span>
+                          )}
+                        </div>
+                      </details>
+                    </div>
+                  </article>
+                ))}
+                <div className="rail-end" aria-hidden="true" />
+              </div>
+            </div>
+          </section>
+
+          <section
+            id="about"
+            data-panel="About"
+            data-anchor
+            tabIndex={-1}
+            aria-labelledby="about-h"
+            className="chapter about-chapter"
+          >
+            <div className="chapter-layout">
+              <ChapterTitle number="03" label="Off-screen">
+                <span id="about-h" tabIndex={-1}>
+                  More than
+                  <br />
+                  <em>a screen.</em>
+                </span>
+              </ChapterTitle>
+              <div className="about-copy" data-reveal>
+                <p>{c.beyond.intro}</p>
+                <p className="chapter-note">
+                  Swimming, coaching, music, books, and a few games in between.
+                </p>
+                <ul className="interest-list">
+                  {["Swimming", "Coaching", "Music", "Books", "Games"].map(
+                    (t, i) => (
+                      <li key={t}>
+                        <span>0{i + 1}</span>
+                        {t}
+                      </li>
+                    ),
+                  )}
                 </ul>
               </div>
             </div>
           </section>
 
-          {/* ---------- EXPERIENCE ---------- */}
-          <Panel
-            id="experience"
-            index="01"
-            kicker="Experience"
-            title="Where I've"
-            accent="worked."
+          <section
+            id="gallery"
+            data-panel="Moments"
+            data-horizontal
+            aria-label="A few moments off-screen"
+            className="rail-section gallery-section"
           >
-            <ol className="relative grid gap-8 md:grid-cols-3">
-              <li
-                aria-hidden="true"
-                className="absolute -top-6 left-0 right-0 hidden h-px bg-fg hz:block"
-              />
-              {c.experience.map((e, i) => (
-                <li
-                  key={e.id}
-                  data-reveal
-                  style={d(i + 1)}
-                  className="relative"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="absolute -top-[30px] left-6 hidden size-3 rounded-full border-[1.5px] border-fg hz:block"
-                    style={{ background: vivid(i) }}
-                  />
-                  <article
-                    className="card h-full overflow-hidden p-6"
-                    style={{ "--hover": vivid(i) } as CSSProperties}
-                  >
-                    <div
-                      aria-hidden="true"
-                      className="-mx-6 -mt-6 mb-5 h-3 border-b-[1.5px] border-fg"
-                      style={{ background: vivid(i) }}
-                    />
-                    <div className="flex items-center justify-between gap-3 font-sans text-xs text-muted">
-                      <span>{String(i + 1).padStart(2, "0")}</span>
-                      <span className="rounded-md border border-fg px-2 py-0.5 text-fg">
-                        {e.dates}
-                      </span>
-                    </div>
-                    <h3 className="mt-5 text-2xl font-semibold tracking-tight">
-                      {e.role}
-                    </h3>
-                    <p className="text-muted">{e.organization}</p>
-                    <ul className="mt-5 space-y-2 text-[15px]">
-                      {e.points.map((pt, j) => (
-                        <li key={j} className="flex gap-3">
-                          <span aria-hidden="true" className="text-accent">
-                            ›
-                          </span>
-                          {pt}
-                        </li>
-                      ))}
-                    </ul>
-                  </article>
-                </li>
-              ))}
-              <li data-reveal style={d(3)} className="relative">
-                <span
-                  aria-hidden="true"
-                  className="absolute -top-[30px] left-6 hidden size-3 rounded-full border-[1.5px] border-dashed border-fg bg-bg hz:block"
-                />
-                <div className="grid h-full min-h-40 place-items-center rounded-[14px] border-[1.5px] border-dashed border-muted p-6 text-center text-sm text-muted">
-                  Swim coaching
-                  <br />
-                  Details coming soon
+            <div className="rail-sticky">
+              <div className="rail-track">
+                <div className="rail-lead gallery-lead">
+                  <p className="eyebrow">Collected moments</p>
+                  <h2>
+                    Life in
+                    <br />
+                    <em>between.</em>
+                  </h2>
+                  <p className="chapter-note">
+                    Places, people, and the little detours.
+                  </p>
                 </div>
-              </li>
-            </ol>
-          </Panel>
-
-          {/* ---------- PROJECTS ---------- */}
-          <Panel
-            id="projects"
-            index="02"
-            kicker="Projects"
-            title="Things I've"
-            accent="built."
-          >
-            <Projects projects={c.projects} />
-          </Panel>
-
-          {/* ---------- ABOUT ---------- */}
-          <Panel
-            id="about"
-            index="03"
-            kicker="About"
-            title="Beyond the"
-            accent="screen."
-          >
-            <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-center lg:gap-14">
-              <div>
-                <p
+                <figure className="photo-panel" data-reveal data-artwork>
+                  <Photo
+                    name="school"
+                    alt="Leo wearing headphones outdoors after school"
+                  />
+                  <figcaption>
+                    <span>01 / On the way</span>
+                    <span>September 2024</span>
+                  </figcaption>
+                </figure>
+                <figure
+                  className="photo-panel photo-panel-tall"
                   data-reveal
-                  style={d(1)}
-                  className="max-w-[24ch] text-[clamp(1.5rem,2.4vw,2.2rem)] font-medium leading-tight tracking-tight"
+                  data-artwork
                 >
-                  {c.beyond.intro}
-                </p>
-                <dl
-                  data-reveal
-                  style={d(2)}
-                  className="card mt-8 divide-y divide-line px-6"
-                >
-                  {([
-                    ["Swimming", c.beyond.swimming],
-                    ["Coaching", c.beyond.coaching],
-                    ["Fun fact", c.beyond.funFact],
-                  ] as const).map(([k, v], i) => (
-                    <div
-                      key={k}
-                      className="grid gap-1 py-4 sm:grid-cols-[120px_1fr] sm:gap-6"
-                    >
-                      <dt className="flex items-center gap-2 font-sans text-xs uppercase tracking-wider text-accent sm:pt-0.5">
-                        <span
-                          aria-hidden="true"
-                          className="size-2.5 shrink-0 rounded-full border border-fg"
-                          style={{ background: vivid(i) }}
-                        />
-                        {k}
-                      </dt>
-                      <dd>{v}</dd>
-                    </div>
-                  ))}
-                </dl>
+                  <Photo
+                    name="hallway"
+                    alt="Leo exploring a warmly lit yellow hallway"
+                  />
+                  <figcaption>
+                    <span>02 / A change of scenery</span>
+                    <span>Off-screen</span>
+                  </figcaption>
+                </figure>
+                <figure className="photo-panel" data-reveal data-artwork>
+                  <Photo
+                    name="fairground"
+                    alt="Leo among the colorful lights at a nighttime fairground"
+                  />
+                  <figcaption>
+                    <span>03 / After hours</span>
+                    <span>Out exploring</span>
+                  </figcaption>
+                </figure>
+                <div className="rail-end" aria-hidden="true" />
               </div>
-              <div data-reveal data-depth="0.06" style={d(3)}>
+            </div>
+          </section>
+
+          <section
+            id="playground"
+            data-panel="Playground"
+            data-anchor
+            tabIndex={-1}
+            className="chapter collection-chapter"
+            aria-labelledby="playground-h"
+          >
+            <ChapterTitle number="04" label="A little interaction">
+              <span id="playground-h">
+                Room to <em>play.</em>
+              </span>
+            </ChapterTitle>
+            <div className="collection-world">
+              <div className="collection-heading">
+                <span className="eyebrow">01 / A small world</span>
+                <span className="chapter-note">
+                  Drag to explore. Pick a landmark.
+                </span>
+              </div>
+              <Projects projects={c.projects} />
+            </div>
+            <div className="collection-pool">
+              <div data-reveal>
+                <p className="eyebrow">02 / In my element</p>
+                <h3>
+                  Just keep
+                  <br />
+                  <em>swimming.</em>
+                </h3>
+                <p className="chapter-note">{c.beyond.swimming}</p>
+                <p className="chapter-note">{c.beyond.funFact}</p>
+              </div>
+              <div data-reveal data-artwork>
                 <Pool />
               </div>
             </div>
-          </Panel>
-
-          {/* ---------- MEDIA ---------- */}
-          <Panel
-            id="listening"
-            index="04"
-            kicker="Listening & reading"
-            title="On repeat,"
-            accent="on the shelf."
-          >
-            <div className="grid grid-cols-1 gap-14 lg:grid-cols-2 lg:items-end lg:gap-16">
-              <div data-reveal data-depth="0.045" style={d(1)}>
-                <p className="mb-4 font-sans text-xs text-muted">Now playing</p>
+            <div
+              id="listening"
+              data-panel="Listening & reading"
+              className="collection-media"
+            >
+              <div data-reveal>
+                <p className="eyebrow">03 / On repeat</p>
+                <h3>The soundtrack.</h3>
                 <CDPlayer />
               </div>
-              <div data-reveal data-depth="0.025" style={d(2)}>
-                <p className="mb-4 font-sans text-xs text-muted">Bookshelf</p>
+              <div data-reveal>
+                <p className="eyebrow">04 / On the shelf</p>
+                <h3>A different perspective.</h3>
                 <Bookshelf books={c.books} />
               </div>
             </div>
-          </Panel>
-
-          {/* ---------- GAMES ---------- */}
-          <Panel
-            id="games"
-            index="05"
-            kicker="Games"
-            title="hmu if u want to"
-            accent="play."
-          >
-            <div data-reveal style={d(1)}>
+            <div id="games" data-panel="Games" className="collection-games">
+              <div data-reveal>
+                <p className="eyebrow">05 / After hours</p>
+                <h3>One more round?</h3>
+              </div>
               <Games games={c.games} />
             </div>
-          </Panel>
+          </section>
 
-          {/* ---------- CONTACT ---------- */}
-          <Panel
+          <section
             id="contact"
-            index="06"
-            kicker="Contact"
-            title="Say"
-            accent="hi."
+            data-panel="Contact"
+            data-anchor
+            tabIndex={-1}
+            aria-labelledby="contact-h"
+            className="chapter contact-chapter"
           >
-            <p
-              data-reveal
-              style={d(1)}
-              className="mb-10 max-w-[44ch] text-lg text-muted"
-            >
-              Links go live once destinations are confirmed.
+            <p className="eyebrow" data-reveal>
+              05 / Keep in touch
             </p>
-            <div data-reveal style={d(2)}>
-              <ContactLinks contacts={c.contacts} size="lg" />
+            <h2 id="contact-h" tabIndex={-1} data-reveal>
+              Let’s make
+              <br />
+              <em>something.</em>
+            </h2>
+            <div className="contact-bottom">
+              <div data-reveal>
+                <ContactLinks contacts={c.contacts} size="lg" />
+                <p className="chapter-note">
+                  Links go live once destinations are confirmed.
+                </p>
+              </div>
+              <Signature />
             </div>
-            <footer className="mt-16 flex flex-wrap items-center justify-between gap-4 pt-6 font-sans text-xs text-muted">
-              <p>
-                © {c.profile.displayName} ·{" "}
+            <footer>
+              <span>
+                © {c.profile.displayName}{" "}
                 <span lang="zh-Hans">{c.profile.chineseName}</span>
-              </p>
-              <a
-                href="#intro"
-                className="nav-link inline-flex min-h-11 items-center"
-              >
-                ← back to start
+              </span>
+              <a href="#intro" className="text-link">
+                Back to the beginning ↑
               </a>
             </footer>
-          </Panel>
+          </section>
         </Deck>
       </main>
     </>

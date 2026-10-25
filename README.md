@@ -15,11 +15,13 @@ Open http://127.0.0.1:5173. To check and build the production version, run `npm 
 
 Dependencies are already installed in this checkout, so you can run `npm run dev` immediately. If PowerShell blocks `npm.ps1`, use `npm.cmd run dev`. The exported pnpm lockfile is retained for users who prefer `pnpm install --frozen-lockfile`.
 
-Run `npm test` for interaction and state-preservation checks (Node 22.22.2+, 24.15+, or 26+). See [interaction effects](docs/interaction-effects.md) for the local liquid cursor field, screen transitions, and visual verification limits.
+Run `npm test` for interaction and state-preservation checks (Node 22.22.2+, 24.15+, or 26+). See [interaction effects](docs/interaction-effects.md) for scrolling, signature drawing, local liquid cursor behavior, and verification limits.
 
-The arrival preset is **Dark / Graphite / Motion On**. Four minimal themes—Graphite, Slate, Sage and Paper—appear first, followed by the original twenty colorful themes. Desktop is one continuous horizontal document with native scrolling, proportional wheel input and subtle scroll-linked depth on artwork. There are no page-switch transitions or snapping. Compact screens keep vertical flow. The header/footer dividers are removed and bottom navigation is centered.
+The arrival preset is **Ink / Motion On**. Three themes share natural-color photography: Ink (near-black with restrained blue accents), Paper (warm white with cobalt and lavender), and Electric Blue (deep navy with vivid blue/cyan). One saved theme replaces the former appearance/palette combination, with migration for existing preferences.
 
-Dynamic mode uses Hanken Grotesk, animated hairline links, a local liquid cursor and restrained entrance animations. ASCII mode literally draws the letter shapes from tiny ASCII symbols, alongside character frames, icons, controls and colored character artwork. Original text remains selectable and accessible beneath cached character canvases. ASCII disables liquid pixel displacement. Appearance, palette and motion choices remain saved locally.
+The page uses native vertical scrolling. Projects and the personal photo gallery travel sideways inside sticky desktop chapters; small screens and Motion Off use stacked layouts. Night-city photography opens the page, followed by an original flowing contour background. Scroll-linked reveals, photo parallax, and a traced handwriting animation provide motion without snapping or wheel interception. Bottom navigation remains centered.
+
+Dynamic mode uses Hanken Grotesk, animated hairline links and a local liquid cursor. ASCII mode literally draws letter shapes from tiny ASCII symbols, alongside character frames, controls, photography, signature and colored scene artwork. Original text remains selectable and accessible beneath cached character canvases. ASCII disables liquid pixel displacement. Presentation, theme and motion choices remain saved locally.
 
 The header and favicon share a custom angular LL monogram. Reusable SVG/PNG assets and size previews are described in [brand assets](docs/brand/README.md).
 
@@ -31,6 +33,8 @@ The header and favicon share a custom angular LL monogram. Reusable SVG/PNG asse
 - `src/three`: interactive project planet, swimming scene, and color ASCII rendering.
 - `src/state`: preferences and the persistent audio player.
 
-Both Dynamic and ASCII modes, light/dark appearance, palette selection, motion settings, book dialogs, music playback, and the desktop page deck are retained. Unfilled biography, project, experience, and contact fields intentionally remain placeholders. Gameplay previews need clip files configured in `data.ts`.
+The interactive planet, swimming pool, books, games and persistent music player remain in the Off-screen collection. Unfilled biography, project, experience, and contact fields intentionally remain placeholders. Gameplay previews need clip files configured in `data.ts`.
+
+Public-source analysis with REA informed the scrolling and contour treatment; details and analysis limitations are in [reference motion](docs/reference-motion.md). No reference branding or shader source is shipped.
 
 The original Figma build helpers are retained under `.figma/` for provenance; local commands use the standalone Vite configuration. No backend or hosting deployment is configured. The existing planning documents are under `docs/`.

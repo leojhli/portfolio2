@@ -2,7 +2,7 @@ import { useEffect } from "react"
 import { createAsciiText } from "../effects/asciiText"
 
 const SELECTOR =
-  ".card,.box,.popover,.game-tile,[role='group'],#project-detail,[data-ascii-frame]"
+  ".card,.box,.popover,.game-tile,.project-panel,[role='group'],#project-detail,[data-ascii-frame]"
 
 /** Decorative character frames; native text, focus targets and media stay live. */
 export default function AsciiDecorations() {
