@@ -4,7 +4,6 @@ import { usePrefs } from "../state/preferences"
 import Icon from "./Icons"
 import { assemble, disperse } from "../effects/coordinator"
 
-const PER_SHELF = 10
 const yearLabel = (y: number) => (y < 0 ? `c. ${-y} BC` : String(y))
 
 export default function Bookshelf({ books }: { books: Book[] }) {
@@ -32,93 +31,44 @@ export default function Bookshelf({ books }: { books: Book[] }) {
     setActive(b)
     dialog.current?.showModal()
   }
-  const shelves = Array.from(
-    { length: Math.ceil(books.length / PER_SHELF) },
-    (_, i) => books.slice(i * PER_SHELF, (i + 1) * PER_SHELF),
-  )
-  const reading = books.filter((b) => b.status === "Reading").length
+  const shelves = [
+    { title: "On my desk", books: books.filter(book => book.status === "Reading") },
+    { title: "The library", books: books.filter(book => book.status !== "Reading") },
+  ].filter(shelf => shelf.books.length)
   return (
-    <div>
-      <p className="mb-3 text-sm text-muted">
-        {books.length} books · {reading} reading now
-      </p>
-      <ul aria-label="Books" className="space-y-4">
-        {shelves.map((row, s) => (
-          <li key={s}>
-            <ul className="flex snap-x items-end gap-1.5 overflow-x-auto px-1 pb-2 pt-2">
-              {row.map((b, j) => (
-                <li
-                  key={b.id}
-                  className={
-                    ascii
-                      ? "shrink-0 snap-start"
-                      : "shrink-0 snap-start sm:min-w-0 sm:max-w-10 sm:flex-1"
-                  }
-                >
-                  <button
-                    type="button"
-                    onClick={(e) => open(b, e.currentTarget)}
-                    aria-haspopup="dialog"
-                    aria-label={`${b.title} by ${b.author}, ${b.status.toLowerCase()}`}
-                    className={
-                      ascii
-                        ? "min-h-11 border border-dashed border-muted px-2 py-2 font-sans text-xs hover:text-accent"
-                        : "spine relative flex w-10 flex-col items-center justify-between overflow-hidden rounded-[4px] border-[1.5px] border-fg pb-2 pt-2.5 sm:w-full"
-                    }
-                    style={
-                      ascii
-                        ? undefined
-                        : {
-                            height: `${b.height * 2}px`,
-                            background: `linear-gradient(90deg, rgba(0,0,0,.10), transparent 22%, rgba(255,255,255,.08) 55%, rgba(0,0,0,.12)), var(--c-s${((s * PER_SHELF + j) % 5) + 1})`,
-                            color: `var(--c-on-s${((s * PER_SHELF + j) % 5) + 1})`,
-                          }
-                    }
-                  >
-                    {ascii ? (
-                      `|${
-                        b.title.length > 14
-                          ? `${b.title.slice(0, 13)}…`
-                          : b.title
-                      }|`
-                    ) : (
-                      <>
-                        <span className="min-h-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-medium [writing-mode:vertical-rl]">
-                          {b.title}
-                        </span>
-                        {b.status === "Reading" && (
-                          <span
-                            aria-hidden="true"
-                            className="mt-1.5 size-2 shrink-0 rounded-full border border-current bg-accent-fill"
-                          />
-                        )}
-                      </>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {!ascii && (
-              <div
-                aria-hidden="true"
-                data-fx
-                className="h-2.5 rounded-sm border-[1.5px] border-fg bg-fg"
-              />
-            )}
-            {ascii && (
-              <p
-                aria-hidden="true"
-                className="overflow-hidden whitespace-nowrap font-mono text-muted"
-              >
-                {"=".repeat(120)}
-              </p>
-            )}
+    <div className="cover-library">
+      <p className="mb-5 text-sm text-muted">{books.length} books · select a cover for a closer look</p>
+      <ul aria-label="Books" className="cover-shelves">
+        {shelves.map((shelf, index) => (
+          <li key={shelf.title} className="cover-shelf">
+            <div className="cover-shelf-heading">
+              <h4 id={`shelf-title-${index}`}>{shelf.title} <span>/ {String(shelf.books.length).padStart(2, "0")}</span></h4>
+              <div className="cover-shelf-controls">
+                <button type="button" aria-label={`Previous books in ${shelf.title}`} onClick={event => event.currentTarget.closest(".cover-shelf")?.querySelector(".cover-rail")?.scrollBy({ left: -320, behavior: "smooth" })}><Icon name="prev" size={14} /></button>
+                <button type="button" aria-label={`Next books in ${shelf.title}`} onClick={event => event.currentTarget.closest(".cover-shelf")?.querySelector(".cover-rail")?.scrollBy({ left: 320, behavior: "smooth" })}><Icon name="next" size={14} /></button>
+              </div>
+            </div>
+            <div className="cover-rail" role="region" aria-labelledby={`shelf-title-${index}`} tabIndex={0}>
+              <ul className="cover-row">
+                {shelf.books.map(book => (
+                  <li key={book.id}>
+                    <button type="button" className="book-display" onClick={event => open(book, event.currentTarget)}
+                      aria-haspopup="dialog" aria-label={`${book.title} by ${book.author}, ${book.status.toLowerCase()}`}>
+                      {ascii ? <pre className="book-ascii" aria-hidden="true">{`+--------------+\n|              |\n|    BOOK      |\n|              |\n+--------------+`}</pre> :
+                        <span className="book-jacket">
+                          <span className="book-cover-fallback" aria-hidden="true">{book.title}<small>{book.author}</small></span>
+                          {book.cover && <img src={book.cover} alt="" loading="lazy" decoding="async" width="160" height="240" onError={event => { event.currentTarget.hidden = true }} />}
+                          {book.status === "Reading" && <span className="book-ribbon" aria-hidden="true" />}
+                        </span>}
+                      <span className="book-caption"><strong>{book.title}</strong><span>{book.author}</span></span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </li>
         ))}
       </ul>
-      <p className="mt-3 font-sans text-xs text-muted sm:hidden">
-        Scroll the shelf sideways →
-      </p>
 
       <dialog
         ref={dialog}

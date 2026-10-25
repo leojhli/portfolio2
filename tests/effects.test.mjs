@@ -1432,3 +1432,50 @@ test("handwritten name replays on hover, keyboard and touch, and cleans up in AS
     assert.ok(document.querySelector("#intro-h").textContent.includes("Leo Li"))
   } finally { await unmount() }
 })
+
+test("taskbar music shares playback and cover shelves keep book details accessible", async () => {
+  const f = fixture({ width: 390 }), unmount = await mountApp(f)
+  try {
+    const dock = document.querySelector('[aria-label="Taskbar music player"]')
+    assert.ok(dock.closest('[data-deck-status]'))
+    await click(dock.querySelector('[aria-label="Play music"]'))
+    const audio = f.audioInstances[0]
+    assert.equal(audio.paused, false)
+    audio.currentTime = 37
+    await click(dock.querySelector('[aria-label="Music player details"]'))
+    const panel = document.getElementById('taskbar-music-panel')
+    assert.ok(panel)
+    assert.ok(panel.querySelector('[aria-label="Pause"]'))
+    assert.equal(f.audioInstances.length, 1)
+    await click(panel.querySelector('[aria-label="Pause"]'))
+    assert.equal(audio.paused, true)
+    await click(dock.querySelector('[aria-label="Play music"]'))
+    assert.equal(audio.currentTime, 37)
+    await act(async () => document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+    assert.equal(document.getElementById('taskbar-music-panel'), null)
+    assert.equal(document.activeElement, dock.querySelector('[aria-label="Music player details"]'))
+    const source = audio.src
+    await click(dock.querySelector('[aria-label="Skip music track"]'))
+    assert.notEqual(audio.src, source)
+    assert.equal(f.audioInstances.length, 1)
+    const covers = [...document.querySelectorAll('.book-jacket img')]
+    assert.equal(covers.length, 20)
+    assert.ok(covers.every(cover => cover.getAttribute('src').startsWith('/books/')))
+    assert.equal(document.querySelectorAll('.book-ribbon').length, 2)
+    await act(async () => covers[0].dispatchEvent(new window.Event('error')))
+    assert.equal(covers[0].hidden, true)
+    assert.ok(covers[0].parentElement.querySelector('.book-cover-fallback').textContent.length)
+    const book = covers[0].closest('button')
+    await click(book)
+    assert.equal(document.querySelector('.cover-library dialog').open, true)
+    await click(document.querySelector('.cover-library dialog [aria-label="Close"]'))
+    await act(async () => f.advance(240))
+    assert.equal(document.activeElement, book)
+    assert.equal(audio.paused, false)
+    await click(byText('button', 'ASCII'))
+    assert.equal(document.querySelectorAll('.book-jacket img').length, 0)
+    assert.equal(document.querySelectorAll('.book-ascii').length, 20)
+    assert.equal(f.audioInstances.length, 1)
+    assert.equal(audio.paused, false)
+  } finally { await unmount() }
+})

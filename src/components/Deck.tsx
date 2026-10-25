@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
+import MusicDock from "./MusicDock"
 import { usePrefs } from "../state/preferences"
 import { cancelEffects } from "../effects/coordinator"
 import { railPosition, revealProgress } from "../effects/scrollGeometry"
@@ -351,9 +352,7 @@ export default function Deck({
             ))}
           </ul>
         </nav>
-        <span className="status-hint">
-          {active === "contact" ? "let’s connect" : "scroll to explore ↓"}
-        </span>
+        <MusicDock />
         <div className="story-progress" aria-hidden="true">
           <div ref={progress} />
         </div>

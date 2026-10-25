@@ -217,3 +217,65 @@ html[data-mode='ascii'] .story-progress { display: none; }
   .name-drawing-art { height: 1.36em; }
   .name-drawing-hint { font-size: 9px; letter-spacing: .04em; }
 }
+
+/* The persistent listening dock shares the original audio provider. */
+.music-dock { margin-left: auto; display: flex; align-items: center; gap: 2px; width: 250px; min-width: 0; }
+.music-dock-track { display: flex; gap: 10px; align-items: center; min-width: 0; flex: 1; text-align: left; min-height: 44px; cursor: pointer; }
+.music-dock-copy { display: grid; min-width: 0; gap: 2px; }
+.music-dock-copy strong, .music-dock-copy > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-dock-copy strong { font-size: 11px; font-weight: 500; }
+.music-dock-copy > span { color: var(--c-muted); font-size: 10px; }
+.music-dock-control { display: grid; place-items: center; width: 36px; min-height: 44px; flex-shrink: 0; cursor: pointer; }
+.music-dock-control:hover, .music-dock-track:hover { color: var(--c-accent); }
+.music-dock-control:disabled { opacity: .35; cursor: default; }
+.music-dock-indicator { display: flex; align-items: center; gap: 2px; height: 18px; color: var(--c-accent); }
+.music-dock-indicator i { height: 5px; width: 2px; background: currentColor; }
+.music-dock-indicator[data-playing='true'] i { animation: music-level .9s ease-in-out infinite alternate; }
+.music-dock-indicator i:nth-child(2) { animation-delay: -.3s; }
+.music-dock-indicator i:nth-child(3) { animation-delay: -.6s; }
+@keyframes music-level { to { height: 17px; } }
+.music-dock-panel { position: absolute; right: clamp(16px,4vw,72px); bottom: calc(100% + 12px); width: min(400px,calc(100vw - 32px)); max-height: calc(100svh - 160px); overflow-y: auto; background: var(--c-surface); border: 1px solid var(--c-line); border-radius: 16px; box-shadow: 0 20px 60px #0005; }
+.music-dock-panel-heading { display: flex; justify-content: space-between; align-items: center; padding: 6px 20px 0; color: var(--c-muted); letter-spacing: .1em; }
+.music-dock-panel-heading button { display: grid; place-items: center; width: 44px; height: 44px; cursor: pointer; }
+.music-dock-panel .cd-shell { display: block; border: 0 !important; padding: 0 24px 20px; background: transparent; }
+.music-dock-panel .cd-shell > div:first-child { display: none; }
+@media(max-width: 1100px) {
+  .story-status { height: 110px; padding: 54px 18px 6px; }
+  .story-status nav { top: 2px; }
+  .story-status .status-home { display: none; }
+  .music-dock { width: min(300px,100%); }
+  .hero-scroll { bottom: 130px; }
+  .contact-chapter { padding-bottom: 160px; }
+}
+html[data-mode='ascii'] .site-status > .music-dock { height: auto; }
+html[data-mode='ascii'] .music-dock-indicator::before { content: '~'; }
+html[data-mode='ascii'] .music-dock-indicator i { display: none; }
+html[data-mode='ascii'] .music-dock-panel { background: var(--c-bg); }
+
+/* Front-facing jackets, with a quiet page edge and a reading bookmark. */
+.cover-library { min-width: 0; }
+.collection-media > div { min-width: 0; }
+.cover-shelves { display: grid; gap: 30px; }
+.cover-shelf-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cover-shelf-heading h4 { font-size: 12px; font-weight: 500; }
+.cover-shelf-heading h4 span { color: var(--c-muted); font-size: 10px; margin-left: 8px; }
+.cover-shelf-controls { display: flex; }
+.cover-shelf-controls button { width: 36px; height: 44px; display: grid; place-items: center; color: var(--c-muted); cursor: pointer; }
+.cover-shelf-controls button:hover { color: var(--c-accent); }
+.cover-rail { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: var(--c-line) transparent; padding: 16px 6px 18px; }
+.cover-row { display: flex; gap: 24px; width: max-content; }
+.cover-row > li { width: 132px; }
+.book-display { display: block; width: 100%; text-align: left; cursor: pointer; perspective: 700px; }
+.book-jacket { display: block; position: relative; width: 100%; aspect-ratio: 2/3; background: var(--c-surface); border-radius: 2px 5px 5px 2px; box-shadow: 4px 3px 0 color-mix(in srgb,var(--c-fg) 40%,var(--c-bg)),8px 10px 22px #0003; transform: rotateY(-9deg); transform-origin: left center; transition: transform .5s cubic-bezier(.2,.7,.2,1),box-shadow .5s; }
+.book-jacket::after { content: ''; pointer-events: none; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(90deg,#0005,transparent 3%,#ffffff20 5%,transparent 8%); }
+.book-jacket img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.book-jacket img[hidden] { display: none; }
+.book-cover-fallback { display: flex; flex-direction: column; justify-content: space-between; padding: 16px; height: 100%; font-size: 16px; color: var(--c-accent); overflow: hidden; }
+.book-cover-fallback small { font-size: 10px; color: var(--c-muted); }
+.book-ribbon { position: absolute; top: -2px; right: 12px; height: 32px; width: 12px; background: var(--c-accent); clip-path: polygon(0 0,100% 0,100% 100%,50% 80%,0 100%); }
+.book-display:is(:hover,:focus-visible) .book-jacket { transform: translateY(-8px) rotateY(0deg); box-shadow: 3px 3px 0 var(--c-line),8px 18px 28px #0004; }
+.book-caption { display: grid; gap: 4px; margin-top: 18px; }
+.book-caption strong { font-size: 12px; font-weight: 500; line-height: 1.4; }
+.book-caption > span { color: var(--c-muted); font-size: 10px; line-height: 1.4; }
+.book-ascii { font-size: 12px; line-height: 1.5; color: var(--c-accent); }
+@media(prefers-reduced-motion: reduce) { .music-dock-indicator i { animation: none !important; } .book-jacket { transition: none; } }
