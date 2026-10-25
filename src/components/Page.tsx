@@ -149,14 +149,12 @@ export default function Page() {
                 eager
               />
               <div className="hero-shade" aria-hidden="true" />
-              <NameDrawing background />
               <div className="hero-copy">
                 <p className="eyebrow">{c.profile.headline}</p>
                 <h1 id="intro-h" tabIndex={-1}>
                   <NameDrawing />
                 </h1>
                 <div className="hero-byline">
-                  <span lang="zh-Hans">{c.profile.chineseName}</span>
                   <span>Engineering. Exploring. Always curious.</span>
                 </div>
                 <div className="hero-bottom">

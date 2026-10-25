@@ -1355,19 +1355,47 @@ test("new defaults replace legacy preferences once, while new explicit choices r
   }
 })
 
-test("hero names use independent Chinese stroke clips and retain an accessible English heading", async () => {
+test("handwritten name replays on hover, keyboard and touch, and cleans up in ASCII mode", async () => {
   const f = fixture(), unmount = await mountApp(f)
   try {
-    const characters = [...document.querySelectorAll(".chinese-name-drawing > svg")]
+    const button = document.querySelector(".name-drawing")
+    assert.equal(button.dataset.language, "english")
+    assert.equal(button.querySelectorAll(".english-pen-stroke").length, 3)
+    assert.equal(document.querySelector(".chinese-name-drawing"), null)
+    assert.equal(document.querySelector(".hero-byline [lang]"), null)
+    const pointer = async (type, pointerType) => act(async () => {
+      const event = new window.Event(type, { bubbles: true })
+      Object.defineProperty(event, "pointerType", { value: pointerType })
+      button.dispatchEvent(event)
+    })
+    await pointer("pointerover", "mouse")
+    assert.equal(button.dataset.language, "chinese")
+    const characters = [...button.querySelectorAll("[data-character]")]
     assert.deepEqual(characters.map(el => el.dataset.character), ["李", "嘉", "和"])
-    const strokes = [...document.querySelectorAll(".name-pen-stroke")]
-    assert.equal(strokes.length, 29)
-    const delays = strokes.map(el => parseFloat(el.style.getPropertyValue("--pen-delay")))
-    assert.ok(delays.every((delay, i) => !i || delay > delays[i - 1]))
-    for (const stroke of strokes) {
-      const id = stroke.getAttribute("clip-path").slice(5, -1)
-      assert.ok(document.getElementById(id)?.querySelector("path").getAttribute("d"))
+    assert.equal(button.querySelectorAll(".name-pen-stroke").length, 29)
+    for (const character of characters) {
+      const strokes = [...character.querySelectorAll(".name-pen-stroke")]
+      assert.equal(strokes[0].style.getPropertyValue("--pen-delay"), "0s")
+      for (const stroke of strokes) {
+        const id = stroke.getAttribute("clip-path").slice(5, -1)
+        assert.ok(document.getElementById(id)?.querySelector("path").getAttribute("d"))
+      }
     }
-    assert.equal(document.querySelector("#intro-h .sr-only").textContent, "Leo Li.")
+    await pointer("pointerout", "mouse")
+    assert.equal(button.dataset.language, "english")
+    await act(async () => button.focus())
+    assert.equal(button.dataset.language, "chinese")
+    await act(async () => button.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })))
+    assert.equal(button.dataset.language, "english")
+    await act(async () => button.blur())
+    await pointer("pointerdown", "touch")
+    await act(async () => button.focus())
+    await click(button)
+    assert.equal(button.dataset.language, "chinese", "first touch writes Chinese without a focus/click race")
+    await click(button)
+    assert.equal(button.dataset.language, "english")
+    await click(byText("button", "ASCII"))
+    assert.equal(document.querySelector(".name-drawing"), null)
+    assert.ok(document.querySelector("#intro-h").textContent.includes("Leo Li"))
   } finally { await unmount() }
 })

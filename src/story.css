@@ -199,20 +199,23 @@ html[data-mode='ascii'] .story-progress { display: none; }
   .contact-chapter footer { flex-direction: column; }
 }
 
-/* Separate glyphs preserve real stroke order in both responsive arrangements. */
-.chinese-name-drawing { position: absolute; inset: 5% 2%; display: flex; align-items: center; justify-content: center; pointer-events: none; color: #c4deff; opacity: .43; }
-.chinese-name-drawing > svg { width: 33.333%; max-height: 100%; overflow: visible; }
-.name-pen-stroke { fill: none; stroke: currentColor; stroke-width: 180; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: name-pen .48s cubic-bezier(.3,0,.3,1) var(--pen-delay) both; }
-.english-name-drawing { display: block; width: 2.98em; }
-.english-name-drawing svg { width: 100%; overflow: visible; }
-.english-name-drawing text { font-family: 'Hanken Grotesk', sans-serif; font-size: 150px; font-weight: 400; letter-spacing: -7px; fill: currentColor; fill-opacity: 0; stroke: currentColor; stroke-width: .65; stroke-dasharray: 700; stroke-dashoffset: 700; animation: english-name-ink 2.6s ease .15s both; }
-@keyframes name-pen { to { stroke-dashoffset: 0; } }
-@keyframes english-name-ink { 0% { stroke-dashoffset: 700; fill-opacity: 0; } 70% { fill-opacity: 0; } 100% { stroke-dashoffset: 0; fill-opacity: 1; stroke-opacity: 0; } }
+/* A replayable handwritten wordmark; the photo stays free of background lettering. */
+.hero-copy h1 .name-drawing { display: block; position: relative; width: min(3.15em, 100%); padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; touch-action: manipulation; }
+.name-drawing-art { display: block; height: 1.22em; }
+.english-name-lettering { display: block; width: 100%; height: 100%; overflow: visible; }
+.chinese-name-lettering { display: flex; width: 100%; height: 100%; align-items: center; gap: .04em; }
+.chinese-name-lettering > svg { width: 33.333%; height: 100%; overflow: visible; }
+.name-pen-stroke, .english-pen-stroke { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: name-pen var(--pen-duration) cubic-bezier(.32,.1,.45,1) var(--pen-delay) both; }
+.name-pen-stroke { stroke-width: 180; }
+.english-pen-stroke { stroke-width: 3.6; }
+.name-drawing-hint { display: block; margin-top: 8px; font: 400 10px/1.5 var(--font-sans); letter-spacing: .08em; color: #c6d3e5; opacity: .8; }
+.name-drawing:focus-visible { outline: 1px solid #afccff; outline-offset: 12px; border-radius: 4px; }
+@keyframes name-pen { 0% { stroke-opacity: 0; } 1% { stroke-opacity: 1; } 100% { stroke-dashoffset: 0; stroke-opacity: 1; } }
 @media (max-width: 700px) {
-  .chinese-name-drawing { inset: 7% 0 5%; flex-direction: column; }
-  .chinese-name-drawing > svg { width: auto; height: 33.333%; max-width: 90%; }
+  .hero-copy h1 .name-drawing { width: 100%; }
+  .name-drawing-art { height: 1.36em; }
+  .name-drawing-hint { font-size: 9px; letter-spacing: .04em; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .name-pen-stroke { animation: none; stroke-dashoffset: 0; }
-  .english-name-drawing text { animation: none; stroke: none; fill-opacity: 1; }
+  .name-pen-stroke, .english-pen-stroke { animation: none; stroke-dashoffset: 0; }
 }

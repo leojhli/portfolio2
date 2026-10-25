@@ -1,53 +1,82 @@
-import { useId, type CSSProperties } from "react"
+import { useId, useRef, useState, type CSSProperties } from "react"
 import li from "../assets/name/li.json"
 import jia from "../assets/name/jia.json"
 import he from "../assets/name/he.json"
 import { usePrefs } from "../state/preferences"
 
 const characters = [li, jia, he]
+// Original cursive lettering, following the pen rather than tracing glyph edges.
+const englishStrokes = [
+  "M75 122 C150 105 185 25 143 30 C110 33 107 137 67 177 C40 202 20 170 57 163 C96 153 126 185 164 169 C191 151 205 129 187 127 C157 126 151 179 183 178 C206 177 225 151 230 138 C209 125 199 169 222 176 C251 185 272 138 250 132 C234 122 226 142 238 148 C250 155 275 143 285 135",
+  "M375 122 C450 105 485 25 443 30 C410 33 407 137 367 177 C340 202 320 170 357 163 C396 153 426 185 464 169 C480 159 490 135 494 127 L480 161 Q472 184 499 174 L526 151",
+  "M502 102 L503 99",
+]
 
-/** Individual silhouettes clipped to their own pen trajectories, in stroke order. */
-export default function NameDrawing({ background = false }: { background?: boolean }) {
+export default function NameDrawing() {
   const id = useId().replace(/:/g, "")
   const { mode } = usePrefs()
-  if (mode === "ascii") return background ? null : <>Leo Li<span className="hero-period">.</span></>
-  if (!background) return (
-    <span className="english-name-drawing">
-      <span className="sr-only">Leo Li.</span>
-      <svg viewBox="0 0 520 160" aria-hidden="true">
-        <text x="0" y="132" textLength="500" lengthAdjust="spacingAndGlyphs">Leo Li.</text>
-      </svg>
-    </span>
-  )
-  let preceding = 0
+  const pointerFocus = useRef(false)
+  const [chinese, setChinese] = useState(false)
+  const [replay, setReplay] = useState(0)
+  if (mode === "ascii") return <>Leo Li<span className="hero-period">.</span><span className="sr-only"> / 李嘉和</span></>
+  const show = (value: boolean) => {
+    setChinese(value)
+    setReplay(n => n + 1)
+  }
   return (
-    <div className="chinese-name-drawing" aria-hidden="true">
-      {characters.map((character, index) => {
-        const start = preceding
-        preceding += character.strokes.length
-        return (
-          <svg key={index} viewBox="0 0 1024 1024" data-character={"李嘉和"[index]}>
-            <g transform="translate(0 900) scale(1 -1)">
-              {character.strokes.map((outline, stroke) => {
-                const clip = `${id}-${index}-${stroke}`
-                const median = character.medians[stroke]
-                return (
-                  <g key={stroke}>
-                    <defs><clipPath id={clip}><path d={outline} /></clipPath></defs>
-                    <path
-                      className="name-pen-stroke"
-                      clipPath={`url(#${clip})`}
-                      d={median.map(([x, y], point) => `${point ? "L" : "M"}${x} ${y}`).join(" ")}
-                      pathLength="1"
-                      style={{ "--pen-delay": `${0.35 + (start + stroke) * 0.115}s` } as CSSProperties}
-                    />
-                  </g>
-                )
-              })}
-            </g>
+    <button
+      type="button"
+      className="name-drawing"
+      aria-label="Leo Li — show or replay handwritten Chinese name"
+      aria-pressed={chinese}
+      aria-describedby={`${id}-hint`}
+      data-language={chinese ? "chinese" : "english"}
+      onPointerEnter={event => { if (event.pointerType === "mouse") show(true) }}
+      onPointerLeave={event => { if (event.pointerType === "mouse" && document.activeElement !== event.currentTarget) show(false) }}
+      onPointerDown={() => { pointerFocus.current = true }}
+      onFocus={() => { if (!pointerFocus.current) show(true) }}
+      onBlur={() => { pointerFocus.current = false; show(false) }}
+      onClick={() => { pointerFocus.current = false; show(!chinese) }}
+      onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); show(false) } }}
+    >
+      <span className="sr-only">Leo Li / 李嘉和</span>
+      <span className="name-drawing-art" key={`${chinese}-${replay}`} aria-hidden="true">
+        {chinese ? (
+          <span className="chinese-name-lettering">
+            {characters.map((character, index) => (
+              <svg key={index} viewBox="0 0 1024 1024" data-character={"李嘉和"[index]}>
+                <g transform="translate(0 900) scale(1 -1)">
+                  {character.strokes.map((outline, stroke) => {
+                    const clip = `${id}-${index}-${stroke}`
+                    return (
+                      <g key={stroke}>
+                        <defs><clipPath id={clip}><path d={outline} /></clipPath></defs>
+                        <path
+                          className="name-pen-stroke"
+                          clipPath={`url(#${clip})`}
+                          d={character.medians[stroke].map(([x, y], point) => `${point ? "L" : "M"}${x} ${y}`).join(" ")}
+                          pathLength="1"
+                          style={{ "--pen-delay": `${stroke * .18}s`, "--pen-duration": ".42s" } as CSSProperties}
+                        />
+                      </g>
+                    )
+                  })}
+                </g>
+              </svg>
+            ))}
+          </span>
+        ) : (
+          <svg className="english-name-lettering" viewBox="0 0 560 230">
+            {englishStrokes.map((d, index) => (
+              <path key={index} d={d} className="english-pen-stroke" pathLength="1"
+                style={{ "--pen-delay": `${[0, 1.35, 2.55][index]}s`, "--pen-duration": `${[1.5, 1.3, .15][index]}s` } as CSSProperties} />
+            ))}
           </svg>
-        )
-      })}
-    </div>
+        )}
+      </span>
+      <span className="name-drawing-hint" id={`${id}-hint`} aria-hidden="true">
+        {chinese ? "Tap to write in English" : "Hover or tap to write in Chinese"}
+      </span>
+    </button>
   )
 }
