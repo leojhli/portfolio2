@@ -25,6 +25,8 @@ Dynamic mode uses Hanken Grotesk, animated hairline links and a local liquid cur
 
 The header and favicon share a custom angular LL monogram. Reusable SVG/PNG assets and size previews are described in [brand assets](docs/brand/README.md).
 
+At the end of Contact, Tensa Zangetsu opens an optional [BLEACH-inspired 3D world](docs/spirit-world.md), with a Garganta crossing, original slash/tear effects and the supplied Treachery soundtrack. Its four locations connect back to Experience, Projects, About and Contact.
+
 ## Editing
 
 - `src/content/data.ts`: profile, contact destinations, experience, projects, and game clips.

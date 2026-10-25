@@ -38,7 +38,7 @@ export default function ContourBackground() {
     let raf = 0,
       last = 0,
       disposed = false,
-      visible = scrollY > innerHeight * 0.12
+      visible = scrollY > innerHeight * 0.12 && !document.documentElement.dataset.spiritWorld
     const compile = (kind: number, source: string) => {
       const shader = g.createShader(kind)
       if (!shader) return false
@@ -107,7 +107,7 @@ export default function ContourBackground() {
       if (!raf) draw(performance.now())
     }
     const wake = () => {
-      visible = scrollY > innerHeight * 0.12
+      visible = scrollY > innerHeight * 0.12 && !document.documentElement.dataset.spiritWorld
       if (document.hidden || !visible) {
         cancelAnimationFrame(raf)
         raf = 0
@@ -123,6 +123,7 @@ export default function ContourBackground() {
     el.addEventListener("webglcontextlost", lost)
     addEventListener("resize", resize)
     addEventListener("portfolio:frame", wake)
+    addEventListener("portfolio:world", wake)
     document.addEventListener("visibilitychange", wake)
     resize()
     setReady(true)
@@ -131,6 +132,7 @@ export default function ContourBackground() {
       cancelAnimationFrame(raf)
       removeEventListener("resize", resize)
       removeEventListener("portfolio:frame", wake)
+      removeEventListener("portfolio:world", wake)
       document.removeEventListener("visibilitychange", wake)
       el.removeEventListener("webglcontextlost", lost)
       release()

@@ -24,13 +24,13 @@ export default function SoundControl() {
     const eligible = (target: HTMLElement | null) =>
       target &&
       !target.matches(':disabled,[aria-disabled="true"]') &&
-      !target.closest("[data-sound-toggle]")
+      !target.closest("[data-sound-toggle],[data-world-trigger],.garganta")
     const click = (event: MouseEvent) => {
       const target = control(event.target)
       if (document.hidden || !(event.target instanceof Element)) return
       if (
         event.target.closest(
-          '[data-sound-toggle],:disabled,[aria-disabled="true"],[role="scrollbar"]',
+          '[data-sound-toggle],[data-world-trigger],.garganta,:disabled,[aria-disabled="true"],[role="scrollbar"]',
         )
       )
         return

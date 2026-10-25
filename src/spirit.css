@@ -1,0 +1,84 @@
+/* A deliberately separate, optional world at the very end of the portfolio. */
+.bankai-discovery { position: relative; display: flex; flex-direction: column; align-items: center; padding: 90px 0 25px; text-align: center; }
+.bankai-discovery > .eyebrow { color: var(--c-muted); font-size: 10px; }
+.bankai-discovery > p { font-size: 12px; color: var(--c-muted); }
+.bankai-trigger { position: relative; display: flex; align-items: center; gap: 40px; min-height: 360px; padding: 25px 50px; cursor: pointer; color: var(--c-accent); }
+.bankai-trigger::before { content: ''; position: absolute; inset: 10% 15%; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb,var(--c-accent) 9%,transparent),transparent 65%); opacity: .4; transition: opacity .5s; }
+.bankai-sword { width: 85px; height: 330px; rotate: 22deg; filter: drop-shadow(0 0 14px #87bfff18); transition: rotate .65s cubic-bezier(.2,.8,.2,1), filter .5s; }
+.bankai-trigger:hover .bankai-sword, .bankai-trigger:focus-visible .bankai-sword { rotate: 12deg; filter: drop-shadow(0 0 18px #87bfff55); }
+.bankai-trigger:hover::before { opacity: 1; }
+.bankai-caption { display: flex; flex-direction: column; text-align: left; gap: 9px; font-size: 11px; letter-spacing: .14em; }
+.bankai-caption span:last-child { letter-spacing: .02em; color: var(--c-muted); font-size: 12px; }
+.bankai-ascii { font-size: 13px; line-height: 1.15; }
+.garganta { position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; overflow: hidden; background: #080e1c; color: #eef4fb; color-scheme: dark; }
+.garganta:not([open]) { display: none; }
+.garganta::backdrop { background: #030508; }
+.spirit-world-viewport { position: absolute; inset: 0; animation: spirit-arrive 2.4s cubic-bezier(.2,.6,.2,1) both; }
+.spirit-scene.stage { width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.spirit-scene:active { cursor: grabbing; }
+.spirit-scene .stage-gl { position: absolute; inset: 0; }
+.spirit-header { position: absolute; z-index: 12; inset: 0 0 auto; display: flex; justify-content: space-between; align-items: start; gap: 24px; padding: clamp(20px,3vw,48px); background: linear-gradient(#050910bb,transparent); pointer-events: none; }
+.spirit-header button { pointer-events: auto; }
+.spirit-eyebrow { font-size: 10px; letter-spacing: .17em; color: #a9c3df; text-transform: uppercase; }
+.spirit-header h2 { font-size: clamp(25px,4vw,52px); font-weight: 300; letter-spacing: -.045em; line-height: 1.15; margin-top: 12px; }
+.spirit-header p:last-child { font-size: 12px; color: #b7c5d4; margin-top: 10px; }
+.spirit-button { font-size: 11px; border: 1px solid #bddefb44; border-radius: 100px; background: #09121dcc; color: #edf5ff; padding: 10px 16px; min-height: 40px; cursor: pointer; transition: background .2s; }
+.spirit-button:hover { background: #233b57; }
+.spirit-toolbar { position: absolute; z-index: 5; bottom: 128px; left: 30px; right: 30px; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.spirit-toolbar > span { font-size: 11px; color: #adbed1; text-shadow: 0 1px 8px #000; }
+.spirit-locations { position: absolute; z-index: 6; bottom: 40px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(4,1fr); width: min(760px,calc(100% - 48px)); border: 1px solid #bedbff33; border-radius: 8px; background: #070f1edb; backdrop-filter: blur(16px); }
+.spirit-locations button { min-width: 0; padding: 13px 20px; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; text-align: left; font-size: 12px; cursor: pointer; }
+.spirit-locations button > span { color: #82b4df; font-size: 10px; }
+.spirit-locations small { grid-column: 2; color: #91a1b6; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
+.spirit-locations button[aria-pressed='true'] { background: #29537966; color: #fff; }
+.spirit-hotspot { position: absolute; z-index: 2; left: 0; top: 0; display: flex; align-items: center; gap: 8px; padding: 9px 13px 9px 9px; background: #07111ed9; border: 1px solid #bde4ff88; border-radius: 100px; font-size: 10px; color: #e7f4ff; white-space: nowrap; cursor: pointer; }
+.spirit-hotspot > span:first-child { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #a9d6ff; color: #081423; font-size: 9px; }
+.spirit-hotspot[aria-pressed='true'] { background: #163a58; border-color: #d0efff; }
+.spirit-note { position: absolute; z-index: 7; top: 27%; right: clamp(20px,4vw,65px); width: min(330px,calc(100% - 40px)); max-height: 48%; overflow: auto; padding: 28px; background: #0b1527ee; border: 1px solid #c1dcf333; border-radius: 8px; animation: spirit-note-in .4s ease both; }
+.spirit-note h3 { font-size: 28px; font-weight: 400; margin-top: 12px; letter-spacing: -.04em; }
+.spirit-note-lead { margin-top: 8px; font-size: 13px; color: #bfd5eb; }
+.spirit-note-quote { margin: 18px 0; padding-left: 12px; border-left: 1px solid #7898b8; color: #96abc2; font-size: 12px; }
+.spirit-note > p, .spirit-note li { font-size: 12px; }
+.spirit-note li { margin-top: 15px; display: grid; gap: 4px; }
+.spirit-note li span { color: #9db0c7; }
+.spirit-note-close { position: absolute; right: 12px; top: 8px; width: 32px; height: 32px; cursor: pointer; font-size: 24px; color: #bcd3e9; }
+.spirit-link { display: inline-block; margin-top: 22px; padding-block: 8px; color: #b8e1ff; text-decoration: underline; text-underline-offset: 5px; font-size: 12px; }
+.spirit-credit { position: absolute; bottom: 12px; width: 100%; text-align: center; font-size: 9px; color: #92a3bb; letter-spacing: .03em; pointer-events: none; }
+.spirit-loading, .spirit-fallback { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; color: #bedfff; background: radial-gradient(ellipse at 50% 35%,#1a2d45,#080e1c 70%); }
+.spirit-fallback pre { font-size: clamp(8px,1.5vw,16px); color: #92c7ef; }
+.spirit-fallback small { max-width: 36ch; text-align: center; color: #94abc2; font-size: 11px; }
+.spirit-audio-error { position: absolute; bottom: 181px; left: 20px; z-index: 8; font-size: 11px; background: #09121dee; padding: 8px 12px; border-radius: 5px; }
+.garganta-rift { position: absolute; z-index: 10; inset: 0; overflow: hidden; pointer-events: none; }
+.garganta[data-entered='true'] .garganta-rift { display: none; }
+.rift-upper, .rift-lower { position: absolute; inset: -5%; background: #020305; }
+.rift-upper { clip-path: polygon(0 0,100% 0,100% 49%,94% 47%,90% 53%,83% 48%,77% 52%,70% 47%,63% 51%,56% 48%,50% 52%,44% 49%,38% 53%,31% 47%,24% 51%,18% 47%,11% 52%,5% 48%,0 51%); animation: rift-up 2.35s cubic-bezier(.7,0,.22,1) both; }
+.rift-lower { clip-path: polygon(0 51%,5% 48%,11% 52%,18% 47%,24% 51%,31% 47%,38% 53%,44% 49%,50% 52%,56% 48%,63% 51%,70% 47%,77% 52%,83% 48%,90% 53%,94% 47%,100% 49%,100% 100%,0 100%); animation: rift-down 2.35s cubic-bezier(.7,0,.22,1) both; }
+.rift-cut { position: absolute; left: -5%; top: 50%; width: 110%; height: 2px; rotate: -9deg; background: #eaf7ff; box-shadow: 0 0 14px #cbe6ff; transform-origin: left; animation: rift-slash 1.05s ease both; }
+.spirit-skip { position: absolute; z-index: 12; top: 52%; left: 50%; transform: translateX(-50%); }
+@keyframes rift-slash { 0% { scale: 0 1; opacity: 0; } 8% { opacity: 1; } 28% { scale: 1 1; } 55% { opacity: .7; } 100% { opacity: 0; } }
+@keyframes rift-up { 0%,12% { translate: 0 0; } 50% { translate: 0 -18%; } 100% { translate: 0 -65%; } }
+@keyframes rift-down { 0%,12% { translate: 0 0; } 50% { translate: 0 18%; } 100% { translate: 0 65%; } }
+@keyframes spirit-arrive { from { scale: 1.16; filter: brightness(.3); } to { scale: 1; filter: brightness(1); } }
+@keyframes spirit-note-in { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: 0 0; } }
+html[data-mode='ascii'] .garganta { background: #080e1c; color: #d3e7ff; }
+html[data-mode='ascii'] .garganta .spirit-note, html[data-mode='ascii'] .garganta .spirit-locations { background: #08101eee; }
+html[data-mode='ascii'] .garganta .rift-cut { background: none; }
+html[data-mode='ascii'] .garganta .rift-cut::after { content: '///------------------- GARGANTA -------------------///'; color: #d5edff; white-space: nowrap; }
+@media(max-width:700px) {
+  .bankai-trigger { padding-inline: 20px; gap: 28px; }
+  .bankai-caption { font-size: 9px; }
+  .spirit-header { padding: 18px; }
+  .spirit-header p:last-child { max-width: 23ch; font-size: 10px; }
+  .spirit-header .spirit-button { padding-inline: 12px; }
+  .spirit-toolbar { left: 12px; right: 12px; bottom: 162px; gap: 6px; flex-wrap: wrap; }
+  .spirit-toolbar > span { width: 100%; order: 3; text-align: center; font-size: 9px; }
+  .spirit-toolbar .spirit-button { font-size: 10px; padding-inline: 10px; }
+  .spirit-locations { grid-template-columns: repeat(2,1fr); bottom: 36px; width: calc(100% - 24px); }
+  .spirit-locations button { padding: 8px 12px; font-size: 11px; }
+  .spirit-note { top: 23%; right: 12px; padding: 20px; max-height: calc(77% - 235px); width: min(300px,calc(100% - 24px)); }
+  .spirit-note h3 { font-size: 22px; }
+  .spirit-hotspot > span:last-child { display: none; }
+  .spirit-hotspot { padding: 4px; }
+  .spirit-credit { font-size: 8px; padding-inline: 12px; }
+}
+@media(max-height:600px) { .spirit-header p:last-child, .spirit-toolbar > span, .spirit-note-quote { display: none; } .spirit-header h2 { font-size: 24px; } .spirit-note { top: 18%; max-height: calc(82% - 190px); } }

@@ -219,6 +219,7 @@ export function createRenderer(
       sequence ||
       !enabled() ||
       ascii() ||
+      document.querySelector(".garganta[open]") ||
       document.documentElement.dataset.cursorBarrier === "off"
     )
       return

@@ -1,0 +1,1 @@
+Chinese name glyph data: unmodified 李, 嘉, 和 from hanzi-writer-data 2.0.1 (https://github.com/chanind/hanzi-writer-data), derived from Make Me A Hanzi and Arphic fonts. Copyright (C) 1999 Arphic Technology Co., Ltd. Distributed under the accompanying ARPHICPL.TXT. The three JSON datasets are kept separately to preserve independent stroke sequences and responsive composition.

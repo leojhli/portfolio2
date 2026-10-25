@@ -29,6 +29,7 @@ before(async () => {
       "/src/effects/EffectsLayer.tsx",
       "/src/three/PoolView.tsx",
       "/src/three/PlanetView.tsx",
+      "/src/three/SpiritWorldView.tsx",
     ].map((path) => server.ssrLoadModule(path)),
   )
   App = (await server.ssrLoadModule("/src/App.tsx")).default
@@ -931,6 +932,42 @@ test("background clicks, typing and object activation have distinct sound timbre
   }
 })
 
+test("Bankai portal hands off music, supports fallback locations, and restores focus on exit", async () => {
+  const f = fixture({stored:{"pf.sound":"off"}}), unmount = await mountApp(f)
+  try {
+    assert.equal(f.audioInstances.length,0,"portal soundtrack never autoplays")
+    await click(document.querySelector('[aria-label="Play"]'))
+    const original=f.audioInstances[0]
+    original.currentTime=37
+    const trigger=document.querySelector('[data-world-trigger]')
+    await click(trigger)
+    const portal=document.querySelector('dialog.garganta'), song=f.audioInstances[1]
+    assert.equal(portal.open,true)
+    assert.equal(document.documentElement.style.overflow,"hidden")
+    assert.equal(original.paused,true)
+    assert.equal(song.src,"/music/spirit-world/treachery.mp3")
+    assert.equal(song.paused,false)
+    await click(byText("button","Skip entrance"))
+    assert.equal(portal.dataset.entered,"true")
+    assert.ok(portal.querySelector(".spirit-fallback"),"non-WebGL devices retain the experience")
+    await click(portal.querySelectorAll('.spirit-locations button')[1])
+    assert.ok(portal.querySelector('.spirit-note').textContent.includes('The archive'))
+    await click(portal.querySelector('.spirit-note a'))
+    assert.equal(portal.open,false)
+    assert.equal(location.hash,"#projects")
+    assert.equal(song.paused,true)
+    assert.equal(original.paused,false)
+    assert.equal(original.currentTime,37)
+    assert.equal(document.documentElement.style.overflow,"")
+    await click(trigger)
+    assert.equal(f.audioInstances.length,2,"reentry reuses the soundtrack")
+    await act(async()=>portal.dispatchEvent(new Event("cancel",{cancelable:true})))
+    assert.equal(portal.open,false)
+    assert.equal(document.activeElement,trigger)
+    assert.equal(original.paused,false)
+  } finally { await unmount() }
+})
+
 test("rail focus reveals hidden controls and resizing preserves chapter position", async () => {
   const f = fixture(),
     unmount = await mountApp(f)
@@ -1316,4 +1353,21 @@ test("new defaults replace legacy preferences once, while new explicit choices r
   } finally {
     await unmount()
   }
+})
+
+test("hero names use independent Chinese stroke clips and retain an accessible English heading", async () => {
+  const f = fixture(), unmount = await mountApp(f)
+  try {
+    const characters = [...document.querySelectorAll(".chinese-name-drawing > svg")]
+    assert.deepEqual(characters.map(el => el.dataset.character), ["李", "嘉", "和"])
+    const strokes = [...document.querySelectorAll(".name-pen-stroke")]
+    assert.equal(strokes.length, 29)
+    const delays = strokes.map(el => parseFloat(el.style.getPropertyValue("--pen-delay")))
+    assert.ok(delays.every((delay, i) => !i || delay > delays[i - 1]))
+    for (const stroke of strokes) {
+      const id = stroke.getAttribute("clip-path").slice(5, -1)
+      assert.ok(document.getElementById(id)?.querySelector("path").getAttribute("d"))
+    }
+    assert.equal(document.querySelector("#intro-h .sr-only").textContent, "Leo Li.")
+  } finally { await unmount() }
 })

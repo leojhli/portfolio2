@@ -13,6 +13,8 @@ import Photo from "./Photo"
 import Signature from "./Signature"
 import ContourBackground from "./ContourBackground"
 import OverlayScrollbar from "./OverlayScrollbar"
+import Garganta from "./Garganta"
+import NameDrawing from "./NameDrawing"
 import AsciiDecorations from "./AsciiDecorations"
 import { ContactLinks } from "./ui"
 
@@ -147,11 +149,11 @@ export default function Page() {
                 eager
               />
               <div className="hero-shade" aria-hidden="true" />
+              <NameDrawing background />
               <div className="hero-copy">
                 <p className="eyebrow">{c.profile.headline}</p>
                 <h1 id="intro-h" tabIndex={-1}>
-                  {c.profile.displayName}
-                  <span className="hero-period">.</span>
+                  <NameDrawing />
                 </h1>
                 <div className="hero-byline">
                   <span lang="zh-Hans">{c.profile.chineseName}</span>
@@ -501,6 +503,7 @@ export default function Page() {
               </div>
               <Signature />
             </div>
+            <Garganta />
             <footer>
               <span>
                 © {c.profile.displayName}{" "}
