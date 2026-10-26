@@ -1,7 +1,7 @@
-import { monogramParts } from "../content/monogram"
+import { monogramParts, monogramViewBox } from "../content/monogram"
 import { usePrefs } from "../state/preferences"
 
-/** A structured 李 silhouette, with restrained Latin-inspired angular joins. */
+/** Exact supplied silhouette, with the established color groups and glow. */
 export default function Logo() {
   const { mode } = usePrefs()
   if (mode === "ascii")
@@ -14,7 +14,7 @@ export default function Logo() {
     <svg
       width="44"
       height="56"
-      viewBox="0 0 128 154"
+      viewBox={monogramViewBox}
       className="surname-mark"
       fill="currentColor"
       aria-hidden="true"

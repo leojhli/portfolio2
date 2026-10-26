@@ -1,38 +1,39 @@
-/** Original 李 lettermark: preserve 木 over 子 before suggesting Latin letterforms. */
+/** Direct vector trace of the user-approved design (clipboard af0d9d26). */
+export const monogramViewBox = "55 7 704 1158"
 export const monogramParts = [
   {
-    "id": "wood-upper-L",
+    "id": "upper-left",
+    "tone": "coral",
+    "d": "M183 351 L395 283 L395 568 L314 602 L314 394 L176 429 Z"
+  },
+  {
+    "id": "upper-right",
     "tone": "blue",
-    "d": "M58 10 H70 V28 H102 V40 H58 Z"
+    "d": "M423 55 L490 31 L490 294 L700 227 L697 287 L423 380 Z"
   },
   {
-    "id": "wood-lower-L",
+    "id": "dot",
     "tone": "coral",
-    "d": "M26 28 H56 V42 H70 V68 H58 V40 H26 Z"
+    "d": "M252 443 L290 443 L265 481 L225 474 Z"
   },
   {
-    "id": "wood-left-arm",
+    "id": "left-leg",
     "tone": "coral",
-    "d": "M54 44 L62 51 L25 81 L11 81 Z"
+    "d": "M208 500 L250 507 L157 647 L79 631 Z"
   },
   {
-    "id": "wood-right-arm",
+    "id": "right-leg",
     "tone": "ink",
-    "d": "M72 44 L117 81 H103 L65 51 Z"
+    "d": "M435 406 L521 406 L735 622 L626 620 Z"
   },
   {
-    "id": "child-fold",
+    "id": "lower-hook",
     "tone": "blue",
-    "d": "M36 82 H92 V89 L70 108 L62 100 L77 93 H36 Z"
+    "d": "M224 675 L531 560 L538 643 L378 847 L360 1141 L237 1062 L266 1015 L300 1040 L314 866 L140 928 L136 845 L321 791 L407 677 L224 743 Z"
   },
   {
-    "id": "child-hook",
+    "id": "counter",
     "tone": "blue",
-    "d": "M59 99 H71 V132 Q71 144 60 144 H47 L43 133 H58 Q59 133 59 129 Z"
-  },
-  {
-    "id": "child-crossbar",
-    "tone": "blue",
-    "d": "M16 111 H112 V122 H16 Z"
+    "d": "M466 770 L651 724 L596 806 L407 850 Z M489 790 L574 766 L556 798 L472 815 Z"
   }
 ] as const
