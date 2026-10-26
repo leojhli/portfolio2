@@ -291,8 +291,11 @@ html[data-mode='ascii'] .music-dock-panel { background: var(--c-bg); }
 .story-header .surname-mark { display: block; width: 44px; height: 56px; overflow: visible; }
 .surname-mark .mark-coral { fill: #ff6b80; }
 .surname-mark .mark-blue { fill: #66dfff; }
-.surname-mark .mark-ink { fill: currentColor; }
-.surname-mark { filter: drop-shadow(0 0 3px #66dfff66) drop-shadow(0 0 10px #268dff45); }
+.surname-mark .mark-ink { fill: #ffffff; filter: none; }
+.surname-mark { filter: none; }
+/* Glow only the coloured pieces so the white diagonal stays neutral. */
+.surname-mark :is(.mark-coral,.mark-blue) { filter: drop-shadow(0 0 25px #66dfff66) drop-shadow(0 0 70px #268dff45); }
+html[data-palette='paper'] .surname-mark .mark-ink { filter: drop-shadow(0 0 12px #0006); }
 html[data-palette='paper'] .surname-mark .mark-coral { fill: #ce395e; }
 html[data-palette='paper'] .surname-mark .mark-blue { fill: #176dc3; }
 html[data-hero-visible='true'] .story-header { color: #eef5ff; }

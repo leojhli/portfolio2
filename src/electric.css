@@ -22,7 +22,8 @@ html[data-palette='electric-blue'][data-mode='dynamic'] {
   }
   .story-header { background: transparent; box-shadow: none; backdrop-filter: none; }
   .brand-home { color: var(--neon-cyan); }
-  .brand-home svg { filter: drop-shadow(0 0 5px #44efff8c) drop-shadow(0 0 14px #268dff66); }
+  .brand-home .surname-mark { filter: none; }
+  .surname-mark :is(.mark-coral,.mark-blue) { filter: drop-shadow(0 0 40px #44efff8c) drop-shadow(0 0 110px #268dff66); }
   .english-name-lettering, .chinese-name-lettering, .signature svg {
     color: #d7faff;
     filter: drop-shadow(0 0 3px #44efffa0) drop-shadow(0 0 12px #268dff80);
