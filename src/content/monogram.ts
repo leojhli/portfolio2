@@ -1,38 +1,38 @@
-/** Original Leo Li / 李 lettermark, redrawn from the supplied sketch. */
+/** Original 李 lettermark: preserve 木 over 子 before suggesting Latin letterforms. */
 export const monogramParts = [
   {
-    "id": "upper-left",
-    "tone": "coral",
-    "d": "M24 42 L52 32 L52 80 L40 84 L40 50 L24 56 Z"
-  },
-  {
-    "id": "upper-right",
+    "id": "wood-upper-L",
     "tone": "blue",
-    "d": "M60 14 L72 10 L72 42 L100 32 L100 48 L60 62 Z"
+    "d": "M58 10 H70 V28 H102 V40 H58 Z"
   },
   {
-    "id": "dot",
+    "id": "wood-lower-L",
     "tone": "coral",
-    "d": "M28 62 L38 65 L31 72 L21 69 Z"
+    "d": "M26 28 H56 V42 H70 V68 H58 V40 H26 Z"
   },
   {
-    "id": "left-leg",
+    "id": "wood-left-arm",
     "tone": "coral",
-    "d": "M26 76 L37 80 L24 96 L9 96 Z"
+    "d": "M54 44 L62 51 L25 81 L11 81 Z"
   },
   {
-    "id": "right-leg",
+    "id": "wood-right-arm",
     "tone": "ink",
-    "d": "M70 66 L83 66 L104 96 L88 96 Z"
+    "d": "M72 44 L117 81 H103 L65 51 Z"
   },
   {
-    "id": "lower-hook",
+    "id": "child-fold",
     "tone": "blue",
-    "d": "M36 104 L91 104 L70 128 L67 152 L49 152 L50 142 L57 142 L60 125 L16 132 L19 119 L55 114 L62 112 L31 112 Z"
+    "d": "M36 82 H92 V89 L70 108 L62 100 L77 93 H36 Z"
   },
   {
-    "id": "counter",
+    "id": "child-hook",
     "tone": "blue",
-    "d": "M84 119 L112 115 L103 129 L74 133 Z M88 123 L85 127 L99 125 L102 121 Z"
+    "d": "M59 99 H71 V132 Q71 144 60 144 H47 L43 133 H58 Q59 133 59 129 Z"
+  },
+  {
+    "id": "child-crossbar",
+    "tone": "blue",
+    "d": "M16 111 H112 V122 H16 Z"
   }
 ] as const

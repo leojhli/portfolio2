@@ -1,7 +1,7 @@
 import { monogramParts } from "../content/monogram"
 import { usePrefs } from "../state/preferences"
 
-/** The Latin letterforms of Leo Li recomposed into the structure of 李. */
+/** A structured 李 silhouette, with restrained Latin-inspired angular joins. */
 export default function Logo() {
   const { mode } = usePrefs()
   if (mode === "ascii")
@@ -14,7 +14,7 @@ export default function Logo() {
     <svg
       width="44"
       height="56"
-      viewBox="0 0 124 160"
+      viewBox="0 0 128 154"
       className="surname-mark"
       fill="currentColor"
       aria-hidden="true"
