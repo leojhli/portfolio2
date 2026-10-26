@@ -11,7 +11,7 @@ html[data-mode='ascii'] .overlay-scrollbar > span { background: none; overflow: 
 html[data-mode='ascii'] .overlay-scrollbar > span::after { content: '|\A|\A|\A|\A|\A|\A|\A|'; white-space: pre; color: var(--c-muted); }
 @layer base { body { background-image: none; background-attachment: initial; } }
 .story { position: relative; z-index: 1; }
-.story-header { position: fixed; inset: 0 0 auto; display: flex; align-items: center; gap: 24px; z-index: 50; padding: 18px clamp(20px,4vw,72px); background: color-mix(in srgb,var(--c-bg) 88%,transparent); backdrop-filter: blur(14px); }
+.story-header { position: fixed; inset: 0 0 auto; display: flex; align-items: center; gap: 24px; z-index: 50; padding: 18px clamp(20px,4vw,72px); background: transparent; backdrop-filter: none; }
 .header-location { font-size: 10px; font-weight: 500; letter-spacing: .13em; margin-right: auto; }
 .header-location > span { color: var(--c-accent); padding-inline: 8px; }
 .story-header [aria-label='Appearance settings'] { flex-wrap: nowrap; }
@@ -156,7 +156,7 @@ html[data-mode='ascii'] .hero-shade { background: linear-gradient(90deg,#030710b
 html[data-mode='ascii'] .hero-copy, html[data-mode='ascii'] .hero-scroll { color: #f3f5f8; }
 html[data-mode='ascii'] .hero-scenery { opacity: .5; }
 html[data-mode='ascii'] .hero-portrait { rotate: none; }
-html[data-mode='ascii'] .story-header, html[data-mode='ascii'] .story-status { background: var(--c-bg); }
+html[data-mode='ascii'] .story-status { background: var(--c-bg); }
 html[data-mode='ascii'] .theme-dot::before { content: "*"; color: var(--c-accent); }
 html[data-mode='ascii'] .signature canvas { display: block; }
 html[data-mode='ascii'] .story-progress { display: none; }
@@ -283,4 +283,23 @@ html[data-mode='ascii'] .music-dock-panel { background: var(--c-bg); }
   .hero-bottom { bottom: calc(var(--taskbar-height) + 44px); }
   .signature-hero { width: clamp(100px,16svh,140px); }
   .hero-bottom > .eyebrow { display: none; }
+}
+
+/* The header floats directly over the full-bleed hero photograph. */
+.story-header .brand-home { width: 48px; height: 58px; padding: 0; flex-shrink: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.story-header .brand-home:is(:hover,:focus-visible) { background: transparent; }
+.story-header .surname-mark { display: block; width: 44px; height: 56px; overflow: visible; }
+.surname-mark .mark-coral { fill: #ff6b80; }
+.surname-mark .mark-blue { fill: #66dfff; }
+.surname-mark .mark-ink { fill: currentColor; }
+.surname-mark { filter: drop-shadow(0 0 3px #66dfff66) drop-shadow(0 0 10px #268dff45); }
+html[data-palette='paper'] .surname-mark .mark-coral { fill: #ce395e; }
+html[data-palette='paper'] .surname-mark .mark-blue { fill: #176dc3; }
+html[data-hero-visible='true'] .story-header { color: #eef5ff; }
+html[data-hero-visible='true'] .surname-mark .mark-blue { fill: #66dfff; }
+html[data-hero-visible='true'] .surname-mark .mark-coral { fill: #ff6b80; }
+.story-header .pop, .story-header .presentation-switch { background: color-mix(in srgb,var(--c-bg) 65%,transparent); }
+@media(max-width: 540px) {
+  .story-header .brand-home { width: 36px; height: 46px; }
+  .story-header .surname-mark { width: 34px; height: 44px; }
 }

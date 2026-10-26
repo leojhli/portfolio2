@@ -16,10 +16,11 @@ html[data-palette='electric-blue'][data-mode='dynamic'] {
   .hero-shade {
     background: radial-gradient(ellipse at 0% 55%,#0066ff35,transparent 58%),linear-gradient(90deg,#030711b8,transparent 85%),linear-gradient(0deg,#030611f2,transparent 78%);
   }
-  .story-header, .story-status {
+  .story-status {
     background: #030918ed;
     box-shadow: 0 0 42px #087dff20;
   }
+  .story-header { background: transparent; box-shadow: none; backdrop-filter: none; }
   .brand-home { color: var(--neon-cyan); }
   .brand-home svg { filter: drop-shadow(0 0 5px #44efff8c) drop-shadow(0 0 14px #268dff66); }
   .english-name-lettering, .chinese-name-lettering, .signature svg {

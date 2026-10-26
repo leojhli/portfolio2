@@ -1,6 +1,7 @@
+import { monogramParts } from "../content/monogram"
 import { usePrefs } from "../state/preferences"
 
-/** Interlocking forward-cut Ls, drawn on one consistent diagonal grid. */
+/** The Latin letterforms of Leo Li recomposed into the structure of 李. */
 export default function Logo() {
   const { mode } = usePrefs()
   if (mode === "ascii")
@@ -11,14 +12,15 @@ export default function Logo() {
     )
   return (
     <svg
-      width="38"
-      height="38"
-      viewBox="0 0 48 40"
+      width="44"
+      height="56"
+      viewBox="0 0 124 160"
+      className="surname-mark"
       fill="currentColor"
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M12 4H21L10 29H29L25 37H0L12 4ZM29 4H38L31 20H48L43 28H18L29 4Z" />
+      {monogramParts.map(part => <path key={part.id} data-part={part.id} className={`mark-${part.tone}`} fillRule="evenodd" d={part.d} />)}
     </svg>
   )
 }

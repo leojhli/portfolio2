@@ -133,6 +133,8 @@ export default function Deck({
       if (disposed) return
       if (dirty) measure()
       const y = scrollY
+      const heroVisible = String((positions[1] ?? innerHeight) - y > 110)
+      if (html.dataset.heroVisible !== heroVisible) html.dataset.heroVisible = heroVisible
       let readingIndex = 0
       for (let i = 0; i < positions.length; i++)
         if (positions[i] <= y + 1) readingIndex = i
@@ -321,6 +323,7 @@ export default function Deck({
         ].forEach((p) => node.style.removeProperty(p)),
       )
       delete html.dataset.rails
+      delete html.dataset.heroVisible
     }
   }, [motion, mode])
   const navActive = ["gallery", "playground", "listening", "games"].includes(
