@@ -7,17 +7,33 @@ export default function BankaiSword() {
     return (
       <pre aria-hidden="true" className="bankai-ascii">
         {
-          "        /\n       /|\n       ||\n       ||\n       ||\n       ||\n       ||\n       ||\n     +-++\n      +++-+\n       ##\n       ##\n       ##\n        o\n       o\n        o"
+          [
+            "                            o--o",
+            "                          o",
+            "                       ##",
+            "                     ##",
+            "                  +-++",
+            "                 ++-+",
+            "               //",
+            "             //",
+            "           //",
+            "         //",
+            "       //",
+            "     //",
+            "   //",
+            "  /",
+          ].join("\n")
         }
       </pre>
     )
   return (
     <svg
       className="bankai-sword"
-      viewBox="0 0 120 440"
+      viewBox="0 0 360 360"
       fill="none"
       aria-hidden="true"
     >
+      <g transform="translate(180 180) rotate(-135) translate(-60 -220)">
       <path
         className="bankai-blade"
         d="M67 18C75 100 69 200 59 304L48 303C59 194 66 101 61 38Z"
@@ -56,6 +72,7 @@ export default function BankaiSword() {
         <ellipse cx="46" cy="412" rx="3" ry="6" transform="rotate(25 46 412)" />
         <ellipse cx="41" cy="421" rx="3" ry="6" transform="rotate(30 41 421)" />
         <ellipse cx="34" cy="428" rx="3" ry="6" transform="rotate(60 34 428)" />
+      </g>
       </g>
     </svg>
   )
