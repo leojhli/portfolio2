@@ -1,5 +1,10 @@
 import * as THREE from "three"
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js"
+import { createSpiritMaterials } from "./spiritMaterials"
+import { addSpiritArchitecture } from "./spiritArchitecture"
+import { createSpiritCharacters } from "./spiritCharacters"
+import { createSpiritGardens } from "./spiritGardens"
+import { createSpiritAtmosphere } from "./spiritAtmosphere"
 export type WorldObstacle = {
   minX: number
   maxX: number
@@ -20,9 +25,9 @@ export function createSpiritWorld(scene: THREE.Scene) {
       maxZ: z + d / 2,
     })
   scene.background = new THREE.Color("#131c38")
-  scene.fog = new THREE.FogExp2("#344269", 0.009)
-  scene.add(new THREE.HemisphereLight(0xbad5ff, 0x75648f, 1.5))
-  const moonlight = new THREE.DirectionalLight(0xffe5bf, 3.25)
+  scene.fog = new THREE.FogExp2("#46516c", 0.0075)
+  scene.add(new THREE.HemisphereLight(0xaec8f4, 0x49445e, 0.95))
+  const moonlight = new THREE.DirectionalLight(0xd8e6ff, 2.4)
   moonlight.position.set(-16, 28, 14)
   moonlight.castShadow = true
   moonlight.shadow.mapSize.set(2048, 2048)
@@ -37,7 +42,7 @@ export function createSpiritWorld(scene: THREE.Scene) {
   moonlight.shadow.bias = -0.0004
   moonlight.shadow.normalBias = 0.045
   scene.add(moonlight)
-  const rim = new THREE.DirectionalLight(0x83b8ff, 2.05)
+  const rim = new THREE.DirectionalLight(0x739bdc, 1.3)
   rim.position.set(16, 12, -22)
   scene.add(rim)
   const lanternLights: THREE.PointLight[] = []
@@ -48,7 +53,7 @@ export function createSpiritWorld(scene: THREE.Scene) {
     [-21, 9],
     [21, 9],
   ]) {
-    const light = new THREE.PointLight(0xffb75e, 18, 12, 1.7)
+    const light = new THREE.PointLight(0xffb75e, 28, 14, 1.7)
     light.position.set(x, 2.5, z)
     scene.add(light)
     lanternLights.push(light)
@@ -56,27 +61,23 @@ export function createSpiritWorld(scene: THREE.Scene) {
   const root = new THREE.Group()
   root.name = "Seireitei-inspired courtyard"
   scene.add(root)
-  const mat = (color: string, emissive?: string) =>
-    new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.8,
-      emissive: emissive ?? "#000000",
-      emissiveIntensity: emissive ? 0.85 : 0,
-    })
-  const white = mat("#e9e2ca"),
-    stone = mat("#6e7b91"),
-    roofMat = mat("#2a737b"),
-    roofEdge = mat("#3f9d9d"),
-    dark = mat("#222d3d"),
-    wood = mat("#79503a"),
-    trim = mat("#d5a76a"),
-    glow = mat("#ffe9b5", "#ffc66b"),
-    pink = mat("#ee95b5"),
-    palePink = mat("#ffd0df"),
-    green = mat("#438774"),
-    grass = mat("#365f5d"),
-    black = mat("#151b29")
-  const pavers = [mat("#a7acaf"), mat("#b7b8b6"), mat("#979fa7")]
+  const surfaces = createSpiritMaterials()
+  const {
+    plaster: white,
+    stone,
+    roof: roofMat,
+    roofEdge,
+    dark,
+    wood,
+    metal: trim,
+    glow,
+    palePink,
+    grass,
+    black,
+  } = surfaces
+  const pavers = surfaces.pavers
+  const gardens = createSpiritGardens(root, wood)
+  const atmosphere = createSpiritAtmosphere(scene)
   const box = (
     w: number,
     h: number,
@@ -108,21 +109,6 @@ export function createSpiritWorld(scene: THREE.Scene) {
     )
     m.position.set(x, y, z)
     parent.add(m)
-    return m
-  }
-  const beam = (
-    a: THREE.Vector3,
-    b: THREE.Vector3,
-    radius: number,
-    material: THREE.Material,
-    parent: THREE.Object3D = root,
-  ) => {
-    const m = cylinder(radius, a.distanceTo(b), 0, 0, 0, material, parent, 6)
-    m.position.copy(a).add(b).multiplyScalar(0.5)
-    m.quaternion.setFromUnitVectors(
-      new THREE.Vector3(0, 1, 0),
-      b.clone().sub(a).normalize(),
-    )
     return m
   }
   const roof = (
@@ -356,7 +342,7 @@ export function createSpiritWorld(scene: THREE.Scene) {
       cap.rotation.x = Math.PI / 2
     }
   }
-  // Side openings at z=5…11 lead into the east and west streets.
+  // Side openings at z=5Ã¢â‚¬Â¦11 lead into the east and west streets.
   for (const side of [-1, 1]) {
     wall(side * 15, -5, 20, true)
     wall(side * 15, 13, 4, true)
@@ -504,39 +490,8 @@ export function createSpiritWorld(scene: THREE.Scene) {
     koi.push(fish)
   }
   const treeAt = (x: number, z: number, scale = 1, blossom = true) => {
-    const g = new THREE.Group()
-    g.position.set(x, groundY, z)
-    g.scale.setScalar(scale)
-    root.add(g)
     solid(x, z, scale * 1.05, scale * 1.05)
-    const trunk = cylinder(0.3, 3.6, 0, 1.8, 0, wood, g, 7)
-    trunk.rotation.z = 0.1
-    for (let i = 0; i < 6; i++) {
-      const angle = i * 2.4
-      const tip = new THREE.Vector3(
-        Math.sin(angle) * 1.8,
-        3.7 + (i % 3) * 0.3,
-        Math.cos(angle) * 1.5,
-      )
-      beam(new THREE.Vector3(0, 2.1, 0), tip, 0.11, wood, g)
-      for (let cluster = 0; cluster < 3; cluster++) {
-        const crown = new THREE.Mesh(
-          new THREE.IcosahedronGeometry(0.85 + cluster * 0.1, 1),
-          blossom ? (cluster % 2 ? pink : palePink) : green,
-        )
-        crown.scale.set(1.15, 0.55, 1)
-        crown.position
-          .copy(tip)
-          .add(
-            new THREE.Vector3(
-              Math.sin(cluster * 3 + i) * 0.6,
-              cluster * 0.2,
-              Math.cos(cluster * 3 + i) * 0.5,
-            ),
-          )
-        g.add(crown)
-      }
-    }
+    gardens.treeAt(x, z, scale, blossom)
   }
   for (const [x, z, scale] of [
     [-8, 8, 1.1],
@@ -570,70 +525,8 @@ export function createSpiritWorld(scene: THREE.Scene) {
     for (const dx of [-1.2, 1.2])
       box(0.22, 0.5, 0.55, side * 9 + dx, 0.4, 13, stone)
   }
-  const characters: THREE.Group[] = []
-  const character = (
-    name: string,
-    x: number,
-    z: number,
-    hairColor: string,
-    captain = false,
-    scale = 1,
-  ) => {
-    const g = new THREE.Group()
-    g.name = name
-    g.position.set(x, 0.15, z)
-    g.scale.setScalar(scale)
-    root.add(g)
-    characters.push(g)
-    const hair = mat(hairColor),
-      skin = mat("#e0c3ab")
-    const robe = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.25, 0.53, 1.25, 6),
-      black,
-    )
-    robe.position.y = 0.85
-    g.add(robe)
-    box(0.58, 0.65, 0.35, 0, 1.55, 0, black, g)
-    for (const side of [-1, 1]) {
-      const arm = box(0.24, 0.8, 0.3, side * 0.37, 1.4, 0, black, g)
-      arm.rotation.z = side * 0.18
-      box(0.18, 0.12, 0.4, side * 0.2, 0.15, 0.12, dark, g)
-      const collar = box(0.07, 0.43, 0.04, side * 0.1, 1.65, 0.2, white, g)
-      collar.rotation.z = side * 0.45
-    }
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.23, 10, 8), skin)
-    head.position.y = 2.07
-    g.add(head)
-    const cap = new THREE.Mesh(
-      new THREE.SphereGeometry(0.25, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.6),
-      hair,
-    )
-    cap.position.y = 2.1
-    g.add(cap)
-    if (name === "Ichigo")
-      for (let i = 0; i < 7; i++) {
-        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.3, 4), hair)
-        spike.position.set(
-          Math.sin(i * 1.7) * 0.19,
-          2.3,
-          Math.cos(i * 1.7) * 0.19,
-        )
-        spike.rotation.z = Math.sin(i) * 0.5
-        g.add(spike)
-      }
-    if (name === "Rukia") box(0.45, 0.35, 0.28, 0, 1.96, -0.1, hair, g)
-    if (captain) {
-      box(0.8, 1.3, 0.14, 0, 1.15, -0.25, white, g)
-      box(0.2, 0.55, 0.16, 0.15, 1.68, 0.24, white, g)
-      box(0.12, 0.16, 0.16, 0, 2.28, 0.2, trim, g)
-    }
-    box(0.045, 1.8, 0.07, 0.6, 1.5, 0.15, dark, g)
-    box(0.26, 0.055, 0.16, 0.6, 0.75, 0.15, trim, g)
-    return g
-  }
-  character("Ichigo", -3.2, 6, "#d16b27", false, 1.25)
-  character("Rukia", 7, 1, "#11131e", false, 1.05)
-  character("Byakuya", -6, 9, "#131725", true, 1.25)
+  const cast = createSpiritCharacters(root)
+  const characters = cast.characters
   characters.forEach((character) =>
     solid(character.position.x, character.position.z, 0.75, 0.75),
   )
@@ -696,8 +589,24 @@ export function createSpiritWorld(scene: THREE.Scene) {
   root.add(petals)
   // Batch by material after composing architecture. Characters keep their named
   // root for raycasting and idle motion, but their individual parts are batched too.
+  const architecture = addSpiritArchitecture(root, solid, {
+    plaster: white,
+    stone,
+    roof: roofMat,
+    wood,
+    metal: trim,
+    glow,
+    dark,
+  })
+  const foliage = gardens.finish()
   root.updateMatrixWorld(true)
-  const movingRoots = new Set<THREE.Object3D>([water, ...characters, ...koi])
+  const movingRoots = new Set<THREE.Object3D>([
+    water,
+    ...characters,
+    ...koi,
+    ...foliage,
+    ...architecture.moving,
+  ])
   const batch = (
     container: THREE.Object3D,
     exclusions?: Set<THREE.Object3D>,
@@ -747,13 +656,57 @@ export function createSpiritWorld(scene: THREE.Scene) {
       object.receiveShadow = true
     }
   })
+  const ownedMaterials = new Set<THREE.Material>(
+    Object.values(surfaces)
+      .flat()
+      .filter(
+        (value): value is THREE.MeshStandardMaterial =>
+          value instanceof THREE.Material,
+      ),
+  )
+  let disposed = false
   return {
     characters,
     colliders,
     walkBounds,
     spawn,
     groundY,
+    dispose() {
+      if (disposed) return
+      disposed = true
+      const geometries = new Set<THREE.BufferGeometry>()
+      const materials = new Set<THREE.Material>()
+      scene.traverse((object) => {
+        const mesh = object as THREE.Mesh
+        if (object instanceof THREE.InstancedMesh) object.dispose()
+        if (mesh.geometry) geometries.add(mesh.geometry)
+        if (mesh.material)
+          (Array.isArray(mesh.material)
+            ? mesh.material
+            : [mesh.material]
+          ).forEach((material) => materials.add(material))
+        if (
+          object instanceof THREE.DirectionalLight ||
+          object instanceof THREE.PointLight ||
+          object instanceof THREE.SpotLight
+        )
+          (object as THREE.DirectionalLight).shadow.dispose()
+      })
+      geometries.forEach((geometry) => geometry.dispose())
+      materials.forEach((material) => {
+        if (!ownedMaterials.has(material)) material.dispose()
+      })
+      surfaces.dispose()
+      gardens.texture.dispose()
+      atmosphere.textures.forEach((texture) => texture.dispose())
+      scene.clear()
+    },
     update(time: number) {
+      if (disposed || !Number.isFinite(time)) return
+      architecture.update(time)
+      gardens.update(time)
+      atmosphere.update(time)
+      cast.update(time)
       particles.rotation.y = time * 0.006
       for (let i = 0; i < 80; i++) {
         const a = i * 2.4 + time * 0.15,
@@ -764,9 +717,6 @@ export function createSpiritWorld(scene: THREE.Scene) {
         petalPositions[i * 3 + 2] = 8 + Math.cos(a) * r
       }
       petalGeometry.attributes.position.needsUpdate = true
-      characters.forEach((g, i) => {
-        g.rotation.y = Math.sin(time * 0.2 + i) * 0.045
-      })
       koi.forEach((fish, i) => {
         const angle = time * (0.14 + i * 0.025) + i * 1.7
         fish.position.set(
@@ -790,7 +740,7 @@ export function createSpiritWorld(scene: THREE.Scene) {
       position.needsUpdate = true
       waterGeometry.computeVertexNormals()
       lanternLights.forEach((light, i) => {
-        light.intensity = 18 + Math.sin(time * 1.7 + i * 2) * 0.7
+        light.intensity = 28 + Math.sin(time * 1.7 + i * 2) * 0.7
       })
     },
   }

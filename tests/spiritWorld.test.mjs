@@ -25,12 +25,14 @@ test("courtyard retains named characters, bounded batched geometry and finite an
     if (!object.isMesh) return
     meshes++
     const g = object.geometry
-    triangles += (g.index?.count ?? g.attributes.position.count) / 3
+    triangles +=
+      ((g.index?.count ?? g.attributes.position.count) / 3) *
+      (object.isInstancedMesh ? object.count : 1)
     assert.ok([...g.attributes.position.array].every(Number.isFinite))
   })
   assert.ok(meshes < 100, `${meshes} meshes remain after static batching`)
   assert.ok(
-    triangles > 50000 && triangles < 150000,
+    triangles > 150000 && triangles < 225000,
     `${triangles} triangles stay within the detailed city budget`,
   )
   for (const time of [0, 0.016, 2, 600]) world.update(time)
@@ -40,11 +42,8 @@ test("courtyard retains named characters, bounded batched geometry and finite an
       assert.ok(
         [...object.geometry.attributes.position.array].every(Number.isFinite),
       )
-    object.geometry?.dispose()
-    if (Array.isArray(object.material))
-      object.material.forEach((m) => m.dispose())
-    else object.material?.dispose()
   })
+  world.dispose()
 })
 test("first-person spawn and landmark approaches connect through the city streets", () => {
   const scene = new THREE.Scene()
@@ -115,12 +114,7 @@ test("first-person spawn and landmark approaches connect through the city street
       visited.has(`${x * 2},${z * 2}`),
       `${name} is reachable from the arrival gate`,
     )
-  scene.traverse((object) => {
-    object.geometry?.dispose()
-    if (Array.isArray(object.material))
-      object.material.forEach((material) => material.dispose())
-    else object.material?.dispose()
-  })
+  world.dispose()
 })
 test("Garganta slash, tear and crossing are staggered, bounded and cancellable", () => {
   const prior = globalThis.AudioContext,
@@ -193,4 +187,63 @@ test("Garganta slash, tear and crossing are staggered, bounded and cancellable",
     globalThis.AudioContext = prior
     globalThis.window = priorWindow
   }
+})
+
+test("detailed city releases instanced foliage, shared maps and GPU resources exactly once", () => {
+  const scene = new THREE.Scene(),
+    world = worldModule.createSpiritWorld(scene)
+  const resources = new Set(),
+    textures = new Set()
+  let leaves = 0
+  const shaderBase = {
+    vertexShader: THREE.ShaderLib.standard.vertexShader,
+    fragmentShader: THREE.ShaderLib.standard.fragmentShader,
+  }
+  scene.traverse((object) => {
+    if (object.geometry) resources.add(object.geometry)
+    if (object.isInstancedMesh) {
+      resources.add(object)
+      leaves += object.count
+    }
+    for (const material of object.material
+      ? Array.isArray(object.material)
+        ? object.material
+        : [object.material]
+      : []) {
+      resources.add(material)
+      if (material.map) textures.add(material.map)
+      const shader = { ...shaderBase, uniforms: {} }
+      material.onBeforeCompile(shader, {})
+      for (const value of Object.values(shader.uniforms))
+        if (value.value?.isTexture) textures.add(value.value)
+    }
+  })
+  assert.ok(leaves > 8000 && leaves < 12000)
+  assert.equal(
+    textures.size,
+    3,
+    "surface grain, leaf silhouette and a shared glow map",
+  )
+  assert.ok(scene.getObjectByName("Atmospheric sky"))
+  assert.ok(scene.getObjectByName("Reishi motes"))
+  textures.forEach((texture) => resources.add(texture))
+  const counts = new Map()
+  resources.forEach((resource) => {
+    counts.set(resource, 0)
+    resource.addEventListener("dispose", () =>
+      counts.set(resource, counts.get(resource) + 1),
+    )
+  })
+  world.update(2)
+  world.update(NaN)
+  world.dispose()
+  world.dispose()
+  world.update(600)
+  assert.equal(scene.children.length, 0)
+  for (const [resource, count] of counts)
+    assert.equal(
+      count,
+      1,
+      `${resource.name || resource.type} resource must be disposed once`,
+    )
 })

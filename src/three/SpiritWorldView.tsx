@@ -49,23 +49,23 @@ export default function SpiritWorldView({
     }
     stage.current = s
     s.renderer.shadowMap.enabled = true
-    s.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    s.renderer.shadowMap.type = THREE.PCFShadowMap
     s.renderer.toneMapping = THREE.ACESFilmicToneMapping
     s.renderer.toneMappingExposure = 1.15
     s.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5))
     s.camera.near = 0.08
-    s.camera.far = 180
+    s.camera.far = 220
     s.camera.updateProjectionMatrix()
     const world = createSpiritWorld(s.scene)
     s.camera.position.fromArray([...world.spawn])
     const controls = new OrbitControls(s.camera, s.renderer.domElement)
     controls.enabled = false
-    controls.target.set(0, 2, 0)
+    controls.target.set(0, 9, -10)
     controls.enableDamping = true
     controls.dampingFactor = 0.065
     controls.enablePan = false
     controls.minDistance = 12
-    controls.maxDistance = 75
+    controls.maxDistance = 110
     controls.minPolarAngle = 0.25
     controls.maxPolarAngle = 1.42
     const fp = new FirstPersonController(s.camera, el, world, setLocked)
@@ -77,8 +77,8 @@ export default function SpiritWorldView({
       touring = false,
       elapsed = 0,
       released = false
-    const cameraTarget = new THREE.Vector3(30, 25, 39)
-    const lookTarget = new THREE.Vector3(0, 2, 0)
+    const cameraTarget = new THREE.Vector3(47, 36, 64)
+    const lookTarget = new THREE.Vector3(0, 9, -10)
     const projected = new THREE.Vector3()
     const anchor = new THREE.Vector3()
     const ray = new THREE.Raycaster()
@@ -164,7 +164,7 @@ export default function SpiritWorldView({
           Math.min(40, relative.y + (e.key === "ArrowUp" ? 1 : -1)),
         )
       else relative.multiplyScalar(e.key === "+" ? 0.92 : 1.08)
-      relative.clampLength(12, 75)
+      relative.clampLength(12, 110)
       s.camera.position.copy(controls.target).add(relative)
       controls.update()
     }
@@ -185,11 +185,11 @@ export default function SpiritWorldView({
         fp.suspend()
         walking = false
         lastView = now.view
-        s.camera.fov = now.view === "walk" ? 65 : 42
+        s.camera.fov = now.view === "walk" ? 65 : 46
         s.camera.updateProjectionMatrix()
         if (now.view === "orbit") {
-          s.camera.position.set(30, 25, 39)
-          controls.target.set(0, 2, 0)
+          s.camera.position.set(47, 36, 64)
+          controls.target.set(0, 9, -10)
           lastSelection = -2
         }
       }
@@ -214,8 +214,8 @@ export default function SpiritWorldView({
         lastFocus = now.focusKey
         lastSelection = now.selected
         const stop = spiritStops[lastSelection]
-        cameraTarget.fromArray(stop ? [...stop.camera] : [30, 25, 39])
-        lookTarget.fromArray(stop ? [...stop.position] : [0, 2, 0])
+        cameraTarget.fromArray(stop ? [...stop.camera] : [47, 36, 64])
+        lookTarget.fromArray(stop ? [...stop.position] : [0, 9, -10])
         touring = true
       }
       if (now.view === "walk") fp.update(dt)
@@ -235,7 +235,7 @@ export default function SpiritWorldView({
         if (!label) return
         if (i < world.characters.length) {
           anchor.copy(world.characters[i].position)
-          anchor.y += 3.1
+          anchor.y += 2.1
         } else anchor.fromArray([...stop.position])
         const distance = anchor.distanceTo(s.camera.position)
         projected.copy(anchor).project(s.camera)
@@ -264,6 +264,7 @@ export default function SpiritWorldView({
       el.removeEventListener("click", pick)
       el.removeEventListener("keydown", key)
       s.renderer.domElement.removeEventListener("webglcontextlost", lost)
+      world.dispose()
       s.dispose()
       stage.current = null
     }
