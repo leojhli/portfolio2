@@ -1,0 +1,36 @@
+/* The world controls sit above the canvas, with one compact control strip. */
+.world-view-controls { position: absolute; z-index: 4; top: 160px; left: clamp(20px,3vw,48px); max-width: calc(100% - 40px); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; cursor: auto; }
+.world-view-switch { display: flex; gap: 4px; padding: 4px; border: 1px solid #c1dcf333; border-radius: 100px; background: #070f1ebd; }
+.world-view-switch .spirit-button { border-color: transparent; background: transparent; min-height: 34px; padding-block: 7px; }
+.world-view-switch [aria-pressed='true'] { background: #b7def3; color: #0b1a28; }
+.world-help { width: 100%; font-size: 10px; color: #d9e7f1; text-shadow: 0 1px 4px #000; padding: 6px 10px; background: #08111aaa; border-radius: 5px; }
+.world-capture-hint { max-width: 38ch; font-size: 11px; color: #d3e8f8; text-shadow: 0 1px 4px #000; }
+.world-capture-hint:empty { display: none; }
+.world-reticle { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); color: #effaffcc; font: 18px monospace; text-shadow: 0 0 3px #000; pointer-events: none; }
+.spirit-scene[data-locked='true'] { cursor: none; }
+.world-dpad { position: absolute; z-index: 5; left: 22px; bottom: 195px; display: grid; grid-template-columns: repeat(3,40px); grid-template-rows: repeat(2,40px); gap: 4px; }
+.walk-direction { border: 1px solid #b7d9f160; background: #0a1729cf; color: white; border-radius: 8px; font-size: 19px; touch-action: none; user-select: none; cursor: pointer; }
+.walk-direction:active { background: #386386; }
+.walk-direction-0 { grid-column: 2; }
+.walk-direction-1 { grid-column: 1; grid-row: 2; }
+.walk-direction-2 { grid-column: 2; grid-row: 2; }
+.walk-direction-3 { grid-column: 3; grid-row: 2; }
+.garganta :is(button,a):focus-visible { outline: 2px solid #ccecff; outline-offset: 4px; }
+.spirit-scene:focus-visible { outline: 2px solid #ccecff80; outline-offset: -4px; }
+@media (hover: hover) and (pointer: fine) { .world-dpad { opacity: .6; transition: opacity .2s; } .world-dpad:hover, .world-dpad:focus-within { opacity: 1; } }
+@media (max-width:700px) {
+  .world-view-controls { top: 142px; left: 14px; right: 14px; max-width: none; gap: 6px; }
+  .world-view-switch .spirit-button, .capture-mouse { font-size: 10px; padding-inline: 12px; }
+  .world-help { font-size: 9px; }
+  .world-dpad { left: 14px; bottom: 245px; }
+}
+@media (max-height:600px) {
+  .world-view-controls { top: 98px; }
+  .world-help { display: none; }
+  .world-dpad { bottom: 175px; grid-template-columns: repeat(3,34px); grid-template-rows: repeat(2,34px); }
+  .spirit-header { padding-block: 14px; }
+}
+html[data-mode='ascii'] :is(.world-view-switch, .world-view-switch .spirit-button, .world-help, .walk-direction) { border-radius: 0; }
+
+@media (pointer: coarse) { .capture-mouse { display: none; } }
+@media (max-height:600px) and (min-width:500px) { .world-dpad { left: auto; right: 18px; } }

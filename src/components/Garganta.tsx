@@ -18,6 +18,14 @@ export default function Garganta() {
   const soundtrack = useRef<HTMLAudioElement | null>(null)
   const restoreMusic = useRef<(() => void) | null>(null),
     stopEffects = useRef<(() => void) | null>(null)
+  const lastLookUnlock = useRef(-Infinity)
+  useEffect(() => {
+    const unlock = () => {
+      lastLookUnlock.current = performance.now()
+    }
+    window.addEventListener("portfolio:look-unlocked", unlock)
+    return () => window.removeEventListener("portfolio:look-unlocked", unlock)
+  }, [])
   const timer = useRef(0),
     savedOverflow = useRef(""),
     session = useRef(0),
@@ -136,6 +144,13 @@ export default function Garganta() {
         data-entered={entered}
         onCancel={(event) => {
           event.preventDefault()
+          if (
+            document.pointerLockElement ||
+            performance.now() - lastLookUnlock.current < 250
+          ) {
+            document.exitPointerLock?.()
+            return
+          }
           close()
         }}
       >
@@ -153,6 +168,7 @@ export default function Garganta() {
                   selected={selected}
                   focusKey={focusKey}
                   onSelect={select}
+                  active={entered}
                 />
               </Suspense>
             </div>
@@ -198,7 +214,7 @@ export default function Garganta() {
                   select(-1)
                 }}
               >
-                Whole courtyard
+                Reset view
               </button>
               <button
                 type="button"
@@ -216,7 +232,7 @@ export default function Garganta() {
               >
                 Replay crossing
               </button>
-              <span>Drag to orbit · scroll / pinch to zoom</span>
+              <span>Explore at your own pace.</span>
               <button
                 type="button"
                 className="spirit-button"
