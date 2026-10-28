@@ -5,6 +5,53 @@ type Terrain = {
   walkBounds: WalkRect
   spawn: readonly number[]
 }
+export type ExplorationPerspective = "first" | "third"
+export type AvatarPose = {
+  /** Feet position. The controller eye is 1.7 metres above the walking surface. */
+  position: THREE.Vector3
+  /** Radians around Y; zero faces -Z. */
+  heading: number
+  speed: number
+  moving: boolean
+  visible: boolean
+}
+const cameraClearance = 0.2
+
+/** First contact with an expanded footprint along a camera boom, in [0, 1]. */
+function cameraHitFraction(
+  start: THREE.Vector3,
+  end: THREE.Vector3,
+  rect: WalkRect,
+) {
+  let entry = 0
+  let exit = 1
+  for (const [origin, direction, min, max] of [
+    [
+      start.x,
+      end.x - start.x,
+      rect.minX - cameraClearance,
+      rect.maxX + cameraClearance,
+    ],
+    [
+      start.z,
+      end.z - start.z,
+      rect.minZ - cameraClearance,
+      rect.maxZ + cameraClearance,
+    ],
+  ]) {
+    if (Math.abs(direction) < 0.000001) {
+      if (origin < min || origin > max) return 1
+      continue
+    }
+    const a = (min - origin) / direction
+    const b = (max - origin) / direction
+    entry = Math.max(entry, Math.min(a, b))
+    exit = Math.min(exit, Math.max(a, b))
+    if (entry > exit) return 1
+  }
+  return exit >= 0 && entry <= 1 ? Math.max(0, entry - 0.002) : 1
+}
+
 const movementKeys = new Set([
   "KeyW",
   "KeyA",
@@ -34,6 +81,10 @@ export class FirstPersonController {
   private vz = 0
   private touch = { x: 0, z: 0 }
   private walkingPosition: THREE.Vector3
+  private perspective: ExplorationPerspective = "first"
+  private actualSpeed = 0
+  private desiredCamera = new THREE.Vector3()
+  private safeCamera = new THREE.Vector3()
   private released = false
   private hadLock = false
   constructor(
@@ -65,11 +116,32 @@ export class FirstPersonController {
       this.pitch = this.targetPitch = 0
     }
     this.enabled = true
-    this.camera.position.copy(this.walkingPosition)
-    this.camera.rotation.set(this.pitch, this.yaw, 0, "YXZ")
+    this.updateCamera(0, true)
+  }
+  setPerspective(perspective: ExplorationPerspective) {
+    if (this.perspective === perspective) return
+    this.perspective = perspective
+    if (this.enabled) this.updateCamera(0, true)
+  }
+  /** A copy: camera orbit/inspection cannot accidentally relocate the walker. */
+  get playerPosition() {
+    return this.walkingPosition.clone()
+  }
+  getAvatarPose(): AvatarPose {
+    const position = this.walkingPosition.clone()
+    position.y -= 1.7
+    return {
+      position,
+      heading: this.yaw,
+      speed: this.actualSpeed,
+      moving: this.actualSpeed > 0.025,
+      // Hide the figure if a close wall folds the camera into the player's body.
+      visible:
+        this.perspective === "third" &&
+        this.camera.position.distanceTo(this.walkingPosition) > 0.8,
+    }
   }
   suspend() {
-    if (this.enabled) this.walkingPosition.copy(this.camera.position)
     this.enabled = false
     this.clear()
     this.unlock()
@@ -86,7 +158,10 @@ export class FirstPersonController {
     if (this.locked) document.exitPointerLock?.()
   }
   setTouch(x: number, z: number) {
-    this.touch = { x, z }
+    this.touch = {
+      x: Number.isFinite(x) ? Math.max(-1, Math.min(1, x)) : 0,
+      z: Number.isFinite(z) ? Math.max(-1, Math.min(1, z)) : 0,
+    }
   }
   private clear = () => {
     this.keys.clear()
@@ -94,7 +169,7 @@ export class FirstPersonController {
     if (this.drag && this.host.hasPointerCapture?.(this.drag.id))
       this.host.releasePointerCapture(this.drag.id)
     this.drag = null
-    this.vx = this.vz = 0
+    this.vx = this.vz = this.actualSpeed = 0
   }
   private blur = () => {
     this.clear()
@@ -170,6 +245,62 @@ export class FirstPersonController {
     if (this.enabled && this.locked)
       this.rotate(event.movementX, event.movementY)
   }
+  private clipCamera(end: THREE.Vector3, result: THREE.Vector3) {
+    const start = this.walkingPosition
+    let fraction = 1
+    for (const collider of this.terrain.colliders)
+      fraction = Math.min(fraction, cameraHitFraction(start, end, collider))
+    const bounds = this.terrain.walkBounds
+    for (const [origin, destination, min, max] of [
+      [
+        start.x,
+        end.x,
+        bounds.minX + cameraClearance,
+        bounds.maxX - cameraClearance,
+      ],
+      [
+        start.z,
+        end.z,
+        bounds.minZ + cameraClearance,
+        bounds.maxZ - cameraClearance,
+      ],
+    ]) {
+      if (destination < min && destination < origin)
+        fraction = Math.min(fraction, (min - origin) / (destination - origin))
+      if (destination > max && destination > origin)
+        fraction = Math.min(fraction, (max - origin) / (destination - origin))
+    }
+    result.copy(start).lerp(end, Math.max(0, Math.min(1, fraction)))
+    return result
+  }
+  private updateCamera(dt: number, immediate = false) {
+    if (this.perspective === "first") {
+      this.camera.position.copy(this.walkingPosition)
+      this.camera.rotation.set(this.pitch, this.yaw, 0, "YXZ")
+      return
+    }
+    const sin = Math.sin(this.yaw),
+      cos = Math.cos(this.yaw)
+    const reach = 3.2 * Math.cos(this.pitch)
+    this.desiredCamera.set(
+      this.walkingPosition.x + sin * reach + cos * 0.4,
+      Math.max(
+        this.walkingPosition.y - 1.35,
+        this.walkingPosition.y + 0.68 - Math.sin(this.pitch) * 3.2,
+      ),
+      this.walkingPosition.z + cos * reach - sin * 0.4,
+    )
+    this.clipCamera(this.desiredCamera, this.safeCamera)
+    this.camera.position.lerp(
+      this.safeCamera,
+      immediate ? 1 : 1 - Math.exp(-12 * dt),
+    )
+    // Retest after smoothing: turning around a corner must not ease through its wall.
+    // Inward correction is immediate; free space opens back up with damped motion.
+    this.clipCamera(this.camera.position, this.safeCamera)
+    this.camera.position.copy(this.safeCamera)
+    this.camera.rotation.set(this.pitch - 0.16, this.yaw, 0, "YXZ")
+  }
   update(seconds: number) {
     if (!this.enabled || document.hidden || !Number.isFinite(seconds)) return
     const dt = Math.min(0.05, Math.max(0, seconds))
@@ -195,15 +326,22 @@ export class FirstPersonController {
     this.vx += (tx - this.vx) * moveEase
     this.vz += (tz - this.vz) * moveEase
     const next = moveWalker(
-      this.camera.position,
+      this.walkingPosition,
       this.vx * dt,
       this.vz * dt,
       this.terrain.colliders,
       this.terrain.walkBounds,
     )
-    this.camera.position.set(next.x, this.terrain.spawn[1], next.z)
-    this.camera.rotation.set(this.pitch, this.yaw, 0, "YXZ")
-    this.walkingPosition.copy(this.camera.position)
+    this.actualSpeed =
+      dt > 0
+        ? Math.hypot(
+            next.x - this.walkingPosition.x,
+            next.z - this.walkingPosition.z,
+          ) / dt
+        : 0
+    if (this.actualSpeed < 0.005) this.actualSpeed = 0
+    this.walkingPosition.set(next.x, this.terrain.spawn[1], next.z)
+    this.updateCamera(dt)
   }
   dispose() {
     if (this.released) return

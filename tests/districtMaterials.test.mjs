@@ -4,14 +4,14 @@ import { createHash } from "node:crypto"
 import { createServer } from "vite"
 import * as THREE from "three"
 
-let server, createSpiritMaterials
+let server, createDistrictMaterials
 before(async () => {
   server = await createServer({
     server: { middlewareMode: true },
     logLevel: "silent",
   })
-  ;({ createSpiritMaterials } = await server.ssrLoadModule(
-    "/src/three/spiritMaterials.ts",
+  ;({ createDistrictMaterials } = await server.ssrLoadModule(
+    "/src/three/districtMaterials.ts",
   ))
 })
 after(async () => server?.close())
@@ -31,7 +31,7 @@ const members = (palette) =>
     .filter((value) => value?.isMaterial)
 
 test("city finishes retain PBR lighting while giving stone, tile, wood and paper distinct responses", () => {
-  const palette = createSpiritMaterials()
+  const palette = createDistrictMaterials()
   try {
     for (const material of members(palette)) {
       assert.equal(material.isMeshStandardMaterial, true)
@@ -60,7 +60,7 @@ test("city finishes retain PBR lighting while giving stone, tile, wood and paper
 })
 
 test("surface patches use world transforms after skinning and preserve Three's shading chunks", () => {
-  const palette = createSpiritMaterials()
+  const palette = createDistrictMaterials()
   try {
     for (const material of members(palette)) {
       const shader = compileParameters(material)
@@ -116,8 +116,8 @@ test("surface patches use world transforms after skinning and preserve Three's s
 })
 
 test("grain is deterministic linear data, mipmapped, shared by the palette and independently owned", () => {
-  const a = createSpiritMaterials(),
-    b = createSpiritMaterials()
+  const a = createDistrictMaterials(),
+    b = createDistrictMaterials()
   try {
     const first = compileParameters(a.plaster).uniforms.cityGrain
     for (const material of members(a))
@@ -152,7 +152,7 @@ test("grain is deterministic linear data, mipmapped, shared by the palette and i
 })
 
 test("palette disposal releases its single texture and every material exactly once", () => {
-  const palette = createSpiritMaterials()
+  const palette = createDistrictMaterials()
   const texture = compileParameters(palette.plaster).uniforms.cityGrain.value
   const resources = [texture, ...members(palette)]
   const disposals = new Map(resources.map((value) => [value, 0]))

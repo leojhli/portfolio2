@@ -31,6 +31,8 @@ export class Stage {
   /** ASCII-mode output: a 2D canvas so every glyph can carry its own colour. */
   readonly out = document.createElement("canvas")
   onFrame: (dt: number, t: number) => void = () => {}
+  /** Optional scene-specific post-processing. ASCII samples its final output. */
+  renderOverride?: () => void
   w = 0
   h = 0
   private raster = new AsciiRaster()
@@ -132,7 +134,8 @@ export class Stage {
 
   private paint = () => {
     if (!this.w || !this.h) return
-    this.renderer.render(this.scene, this.camera)
+    if (this.renderOverride) this.renderOverride()
+    else this.renderer.render(this.scene, this.camera)
     if (this.opts.ascii) {
       this.lastAscii = performance.now()
       const c = this.renderer.domElement

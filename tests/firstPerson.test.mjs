@@ -3,7 +3,7 @@ import { after, before, test } from "node:test"
 import { createServer } from "vite"
 import { JSDOM } from "jsdom"
 import * as THREE from "three"
-let server, geometry, FirstPersonController
+let server, geometry, FirstPersonController, createDistrictAvatar
 before(async () => {
   server = await createServer({
     server: { middlewareMode: true },
@@ -12,6 +12,9 @@ before(async () => {
   geometry = await server.ssrLoadModule("/src/three/walkGeometry.ts")
   ;({ FirstPersonController } = await server.ssrLoadModule(
     "/src/three/FirstPersonController.ts",
+  ))
+  ;({ createDistrictAvatar } = await server.ssrLoadModule(
+    "/src/three/DistrictAvatar.ts",
   ))
 })
 after(async () => server?.close())
@@ -432,4 +435,184 @@ test("tabbing or focusing controls releases mouse lock and never leaves movement
   } finally {
     f.cleanup()
   }
+})
+
+test("switching first/third person keeps the player's position and supports continued walking", () => {
+  const f = fixture()
+  try {
+    f.controller.activate()
+    f.host.focus()
+    f.key("keydown", "KeyW")
+    f.advance(30)
+    f.key("keyup", "KeyW")
+    f.advance(60)
+    const before = f.controller.playerPosition
+    f.controller.setPerspective("third")
+    assert.deepEqual(f.controller.playerPosition.toArray(), before.toArray())
+    near(f.camera.position.x - before.x, 0.4)
+    near(f.camera.position.z - before.z, 3.2)
+    near(f.camera.position.y - before.y, 0.68)
+    assert.equal(f.controller.getAvatarPose().visible, true)
+    near(f.controller.getAvatarPose().position.y, 0.12)
+    const copy = f.controller.playerPosition
+    copy.set(60, 60, 60)
+    assert.deepEqual(f.controller.playerPosition.toArray(), before.toArray())
+    f.key("keydown", "KeyW")
+    f.advance(60)
+    assert.ok(f.controller.playerPosition.z < before.z - 3)
+    assert.ok(f.controller.getAvatarPose().speed > 3.4)
+    assert.equal(f.controller.getAvatarPose().moving, true)
+    const thirdPosition = f.controller.playerPosition
+    f.controller.setPerspective("first")
+    assert.deepEqual(f.camera.position.toArray(), thirdPosition.toArray())
+    assert.deepEqual(
+      f.controller.playerPosition.toArray(),
+      thirdPosition.toArray(),
+    )
+    assert.equal(f.controller.getAvatarPose().visible, false)
+    f.key("keyup", "KeyW")
+    f.advance(90)
+    assert.equal(f.controller.getAvatarPose().moving, false)
+  } finally {
+    f.cleanup()
+  }
+})
+
+test("a third-person camera folds before a wall and never eases through it while turning", () => {
+  const f = fixture()
+  try {
+    const wall = { minX: -3, maxX: 3, minZ: 13, maxZ: 14 }
+    f.terrain.colliders.push(wall)
+    f.controller.setPerspective("third")
+    f.controller.activate()
+    assert.ok(f.camera.position.z <= 12.8)
+    assert.ok(f.camera.position.z > f.controller.playerPosition.z)
+    assert.equal(
+      f.controller.getAvatarPose().visible,
+      false,
+      "a near camera must not show the inside of the head",
+    )
+    f.pointer("pointerdown", 0, 0)
+    for (let turn = 1; turn <= 9; turn++) {
+      f.pointer("pointermove", turn * 150, 20)
+      for (let frame = 0; frame < 18; frame++) {
+        f.controller.update(1 / 60)
+        const anchor = f.controller.playerPosition
+        for (let sample = 1; sample <= 20; sample++) {
+          const point = anchor.clone().lerp(f.camera.position, sample / 20)
+          assert.equal(
+            geometry.canStand(point, [wall], f.terrain.walkBounds, 0.19),
+            true,
+            "both the camera and its sight line need clearance while orbiting an obstruction",
+          )
+        }
+      }
+    }
+    f.pointer("pointerup", 1350, 20)
+    near(f.controller.playerPosition.z, 12.2)
+    assert.equal(f.controller.getAvatarPose().visible, true)
+  } finally {
+    f.cleanup()
+  }
+})
+
+test("third-person follow stays inside world bounds and avatar feet stop at solid walls", () => {
+  const f = fixture()
+  try {
+    f.terrain.walkBounds.maxZ = 13
+    f.terrain.colliders.push({ minX: -2, maxX: 2, minZ: 8, maxZ: 9 })
+    f.controller.setPerspective("third")
+    f.controller.activate()
+    assert.ok(f.camera.position.z <= 12.8)
+    f.controller.setTouch(0, 1)
+    f.advance(180)
+    near(f.controller.playerPosition.z, 9.32, 0.001)
+    assert.equal(f.controller.getAvatarPose().moving, false)
+    assert.equal(f.controller.getAvatarPose().speed, 0)
+    near(f.controller.getAvatarPose().position.z, 9.32, 0.001)
+    assert.ok(f.camera.position.z > f.controller.playerPosition.z + 3)
+    assert.ok(f.camera.position.z <= 12.8)
+  } finally {
+    f.cleanup()
+  }
+})
+
+test("suspending third person saves the walker rather than the trailing camera", () => {
+  const f = fixture()
+  try {
+    f.controller.setPerspective("third")
+    f.controller.activate()
+    f.controller.setTouch(0.5, 1)
+    f.advance()
+    const player = f.controller.playerPosition
+    f.controller.suspend()
+    f.camera.position.set(25, 18, 33)
+    f.advance()
+    assert.deepEqual(f.controller.playerPosition.toArray(), player.toArray())
+    assert.equal(f.controller.getAvatarPose().speed, 0)
+    f.controller.activate()
+    f.advance()
+    assert.deepEqual(f.controller.playerPosition.toArray(), player.toArray())
+    near(f.camera.position.z, player.z + 3.2)
+    f.controller.setPerspective("first")
+    assert.deepEqual(f.camera.position.toArray(), player.toArray())
+    f.controller.activate(true)
+    assert.deepEqual(f.controller.playerPosition.toArray(), f.terrain.spawn)
+  } finally {
+    f.cleanup()
+  }
+})
+
+test("the original courier is human-scale, animates articulated joints and disposes each owned resource once", () => {
+  const avatar = createDistrictAvatar()
+  const scene = new THREE.Scene()
+  scene.add(avatar.root)
+  const box = new THREE.Box3().setFromObject(avatar.root)
+  assert.ok(box.min.y >= -0.03)
+  assert.ok(box.max.y > 1.7 && box.max.y < 1.85)
+  const resources = new Map()
+  let meshes = 0
+  avatar.root.traverse((object) => {
+    if (!object.isMesh) return
+    meshes++
+    for (const resource of [object.geometry, object.material]) {
+      if (resources.has(resource)) continue
+      resources.set(resource, 0)
+      resource.addEventListener("dispose", () =>
+        resources.set(resource, resources.get(resource) + 1),
+      )
+    }
+  })
+  assert.ok(
+    meshes < 60,
+    "static details should be batched within the animated joints",
+  )
+  const pose = {
+    position: new THREE.Vector3(4, 0.12, -8),
+    heading: Math.PI / 3,
+    speed: 3.5,
+    moving: true,
+    visible: true,
+  }
+  for (let i = 0; i < 60; i++) avatar.update(pose, 1 / 60)
+  assert.deepEqual(avatar.root.position.toArray(), pose.position.toArray())
+  near(avatar.root.rotation.y, pose.heading)
+  assert.equal(avatar.root.visible, true)
+  const left = avatar.root.getObjectByName("courier-leg-0")
+  const right = avatar.root.getObjectByName("courier-leg-1")
+  assert.ok(Math.abs(left.rotation.x) > 0.2)
+  near(left.rotation.x, -right.rotation.x)
+  assert.ok(
+    avatar.root.getObjectByName("courier-arm-0").rotation.x * left.rotation.x <
+      0,
+  )
+  for (let i = 0; i < 90; i++)
+    avatar.update({ ...pose, moving: false, speed: 0 }, 1 / 60)
+  near(left.rotation.x, 0, 0.001)
+  avatar.update({ ...pose, moving: false, speed: 0, visible: false }, 1 / 60)
+  assert.equal(avatar.root.visible, false)
+  avatar.dispose()
+  avatar.dispose()
+  assert.equal(avatar.root.parent, null)
+  for (const count of resources.values()) assert.equal(count, 1)
 })

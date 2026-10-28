@@ -54,7 +54,7 @@ function makeGrain() {
     }
   }
   const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat)
-  texture.name = "Spirit city / shared periodic surface grain"
+  texture.name = "Rain District / shared periodic surface grain"
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
   texture.magFilter = THREE.LinearFilter
   texture.minFilter = THREE.LinearMipmapLinearFilter
@@ -152,7 +152,7 @@ const surfaceNormal = `
 `
 
 /** Procedural finishes remain ordinary PBR materials: lighting/shadows stay native Three.js. */
-export function createSpiritMaterials() {
+export function createDistrictMaterials() {
   const grain = makeGrain()
   const grainUniform = { value: grain }
   const owned: THREE.MeshStandardMaterial[] = []
@@ -169,7 +169,7 @@ export function createSpiritMaterials() {
       roughness,
       ...parameters,
     })
-    result.name = `Spirit city / ${name}`
+    result.name = `Rain District / ${name}`
     result.userData.surfaceFinish = finish
     result.onBeforeCompile = (shader) => {
       shader.uniforms.cityGrain = grainUniform
@@ -196,20 +196,20 @@ export function createSpiritMaterials() {
           )
     }
     // Uniform values vary per material; only the finish changes the program source.
-    result.customProgramCacheKey = () => `spirit-city-surface-v1/${finish}`
+    result.customProgramCacheKey = () => `rain-district-surface-v1/${finish}`
     owned.push(result)
     return result
   }
   const plaster = material(
     "aged ivory plaster",
-    "#ddd9c9",
+    "#687778",
     "plaster",
     0.9,
     0.006,
   )
   const stone = material(
     "weathered blue-grey stone",
-    "#657184",
+    "#34494b",
     "stone",
     0.88,
     0.018,
@@ -259,7 +259,7 @@ export function createSpiritMaterials() {
   const green = material("garden foliage", "#3b7461", "foliage", 0.94, 0.005)
   const grass = material("moss garden", "#38594c", "foliage", 0.98, 0.012)
   const black = material("indigo cloth", "#151c28", "cloth", 0.92, 0.003)
-  const pavers = ["#9ca3a8", "#aeb1ad", "#89959f"].map((color, i) =>
+  const pavers = ["#293c40", "#344244", "#263638"].map((color, i) =>
     material(`limestone paver ${i + 1}`, color, "stone", 0.85, 0.012),
   )
   let disposed = false

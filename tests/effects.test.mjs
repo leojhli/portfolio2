@@ -24,14 +24,13 @@ before(async () => {
   asciiTextModule = await server.ssrLoadModule("/src/effects/asciiText.ts")
   // Resolve lazy module I/O before React's act scope so initial Suspense work
   // can finish within that scope, without timing-dependent resource warnings.
-  await Promise.all(
-    [
-      "/src/effects/EffectsLayer.tsx",
-      "/src/three/PoolView.tsx",
-      "/src/three/PlanetView.tsx",
-      "/src/three/SpiritWorldView.tsx",
-    ].map((path) => server.ssrLoadModule(path)),
-  )
+  for (const path of [
+    "/src/effects/EffectsLayer.tsx",
+    "/src/three/PoolView.tsx",
+    "/src/three/PlanetView.tsx",
+    "/src/three/RainDistrictView.tsx",
+  ])
+    await server.ssrLoadModule(path)
   App = (await server.ssrLoadModule("/src/App.tsx")).default
 })
 after(async () => server?.close())
@@ -932,40 +931,267 @@ test("background clicks, typing and object activation have distinct sound timbre
   }
 })
 
-test("Bankai portal hands off music, supports fallback locations, and restores focus on exit", async () => {
-  const f = fixture({stored:{"pf.sound":"off"}}), unmount = await mountApp(f)
+test("Rain District preserves music, exposes every fallback destination and restores focus on return", async () => {
+  const f = fixture({ stored: { "pf.sound": "off" } })
+  const unmount = await mountApp(f)
   try {
-    assert.equal(f.audioInstances.length,0,"portal soundtrack never autoplays")
+    assert.equal(
+      f.audioInstances.length,
+      0,
+      "the district does not autoplay a soundtrack",
+    )
     await click(document.querySelector('[aria-label="Play"]'))
-    const original=f.audioInstances[0]
-    original.currentTime=37
-    const trigger=document.querySelector('[data-world-trigger]')
+    const original = f.audioInstances[0]
+    original.currentTime = 37
+    const trigger = document.querySelector("[data-world-trigger]")
+    assert.equal(trigger.getAttribute("aria-label"), "Enter Rain District")
     await click(trigger)
-    const portal=document.querySelector('dialog.garganta'), song=f.audioInstances[1]
-    assert.equal(portal.open,true)
-    assert.equal(document.documentElement.style.overflow,"hidden")
-    assert.equal(original.paused,true)
-    assert.equal(song.src,"/music/spirit-world/treachery.mp3")
-    assert.equal(song.paused,false)
-    await click(byText("button","Skip entrance"))
-    assert.equal(portal.dataset.entered,"true")
-    assert.ok(portal.querySelector(".spirit-fallback"),"non-WebGL devices retain the experience")
-    await click(portal.querySelectorAll('.spirit-locations button')[1])
-    assert.ok(portal.querySelector('.spirit-note').textContent.includes('The archive'))
-    await click(portal.querySelector('.spirit-note a'))
-    assert.equal(portal.open,false)
-    assert.equal(location.hash,"#projects")
-    assert.equal(song.paused,true)
-    assert.equal(original.paused,false)
-    assert.equal(original.currentTime,37)
-    assert.equal(document.documentElement.style.overflow,"")
+    const district = document.querySelector("dialog.garganta")
+    assert.equal(district.open, true)
+    assert.equal(district.dataset.entered, "false")
+    assert.equal(document.documentElement.style.overflow, "hidden")
+    assert.equal(document.documentElement.dataset.spiritWorld, "true")
+    assert.equal(original.paused, true)
+    assert.equal(
+      f.audioInstances.length,
+      1,
+      "entry keeps the one existing music player",
+    )
+    assert.equal(district.querySelector("h2").textContent, "Rain District")
+    assert.doesNotMatch(
+      district.textContent,
+      /bleach|treachery|garganta|ichigo|seireitei/i,
+    )
+    await click(byText("button", "Skip arrival"))
+    assert.equal(district.dataset.entered, "true")
+    assert.equal(byText("button", "Skip arrival"), undefined)
+    // The optional renderer is a lazy chunk; allow its import and fallback effect to settle.
+    for (
+      let attempt = 0;
+      attempt < 40 && !district.querySelector(".spirit-fallback");
+      attempt++
+    )
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 25))
+      })
+    assert.ok(
+      district.querySelector(".spirit-fallback"),
+      "non-WebGL devices retain accessible destinations",
+    )
+    const locations = district.querySelector(
+      'nav[aria-label="District locations"]',
+    )
+    const buttons = [...locations.querySelectorAll("button")]
+    assert.equal(buttons.length, 4)
+    for (const [index, name, id] of [
+      [0, "Dispatch Workshop", "experience"],
+      [1, "Signal Archive", "projects"],
+      [2, "After-hours Tea House", "about"],
+      [3, "Last Tram", "contact"],
+    ]) {
+      await click(buttons[index])
+      const note = district.querySelector(".spirit-note")
+      assert.equal(note.getAttribute("aria-label"), `${name} details`)
+      assert.equal(note.querySelector("h3").textContent, name)
+      assert.equal(note.querySelector("a").getAttribute("href"), `#${id}`)
+      assert.equal(buttons[index].getAttribute("aria-pressed"), "true")
+      assert.equal(
+        buttons.filter(
+          (button) => button.getAttribute("aria-pressed") === "true",
+        ).length,
+        1,
+      )
+      assert.ok(
+        note.textContent.length > name.length + 50,
+        "the destination includes actual portfolio content",
+      )
+    }
+    const credit = district.querySelector(
+      'a[href="/models/neon-district/credits.html"]',
+    )
+    assert.ok(credit, "model attribution is available from inside the district")
+    await click(byText("button", "Reset view"))
+    assert.equal(district.querySelector(".spirit-note"), null)
+    assert.ok(
+      buttons.every(
+        (button) => button.getAttribute("aria-pressed") === "false",
+      ),
+    )
+    await click(buttons[1])
+    await click(district.querySelector(".spirit-note a"))
+    assert.equal(district.open, false)
+    assert.equal(location.hash, "#projects")
+    assert.equal(original.paused, false)
+    assert.equal(original.currentTime, 37)
+    assert.equal(document.documentElement.style.overflow, "")
+    assert.equal(document.documentElement.dataset.spiritWorld, undefined)
+    assert.ok(document.getElementById("projects").contains(document.activeElement), "following a portfolio link moves focus into its destination chapter")
     await click(trigger)
-    assert.equal(f.audioInstances.length,2,"reentry reuses the soundtrack")
-    await act(async()=>portal.dispatchEvent(new Event("cancel",{cancelable:true})))
-    assert.equal(portal.open,false)
-    assert.equal(document.activeElement,trigger)
-    assert.equal(original.paused,false)
-  } finally { await unmount() }
+    assert.equal(
+      f.audioInstances.length,
+      1,
+      "reentry never replaces the player",
+    )
+    await act(async () =>
+      district.dispatchEvent(new Event("cancel", { cancelable: true })),
+    )
+    assert.equal(district.open, false)
+    assert.ok(document.activeElement === trigger, "Escape restores focus to the district ticket")
+    assert.equal(original.paused, false)
+  } finally {
+    await unmount()
+  }
+})
+
+test("Rain District ambience respects mute, toggles independently and releases audio on return or unmount", async () => {
+  const f = fixture({ stored: { "pf.sound": "off" } })
+  const previous = globalThis.AudioContext
+  const contexts = []
+  const parameter = () => ({
+    value: 0,
+    setValueAtTime() {},
+    linearRampToValueAtTime() {},
+    exponentialRampToValueAtTime() {},
+  })
+  const node = () => ({
+    connect(target) {
+      return target
+    },
+    disconnect() {},
+  })
+  globalThis.AudioContext = class {
+    state = "running"
+    currentTime = 1
+    sampleRate = 1000
+    destination = {}
+    sources = []
+    constructor() {
+      contexts.push(this)
+    }
+    async resume() {}
+    async close() {
+      this.state = "closed"
+    }
+    createGain() {
+      return { ...node(), gain: parameter() }
+    }
+    createBiquadFilter() {
+      return { ...node(), frequency: parameter(), Q: parameter() }
+    }
+    createBuffer(_channels, length) {
+      return { getChannelData: () => new Float32Array(length) }
+    }
+    source() {
+      const source = {
+        ...node(),
+        frequency: parameter(),
+        starts: 0,
+        stops: 0,
+        start() {
+          this.starts++
+        },
+        stop() {
+          this.stops++
+        },
+      }
+      this.sources.push(source)
+      return source
+    }
+    createBufferSource() {
+      return this.source()
+    }
+    createOscillator() {
+      return this.source()
+    }
+  }
+  const unmount = await mountApp(f)
+  let mounted = true
+  try {
+    const trigger = document.querySelector("[data-world-trigger]")
+    await click(trigger)
+    assert.equal(contexts.length, 0, "global sound-off is respected on arrival")
+    await click(byText("button", "Ambience: Off"))
+    assert.equal(contexts.length, 1)
+    const first = contexts[0]
+    assert.equal(first.state, "running")
+    assert.equal(
+      first.sources.length,
+      3,
+      "rain and two original hum voices are running",
+    )
+    assert.ok(
+      first.sources.every(
+        (source) => source.starts === 1 && source.stops === 0,
+      ),
+    )
+    assert.equal(
+      byText("button", "Ambience: On").getAttribute("aria-pressed"),
+      "true",
+    )
+    await click(byText("button", "Ambience: On"))
+    assert.equal(first.state, "closed")
+    assert.ok(first.sources.every((source) => source.stops === 1))
+    await click(byText("button", "Ambience: Off"))
+    const second = contexts[1]
+    await click(document.querySelector('[aria-label="Return to portfolio"]'))
+    assert.equal(second.state, "closed")
+    assert.ok(second.sources.every((source) => source.stops === 1))
+    assert.equal(
+      localStorage.getItem("pf.sound"),
+      "off",
+      "the optional ambience control does not rewrite interface-sound preferences",
+    )
+    localStorage.setItem("pf.sound", "on")
+    document.documentElement.style.overflow = "clip"
+    await click(trigger)
+    assert.equal(
+      contexts.length,
+      3,
+      "a new visit follows the current sound preference",
+    )
+    const third = contexts[2]
+    assert.equal(third.state, "running")
+    assert.equal(document.documentElement.style.overflow, "hidden")
+    const html = document.documentElement
+    mounted = false
+    await unmount()
+    assert.equal(third.state, "closed")
+    assert.ok(third.sources.every((source) => source.stops === 1))
+    assert.equal(
+      html.style.overflow,
+      "clip",
+      "unmount restores the preceding scroll policy",
+    )
+    assert.equal(html.dataset.spiritWorld, undefined)
+  } finally {
+    if (mounted) await unmount()
+    if (previous === undefined) delete globalThis.AudioContext
+    else globalThis.AudioContext = previous
+  }
+})
+
+test("Rain District arrival completes without input and never starts previously paused music", async () => {
+  const f = fixture({ stored: { "pf.sound": "off" } })
+  const unmount = await mountApp(f)
+  try {
+    await click(document.querySelector('[aria-label="Play"]'))
+    const original = f.audioInstances[0]
+    original.currentTime = 21
+    await click(document.querySelector('[aria-label="Pause"]'))
+    assert.equal(original.paused, true)
+    await click(document.querySelector("[data-world-trigger]"))
+    const district = document.querySelector("dialog.garganta")
+    assert.equal(district.dataset.entered, "false")
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 750)))
+    assert.equal(district.dataset.entered, "true")
+    assert.equal(byText("button", "Skip arrival"), undefined)
+    await click(document.querySelector('[aria-label="Return to portfolio"]'))
+    assert.equal(original.paused, true)
+    assert.equal(original.currentTime, 21)
+    assert.equal(f.audioInstances.length, 1)
+  } finally {
+    await unmount()
+  }
 })
 
 test("rail focus reveals hidden controls and resizing preserves chapter position", async () => {
@@ -1084,7 +1310,11 @@ test("signature follows hero scroll, reverses, and draws Contact only once", asy
     assert.equal(document.querySelectorAll(".photo img").length, 5)
     const hero = document.querySelector(".signature-hero")
     const contact = document.querySelector(".contact-chapter .signature")
-    assert.equal(hero.closest(".hero-copy"), null, "signature is outside the expanding name layout")
+    assert.equal(
+      hero.closest(".hero-copy"),
+      null,
+      "signature is outside the expanding name layout",
+    )
     assert.equal(hero.parentElement.parentElement.className, "hero-sticky")
     assert.equal(hero.dataset.started, "false")
     assert.equal(hero.style.getPropertyValue("--signature-progress"), "0")
@@ -1292,11 +1522,17 @@ test("book dialogs reopen, close on cancel, and return focus without unmounting 
     const book = document.querySelector('[aria-haspopup="dialog"]')
     const showModal = window.HTMLDialogElement.prototype.showModal
     window.HTMLDialogElement.prototype.showModal = function () {
-      assert.ok(this.querySelector('#book-title'), "book content exists before native autofocus")
+      assert.ok(
+        this.querySelector("#book-title"),
+        "book content exists before native autofocus",
+      )
       showModal.call(this)
       window.scrollTo({ top: 0 }) // Reproduce browsers scrolling during modal focus.
     }
-    await act(async () => { window.scrollTo({ top: 5400 }); f.advance(32) })
+    await act(async () => {
+      window.scrollTo({ top: 5400 })
+      f.advance(32)
+    })
     const originalOverflow = document.documentElement.style.overflow
     await click(book)
     assert.equal(scrollY, 5400)
@@ -1372,7 +1608,8 @@ test("new defaults replace legacy preferences once, while new explicit choices r
 })
 
 test("handwritten name replays on hover, keyboard and touch, and cleans up in ASCII mode", async () => {
-  const f = fixture(), unmount = await mountApp(f)
+  const f = fixture(),
+    unmount = await mountApp(f)
   try {
     const button = document.querySelector(".name-drawing")
     assert.equal(button.dataset.language, "english")
@@ -1380,35 +1617,65 @@ test("handwritten name replays on hover, keyboard and touch, and cleans up in AS
     assert.equal(document.querySelector(".chinese-name-drawing"), null)
     assert.equal(document.querySelector(".hero-byline [lang]"), null)
     assert.equal(button.dataset.started, "false")
-    assert.ok([...button.querySelectorAll("[data-ink-start]")].every(path => path.style.opacity === "0"))
+    assert.ok(
+      [...button.querySelectorAll("[data-ink-start]")].every(
+        (path) => path.style.opacity === "0",
+      ),
+    )
     await act(async () => f.advance(1500))
     assert.equal(scrollY, 0, "writing plays without scrolling")
     const english = [...button.querySelectorAll(".english-pen-stroke")]
-    const partial = Number(button.style.getPropertyValue("--signature-progress"))
-    assert.ok(partial > .45 && partial < .55)
-    assert.ok(Number(english[0].style.strokeDashoffset) > 0 && Number(english[0].style.strokeDashoffset) < 1)
-    assert.equal(english[2].style.opacity, "0", "dot stays hidden until the pen reaches it")
-    await act(async () => { window.scrollTo({ top: 400 }); f.advance(32) })
-    assert.ok(Number(button.style.getPropertyValue("--signature-progress")) >= partial, "scroll does not reset the writing")
+    const partial = Number(
+      button.style.getPropertyValue("--signature-progress"),
+    )
+    assert.ok(partial > 0.45 && partial < 0.55)
+    assert.ok(
+      Number(english[0].style.strokeDashoffset) > 0 &&
+        Number(english[0].style.strokeDashoffset) < 1,
+    )
+    assert.equal(
+      english[2].style.opacity,
+      "0",
+      "dot stays hidden until the pen reaches it",
+    )
+    await act(async () => {
+      window.scrollTo({ top: 400 })
+      f.advance(32)
+    })
+    assert.ok(
+      Number(button.style.getPropertyValue("--signature-progress")) >= partial,
+      "scroll does not reset the writing",
+    )
     await act(async () => f.advance(1700))
     assert.equal(button.dataset.complete, "true")
-    await act(async () => { window.scrollTo({ top: 0 }); f.advance(32) })
-    assert.equal(button.dataset.complete, "true", "returning to the top does not erase the name")
+    await act(async () => {
+      window.scrollTo({ top: 0 })
+      f.advance(32)
+    })
+    assert.equal(
+      button.dataset.complete,
+      "true",
+      "returning to the top does not erase the name",
+    )
     await click(document.querySelector(".name-replay"))
     await act(async () => f.advance(1500))
     assert.equal(button.dataset.started, "true")
     assert.equal(button.dataset.complete, "false")
     await act(async () => f.advance(1700))
     assert.equal(button.dataset.complete, "true")
-    const pointer = async (type, pointerType) => act(async () => {
-      const event = new window.Event(type, { bubbles: true })
-      Object.defineProperty(event, "pointerType", { value: pointerType })
-      button.dispatchEvent(event)
-    })
+    const pointer = async (type, pointerType) =>
+      act(async () => {
+        const event = new window.Event(type, { bubbles: true })
+        Object.defineProperty(event, "pointerType", { value: pointerType })
+        button.dispatchEvent(event)
+      })
     await pointer("pointerover", "mouse")
     assert.equal(button.dataset.language, "chinese")
     const characters = [...button.querySelectorAll("[data-character]")]
-    assert.deepEqual(characters.map(el => el.dataset.character), ["李", "嘉", "和"])
+    assert.deepEqual(
+      characters.map((el) => el.dataset.character),
+      ["李", "嘉", "和"],
+    )
     assert.equal(button.querySelectorAll(".name-pen-stroke").length, 29)
     let previousEnd = 0
     for (const character of characters) {
@@ -1417,84 +1684,138 @@ test("handwritten name replays on hover, keyboard and touch, and cleans up in AS
       previousEnd = Number(strokes.at(-1).dataset.inkEnd)
       for (const stroke of strokes) {
         const id = stroke.getAttribute("clip-path").slice(5, -1)
-        assert.ok(document.getElementById(id)?.querySelector("path").getAttribute("d"))
+        assert.ok(
+          document.getElementById(id)?.querySelector("path").getAttribute("d"),
+        )
       }
     }
     assert.equal(previousEnd, 1)
     await act(async () => f.advance(600))
-    assert.ok(characters[0].querySelector('.name-pen-stroke').style.opacity === "1")
-    assert.ok([...characters[1].querySelectorAll('path.name-pen-stroke'), ...characters[2].querySelectorAll('path.name-pen-stroke')].every(path => path.style.opacity === "0"))
+    assert.ok(
+      characters[0].querySelector(".name-pen-stroke").style.opacity === "1",
+    )
+    assert.ok(
+      [
+        ...characters[1].querySelectorAll("path.name-pen-stroke"),
+        ...characters[2].querySelectorAll("path.name-pen-stroke"),
+      ].every((path) => path.style.opacity === "0"),
+    )
     await act(async () => f.advance(900))
-    assert.ok([...characters[0].querySelectorAll('.name-pen-stroke')].every(path => path.style.strokeDashoffset === "0"))
-    assert.ok([...characters[2].querySelectorAll('.name-pen-stroke')].every(path => path.style.opacity === "0"))
+    assert.ok(
+      [...characters[0].querySelectorAll(".name-pen-stroke")].every(
+        (path) => path.style.strokeDashoffset === "0",
+      ),
+    )
+    assert.ok(
+      [...characters[2].querySelectorAll(".name-pen-stroke")].every(
+        (path) => path.style.opacity === "0",
+      ),
+    )
     await act(async () => f.advance(1050))
-    assert.ok([...characters[1].querySelectorAll('.name-pen-stroke')].every(path => path.style.strokeDashoffset === "0"))
-    assert.equal(characters[2].querySelector('.name-pen-stroke').style.opacity, "1")
+    assert.ok(
+      [...characters[1].querySelectorAll(".name-pen-stroke")].every(
+        (path) => path.style.strokeDashoffset === "0",
+      ),
+    )
+    assert.equal(
+      characters[2].querySelector(".name-pen-stroke").style.opacity,
+      "1",
+    )
     await pointer("pointerout", "mouse")
     assert.equal(button.dataset.language, "english")
     await act(async () => button.focus())
     assert.equal(button.dataset.language, "chinese")
-    await act(async () => button.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })))
+    await act(async () =>
+      button.dispatchEvent(
+        new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      ),
+    )
     assert.equal(button.dataset.language, "english")
     await act(async () => button.blur())
     await pointer("pointerdown", "touch")
     await act(async () => button.focus())
     await click(button)
-    assert.equal(button.dataset.language, "chinese", "first touch writes Chinese without a focus/click race")
+    assert.equal(
+      button.dataset.language,
+      "chinese",
+      "first touch writes Chinese without a focus/click race",
+    )
     await click(button)
     assert.equal(button.dataset.language, "english")
     await click(byText("button", "ASCII"))
     assert.equal(document.querySelector(".name-drawing"), null)
     assert.ok(document.querySelector("#intro-h").textContent.includes("Leo Li"))
-  } finally { await unmount() }
+  } finally {
+    await unmount()
+  }
 })
 
 test("taskbar music shares playback and cover shelves keep book details accessible", async () => {
-  const f = fixture({ width: 390 }), unmount = await mountApp(f)
+  const f = fixture({ width: 390 }),
+    unmount = await mountApp(f)
   try {
     const dock = document.querySelector('[aria-label="Taskbar music player"]')
-    assert.ok(dock.closest('[data-deck-status]'))
-    assert.equal(dock.querySelector('.music-dock-disc').dataset.playing, "false")
+    assert.ok(dock.closest("[data-deck-status]"))
+    assert.equal(
+      dock.querySelector(".music-dock-disc").dataset.playing,
+      "false",
+    )
     await click(dock.querySelector('[aria-label="Play music"]'))
     const audio = f.audioInstances[0]
     assert.equal(audio.paused, false)
     audio.currentTime = 37
     await click(dock.querySelector('[aria-label="Music player details"]'))
-    const panel = document.getElementById('taskbar-music-panel')
+    const panel = document.getElementById("taskbar-music-panel")
     assert.ok(panel)
-    assert.equal(dock.querySelector('.music-dock-disc').dataset.playing, "true")
-    assert.equal(panel.querySelector('.disc').dataset.playing, "true")
+    assert.equal(dock.querySelector(".music-dock-disc").dataset.playing, "true")
+    assert.equal(panel.querySelector(".disc").dataset.playing, "true")
     assert.ok(panel.querySelector('[aria-label="Pause"]'))
     assert.equal(f.audioInstances.length, 1)
     await click(panel.querySelector('[aria-label="Pause"]'))
     assert.equal(audio.paused, true)
     await click(dock.querySelector('[aria-label="Play music"]'))
     assert.equal(audio.currentTime, 37)
-    await act(async () => document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
-    assert.equal(document.getElementById('taskbar-music-panel'), null)
-    assert.equal(document.activeElement, dock.querySelector('[aria-label="Music player details"]'))
+    await act(async () =>
+      document.dispatchEvent(
+        new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      ),
+    )
+    assert.equal(document.getElementById("taskbar-music-panel"), null)
+    assert.equal(
+      document.activeElement,
+      dock.querySelector('[aria-label="Music player details"]'),
+    )
     const source = audio.src
     await click(dock.querySelector('[aria-label="Skip music track"]'))
     assert.notEqual(audio.src, source)
     assert.equal(f.audioInstances.length, 1)
-    const covers = [...document.querySelectorAll('.book-jacket img')]
+    const covers = [...document.querySelectorAll(".book-jacket img")]
     assert.equal(covers.length, 20)
-    assert.ok(covers.every(cover => cover.getAttribute('src').startsWith('/books/')))
-    assert.equal(document.querySelectorAll('.book-ribbon').length, 2)
-    await act(async () => covers[0].dispatchEvent(new window.Event('error')))
+    assert.ok(
+      covers.every((cover) => cover.getAttribute("src").startsWith("/books/")),
+    )
+    assert.equal(document.querySelectorAll(".book-ribbon").length, 2)
+    await act(async () => covers[0].dispatchEvent(new window.Event("error")))
     assert.equal(covers[0].hidden, true)
-    assert.ok(covers[0].parentElement.querySelector('.book-cover-fallback').textContent.length)
-    const book = covers[0].closest('button')
+    assert.ok(
+      covers[0].parentElement.querySelector(".book-cover-fallback").textContent
+        .length,
+    )
+    const book = covers[0].closest("button")
     await click(book)
-    assert.equal(document.querySelector('.cover-library dialog').open, true)
-    await click(document.querySelector('.cover-library dialog [aria-label="Close"]'))
+    assert.equal(document.querySelector(".cover-library dialog").open, true)
+    await click(
+      document.querySelector('.cover-library dialog [aria-label="Close"]'),
+    )
     await act(async () => f.advance(240))
     assert.equal(document.activeElement, book)
     assert.equal(audio.paused, false)
-    await click(byText('button', 'ASCII'))
-    assert.equal(document.querySelectorAll('.book-jacket img').length, 0)
-    assert.equal(document.querySelectorAll('.book-ascii').length, 20)
+    await click(byText("button", "ASCII"))
+    assert.equal(document.querySelectorAll(".book-jacket img").length, 0)
+    assert.equal(document.querySelectorAll(".book-ascii").length, 20)
     assert.equal(f.audioInstances.length, 1)
     assert.equal(audio.paused, false)
-  } finally { await unmount() }
+  } finally {
+    await unmount()
+  }
 })

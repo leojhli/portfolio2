@@ -2,23 +2,31 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import { useAudio } from "../state/audio"
 import { usePrefs } from "../state/preferences"
 import { getContent } from "../content/data"
-import { spiritStops, TREACHERY_SRC } from "../content/spiritWorld"
-import { playGargantaSound } from "../effects/gargantaSound"
-import BankaiSword from "./BankaiSword"
+import { spiritStops } from "../content/spiritWorld"
+import { playDistrictAmbience } from "../effects/districtAmbience"
 import { cancelEffects } from "../effects/coordinator"
 
-const SpiritWorldView = lazy(() => import("../three/SpiritWorldView"))
+const SpiritWorldView = lazy(() => import("../three/RainDistrictView"))
 const content = getContent()
+const ARRIVAL_MS = 700
 
 export default function Garganta() {
-  const audio = useAudio(),
-    { mode } = usePrefs()
-  const dialog = useRef<HTMLDialogElement>(null),
-    trigger = useRef<HTMLButtonElement>(null)
-  const soundtrack = useRef<HTMLAudioElement | null>(null)
-  const restoreMusic = useRef<(() => void) | null>(null),
-    stopEffects = useRef<(() => void) | null>(null)
+  const audio = useAudio()
+  const { mode } = usePrefs()
+  const dialog = useRef<HTMLDialogElement>(null)
+  const trigger = useRef<HTMLButtonElement>(null)
+  const restoreMusic = useRef<(() => void) | null>(null)
+  const stopAmbience = useRef<(() => void) | null>(null)
   const lastLookUnlock = useRef(-Infinity)
+  const timer = useRef(0)
+  const savedOverflow = useRef("")
+  const active = useRef(false)
+  const [open, setOpen] = useState(false)
+  const [entered, setEntered] = useState(false)
+  const [selected, setSelected] = useState(-1)
+  const [focusKey, setFocusKey] = useState(0)
+  const [ambience, setAmbience] = useState(true)
+
   useEffect(() => {
     const unlock = () => {
       lastLookUnlock.current = performance.now()
@@ -26,30 +34,19 @@ export default function Garganta() {
     window.addEventListener("portfolio:look-unlocked", unlock)
     return () => window.removeEventListener("portfolio:look-unlocked", unlock)
   }, [])
-  const timer = useRef(0),
-    savedOverflow = useRef(""),
-    session = useRef(0),
-    active = useRef(false)
-  const [open, setOpen] = useState(false),
-    [entered, setEntered] = useState(false),
-    [selected, setSelected] = useState(-1),
-    [focusKey, setFocusKey] = useState(0)
+
   const select = (index: number) => {
     setSelected(index)
     setFocusKey((value) => value + 1)
   }
-  const [music, setMusic] = useState(true),
-    [effects, setEffects] = useState(true),
-    [audioError, setAudioError] = useState(false)
+
   const close = () => {
     if (!active.current) return
     active.current = false
-    session.current++
     clearTimeout(timer.current)
-    stopEffects.current?.()
-    stopEffects.current = null
-    soundtrack.current?.pause()
-    if (soundtrack.current) soundtrack.current.currentTime = 0
+    stopAmbience.current?.()
+    stopAmbience.current = null
+    if (document.pointerLockElement) document.exitPointerLock?.()
     dialog.current?.close()
     document.documentElement.style.overflow = savedOverflow.current
     delete document.documentElement.dataset.spiritWorld
@@ -59,23 +56,25 @@ export default function Garganta() {
     restoreMusic.current = null
     trigger.current?.focus({ preventScroll: true })
   }
+
   useEffect(
     () => () => {
       clearTimeout(timer.current)
-      stopEffects.current?.()
-      soundtrack.current?.pause()
-      if (soundtrack.current) soundtrack.current.onerror = null
-      if (active.current)
+      stopAmbience.current?.()
+      if (active.current) {
+        if (document.pointerLockElement) document.exitPointerLock?.()
         document.documentElement.style.overflow = savedOverflow.current
-      delete document.documentElement.dataset.spiritWorld
-      dispatchEvent(new Event("portfolio:world"))
+        delete document.documentElement.dataset.spiritWorld
+        dispatchEvent(new Event("portfolio:world"))
+      }
+      restoreMusic.current?.()
     },
     [],
   )
+
   const enter = () => {
-    if (open) return
+    if (active.current) return
     active.current = true
-    const token = ++session.current
     cancelEffects()
     savedOverflow.current = document.documentElement.style.overflow
     document.documentElement.style.overflow = "hidden"
@@ -85,62 +84,104 @@ export default function Garganta() {
     setSelected(-1)
     setEntered(false)
     setOpen(true)
-    setAudioError(false)
     dialog.current?.showModal()
     let enabled = true
     try {
       enabled = localStorage.getItem("pf.sound") !== "off"
     } catch {
-      /* use default */
+      /* Storage can be unavailable; keep the normal sound default. */
     }
-    setEffects(enabled)
-    if (enabled) stopEffects.current = playGargantaSound()
-    const song = soundtrack.current ?? new Audio()
-    soundtrack.current = song
-    song.src = TREACHERY_SRC
-    song.loop = true
-    song.volume = 0.52
-    song.preload = "none"
-    song.onerror = () => {
-      if (session.current === token) {
-        setAudioError(true)
-        setMusic(false)
-      }
-    }
-    setMusic(true)
-    void song.play().catch(() => {
-      if (session.current !== token) return
-      setAudioError(true)
-      setMusic(false)
-    })
-    timer.current = window.setTimeout(() => setEntered(true), 2350)
+    setAmbience(enabled)
+    if (enabled) stopAmbience.current = playDistrictAmbience()
+    timer.current = window.setTimeout(() => setEntered(true), ARRIVAL_MS)
+  }
+
+  const arrive = () => {
+    clearTimeout(timer.current)
+    setEntered(true)
   }
   const stop = spiritStops[selected]
+
   return (
     <>
-      <div className="bankai-discovery">
-        <span className="eyebrow">There’s another side to this.</span>
+      <div className="district-discovery">
+        <span className="eyebrow">One more place to get lost.</span>
         <button
           ref={trigger}
           type="button"
-          className="bankai-trigger"
+          className="district-trigger"
           data-world-trigger
-          aria-label="Draw Tensa Zangetsu and enter the Garganta"
+          aria-label="Enter Rain District"
           aria-haspopup="dialog"
           onClick={enter}
         >
-          <BankaiSword />
-          <span className="bankai-caption">
-            <span>TENSA ZANGETSU</span>
-            <span>Cross the boundary ↗</span>
+          <span className="district-ticket" aria-hidden="true">
+            {mode === "ascii" ? (
+              <pre className="district-ticket-ascii">{`+--------------------+
+|  / /  RAIN DISTRICT |
+| / /   NIGHT PASS   |
+|      [ 01 -> 04 ]  |
++--------------------+`}</pre>
+            ) : (
+              <svg viewBox="0 0 312 176" fill="none">
+                <path
+                  className="district-ticket-face"
+                  d="M12 1H300L311 12V67C295 67 295 91 311 91V164L300 175H12L1 164V91C17 91 17 67 1 67V12Z"
+                />
+                <path
+                  className="district-ticket-border"
+                  d="M19 16H293V160H19Z"
+                />
+                <path className="district-ticket-perforation" d="M224 17V159" />
+                <path
+                  className="district-ticket-line"
+                  d="M35 133H71L95 109H144L169 84H204M35 141H75L99 117H148L173 92H204"
+                />
+                <circle
+                  className="district-ticket-stop"
+                  cx="95"
+                  cy="109"
+                  r="4"
+                />
+                <circle
+                  className="district-ticket-stop"
+                  cx="169"
+                  cy="84"
+                  r="4"
+                />
+                <text className="district-ticket-hanzi" x="33" y="82">
+                  雨巷
+                </text>
+                <text className="district-ticket-caption" x="36" y="100">
+                  AFTER HOURS / 夜行
+                </text>
+                <text className="district-ticket-number" x="240" y="49">
+                  04
+                </text>
+                <path
+                  className="district-ticket-barcode"
+                  d="M241 76V137M245 76V137M252 76V137M260 76V137M264 76V137M272 76V137"
+                />
+                <text className="district-ticket-small" x="240" y="150">
+                  ONE WAY IN
+                </text>
+              </svg>
+            )}
+          </span>
+          <span className="district-caption">
+            <span>RAIN DISTRICT</span>
+            <span>A city after hours. Come wander.</span>
+            <span className="district-enter">
+              Enter the district <span aria-hidden="true">↗</span>
+            </span>
           </span>
         </button>
-        <p>A small tribute to a very big obsession.</p>
+        <p>Rain on concrete. Tea still warm. The last tram hasn’t left.</p>
       </div>
       <dialog
         ref={dialog}
         className="garganta"
-        aria-labelledby="garganta-title"
+        aria-labelledby="district-title"
         data-entered={entered}
         onCancel={(event) => {
           event.preventDefault()
@@ -160,7 +201,7 @@ export default function Garganta() {
               <Suspense
                 fallback={
                   <div className="spirit-loading" role="status">
-                    Crossing the boundary…
+                    <span lang="zh">雨巷</span>Arriving in Rain District…
                   </div>
                 }
               >
@@ -172,16 +213,14 @@ export default function Garganta() {
                 />
               </Suspense>
             </div>
-            <div className="garganta-rift" aria-hidden="true">
-              <div className="rift-upper" />
-              <div className="rift-lower" />
-              <div className="rift-cut" />
-            </div>
+            <div className="district-arrival" aria-hidden="true" />
             <header className="spirit-header">
               <div>
-                <p className="spirit-eyebrow">THE OTHER SIDE / 001</p>
-                <h2 id="garganta-title">Beyond the boundary.</h2>
-                <p>A Seireitei-inspired world. A little piece of me.</p>
+                <p className="spirit-eyebrow">
+                  <span lang="zh">雨巷</span> / AFTER HOURS
+                </p>
+                <h2 id="district-title">Rain District</h2>
+                <p>Four addresses. No wrong turns.</p>
               </div>
               <button
                 type="button"
@@ -197,83 +236,36 @@ export default function Garganta() {
               <button
                 type="button"
                 className="spirit-skip spirit-button"
-                onClick={() => {
-                  clearTimeout(timer.current)
-                  setEntered(true)
-                  stopEffects.current?.()
-                }}
+                onClick={arrive}
               >
-                Skip entrance
+                Skip arrival
               </button>
             )}
             <div className="spirit-toolbar">
               <button
                 type="button"
                 className="spirit-button"
-                onClick={() => {
-                  select(-1)
-                }}
+                onClick={() => select(-1)}
               >
                 Reset view
               </button>
+              <span>Take the long way home.</span>
               <button
                 type="button"
                 className="spirit-button"
+                aria-pressed={ambience}
                 onClick={() => {
-                  clearTimeout(timer.current)
-                  setEntered(false)
-                  stopEffects.current?.()
-                  if (effects) stopEffects.current = playGargantaSound()
-                  timer.current = window.setTimeout(
-                    () => setEntered(true),
-                    2350,
-                  )
+                  stopAmbience.current?.()
+                  stopAmbience.current = ambience
+                    ? null
+                    : playDistrictAmbience()
+                  setAmbience(!ambience)
                 }}
               >
-                Replay crossing
-              </button>
-              <span>Explore at your own pace.</span>
-              <button
-                type="button"
-                className="spirit-button"
-                aria-pressed={music}
-                onClick={() => {
-                  const song = soundtrack.current
-                  if (!song) return
-                  if (music) {
-                    song.pause()
-                    setMusic(false)
-                  } else {
-                    void song
-                      .play()
-                      .then(() => {
-                        setMusic(true)
-                        setAudioError(false)
-                      })
-                      .catch(() => setAudioError(true))
-                  }
-                }}
-              >
-                {music ? "Pause" : "Play"} Treachery
-              </button>
-              <button
-                type="button"
-                className="spirit-button"
-                aria-pressed={effects}
-                onClick={() => {
-                  setEffects(!effects)
-                  if (effects) stopEffects.current?.()
-                }}
-              >
-                Portal FX: {effects ? "On" : "Off"}
+                Ambience: {ambience ? "On" : "Off"}
               </button>
             </div>
-            {audioError && (
-              <p className="spirit-audio-error" role="status">
-                Soundtrack couldn’t start. Press Play Treachery to retry.
-              </p>
-            )}
-            <nav className="spirit-locations" aria-label="Courtyard locations">
+            <nav className="spirit-locations" aria-label="District locations">
               {spiritStops.map((place, i) => (
                 <button
                   type="button"
@@ -281,7 +273,7 @@ export default function Garganta() {
                   aria-pressed={selected === i}
                   onClick={() => {
                     select(i)
-                    setEntered(true)
+                    arrive()
                   }}
                 >
                   <span>0{i + 1}</span>
@@ -304,7 +296,7 @@ export default function Garganta() {
                   ×
                 </button>
                 <p className="spirit-eyebrow">
-                  {stop.character} / {stop.id}
+                  <span lang="zh">{stop.character}</span> / {stop.id}
                 </p>
                 <h3>{stop.name}</h3>
                 <p className="spirit-note-lead">{stop.subtitle}</p>
@@ -333,10 +325,7 @@ export default function Garganta() {
                 )}
                 {stop.id === "about" && <p>{content.beyond.intro}</p>}
                 {stop.id === "contact" && (
-                  <p>
-                    Back to the living world. Let’s build something worth
-                    crossing over for.
-                  </p>
+                  <p>If our paths cross, let’s make something memorable.</p>
                 )}
                 <a className="spirit-link" href={`#${stop.id}`} onClick={close}>
                   Open {stop.id} on the portfolio ↗
@@ -344,10 +333,15 @@ export default function Garganta() {
               </aside>
             )}
             <p className="spirit-credit">
-              An unofficial BLEACH fan-art world by Leo Li.{" "}
-              {mode === "ascii"
-                ? "Rendered in characters."
-                : "Ichigo · Rukia · Byakuya"}
+              <span>A place imagined by Leo Li.</span>
+              <a
+                href="/models/neon-district/credits.html"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Model credits ↗
+              </a>
+              {mode === "ascii" && <span>Rendered in characters.</span>}
             </p>
           </>
         )}

@@ -1,3 +1,5 @@
+> Historical reference: this Bleach implementation was replaced by Rain District on 2026-10-28. See interaction-effects.md and HANDOFF-RAIN-DISTRICT.md for the current implementation.
+
 # Beyond the boundary
 
 An optional BLEACH fan-art chapter at the bottom of Contact. The portfolio remains directly usable without entering it.

@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "verifiedOn": "2026-10-28",
+  "totalBytes": 15394084,
+  "provenance": "Each embedded Sketchfab UID, author, and CC-BY-4.0 license was matched to current public Sketchfab metadata. Files were downloaded through the public AllenAI Objaverse dataset, not extracted from a viewer.",
+  "models": [
+    {
+      "id": "asia-building",
+      "path": "/models/neon-district/asia-building.glb",
+      "title": "Asia Building",
+      "author": "Solarliu",
+      "authorUrl": "https://sketchfab.com/jacky15621419",
+      "sketchfabUid": "a3f45195b01f48ff9f687d3ceac52b82",
+      "sourceUrl": "https://sketchfab.com/3d-models/asia-building-a3f45195b01f48ff9f687d3ceac52b82",
+      "metadataUrl": "https://api.sketchfab.com/v3/models/a3f45195b01f48ff9f687d3ceac52b82",
+      "license": {
+        "id": "CC-BY-4.0",
+        "url": "https://creativecommons.org/licenses/by/4.0/"
+      },
+      "downloadUrl": "https://huggingface.co/datasets/allenai/objaverse/resolve/main/glbs/000-067/a3f45195b01f48ff9f687d3ceac52b82.glb",
+      "downloadProvider": "Allen Institute for AI — Objaverse public dataset",
+      "bytes": 3029860,
+      "sha256": "43805d60cb619b8144c8b3073e28747ef6ab2dd77ff9d5471b48dd7ded746694",
+      "sourceFileChanges": "None. The downloaded GLB is preserved byte for byte. Placement, scale, lighting, and any material tuning happen in the portfolio scene.",
+      "geometry": {
+        "triangles": 14336,
+        "meshes": 53,
+        "materials": 53,
+        "nodes": 108,
+        "bounds": {
+          "min": [
+            -81.3466796875,
+            -7.62939453125e-06,
+            -79.42962646484378
+          ],
+          "max": [
+            87.48211669921875,
+            175.07359313964844,
+            80.20463562011719
+          ],
+          "size": [
+            168.82879638671875,
+            175.07360076904297,
+            159.63426208496097
+          ]
+        },
+        "upAxis": "Y after the GLB root transforms are applied",
+        "forwardDirection": "Not formally encoded by the author. Verify facade/headlight orientation in the scene before applying final yaw."
+      },
+      "suggestedPlacement": {
+        "heightMeters": 17.5,
+        "uniformScale": 0.09995796009865585,
+        "centerXZ": [
+          3.067718505859375,
+          0.38750457763670454
+        ],
+        "groundOffsetBeforeScale": 7.62939453125e-06
+      },
+      "animations": [],
+      "notes": "Worn Taiwanese apartment and street-level shop block; retain the naturally colored concrete, awnings, pipes, and window detail."
+    },
+    {
+      "id": "industrial-ac",
+      "path": "/models/neon-district/industrial-ac.glb",
+      "title": "Industrial Air Conditioner",
+      "author": "HusarL",
+      "authorUrl": "https://sketchfab.com/HusarL",
+      "sketchfabUid": "82797367c2b94fb1981e556577a3c898",
+      "sourceUrl": "https://sketchfab.com/3d-models/industrial-air-conditioner-82797367c2b94fb1981e556577a3c898",
+      "metadataUrl": "https://api.sketchfab.com/v3/models/82797367c2b94fb1981e556577a3c898",
+      "license": {
+        "id": "CC-BY-4.0",
+        "url": "https://creativecommons.org/licenses/by/4.0/"
+      },
+      "downloadUrl": "https://huggingface.co/datasets/allenai/objaverse/resolve/main/glbs/000-028/82797367c2b94fb1981e556577a3c898.glb",
+      "downloadProvider": "Allen Institute for AI — Objaverse public dataset",
+      "bytes": 4541916,
+      "sha256": "6e90b3b1ca72cf9d68dbcfcfdbae81c93482480bec49efef7cacd0d1080ca4f8",
+      "sourceFileChanges": "None. The downloaded GLB is preserved byte for byte. Placement, scale, lighting, and any material tuning happen in the portfolio scene.",
+      "geometry": {
+        "triangles": 1500,
+        "meshes": 2,
+        "materials": 2,
+        "nodes": 16,
+        "bounds": {
+          "min": [
+            -0.42339705785743736,
+            -0.23912417331289,
+            -0.19238891243755188
+          ],
+          "max": [
+            0.42339714390672667,
+            0.215631027767216,
+            0.14703839570933655
+          ],
+          "size": [
+            0.8467942017641641,
+            0.454755201080106,
+            0.33942730814688843
+          ]
+        },
+        "upAxis": "Y after the GLB root transforms are applied",
+        "forwardDirection": "Not formally encoded by the author. Verify facade/headlight orientation in the scene before applying final yaw."
+      },
+      "suggestedPlacement": {
+        "heightMeters": 0.82,
+        "uniformScale": 1.803167941900142,
+        "centerXZ": [
+          4.3024644652556177e-08,
+          -0.022675258364107664
+        ],
+        "groundOffsetBeforeScale": 0.23912417331289
+      },
+      "animations": [
+        {
+          "name": "Armature|ArmatureAction",
+          "durationSeconds": 4.958333492279053
+        }
+      ],
+      "notes": "Aged dual-fan condenser for the service alley and upper facade; use SkeletonUtils.clone for independent skinned fan animations."
+    },
+    {
+      "id": "chinese-lantern",
+      "path": "/models/neon-district/chinese-lantern.glb",
+      "title": "Old Chinese Lantern - lowpoly for free download",
+      "author": "Scritta",
+      "authorUrl": "https://sketchfab.com/scritta",
+      "sketchfabUid": "73b1e60901e6494fb0cb39affca6f850",
+      "sourceUrl": "https://sketchfab.com/3d-models/old-chinese-lantern-lowpoly-for-free-download-73b1e60901e6494fb0cb39affca6f850",
+      "metadataUrl": "https://api.sketchfab.com/v3/models/73b1e60901e6494fb0cb39affca6f850",
+      "license": {
+        "id": "CC-BY-4.0",
+        "url": "https://creativecommons.org/licenses/by/4.0/"
+      },
+      "downloadUrl": "https://huggingface.co/datasets/allenai/objaverse/resolve/main/glbs/000-017/73b1e60901e6494fb0cb39affca6f850.glb",
+      "downloadProvider": "Allen Institute for AI — Objaverse public dataset",
+      "bytes": 1058168,
+      "sha256": "6839562e4cbeac4b3459cab7d78300c212a13151280885de5000ecce4514a5e0",
+      "sourceFileChanges": "None. The downloaded GLB is preserved byte for byte. Placement, scale, lighting, and any material tuning happen in the portfolio scene.",
+      "geometry": {
+        "triangles": 976,
+        "meshes": 1,
+        "materials": 1,
+        "nodes": 3,
+        "bounds": {
+          "min": [
+            -36.33335876464844,
+            4.326141357421867,
+            -35.91761016845703
+          ],
+          "max": [
+            35.955238342285156,
+            134.75021362304688,
+            37.48615264892581
+          ],
+          "size": [
+            72.2885971069336,
+            130.424072265625,
+            73.40376281738284
+          ]
+        },
+        "upAxis": "Y after the GLB root transforms are applied",
+        "forwardDirection": "Not formally encoded by the author. Verify facade/headlight orientation in the scene before applying final yaw."
+      },
+      "suggestedPlacement": {
+        "heightMeters": 0.95,
+        "uniformScale": 0.007283931436101809,
+        "centerXZ": [
+          -0.18906021118164062,
+          0.7842712402343892
+        ],
+        "groundOffsetBeforeScale": -4.326141357421867
+      },
+      "animations": [],
+      "notes": "One weathered paper lantern at the quiet tea room; a small warm counterpoint to the cool electrical district."
+    },
+    {
+      "id": "courier-scooter",
+      "path": "/models/neon-district/courier-scooter.glb",
+      "title": "Cyberpunk Scooter",
+      "author": "Berk Gedik",
+      "authorUrl": "https://sketchfab.com/berkgedik",
+      "sketchfabUid": "1381b799cab24733b0871d40c106232c",
+      "sourceUrl": "https://sketchfab.com/3d-models/cyberpunk-scooter-1381b799cab24733b0871d40c106232c",
+      "metadataUrl": "https://api.sketchfab.com/v3/models/1381b799cab24733b0871d40c106232c",
+      "license": {
+        "id": "CC-BY-4.0",
+        "url": "https://creativecommons.org/licenses/by/4.0/"
+      },
+      "downloadUrl": "https://huggingface.co/datasets/allenai/objaverse/resolve/main/glbs/000-023/1381b799cab24733b0871d40c106232c.glb",
+      "downloadProvider": "Allen Institute for AI — Objaverse public dataset",
+      "bytes": 6764140,
+      "sha256": "f2ccf40191a3bc630803a022c04574e7e0d4cf6ba6d494cb21f67ca9ce5e8097",
+      "sourceFileChanges": "None. The downloaded GLB is preserved byte for byte. Placement, scale, lighting, and any material tuning happen in the portfolio scene.",
+      "geometry": {
+        "triangles": 65414,
+        "meshes": 1,
+        "materials": 1,
+        "nodes": 4,
+        "bounds": {
+          "min": [
+            -0.445933997631073,
+            -0.919105037054743,
+            -1.0000000401753564
+          ],
+          "max": [
+            0.445933997631073,
+            0.919105037054743,
+            1.0000000401753564
+          ],
+          "size": [
+            0.891867995262146,
+            1.838210074109486,
+            2.0000000803507128
+          ]
+        },
+        "upAxis": "Y after the GLB root transforms are applied",
+        "forwardDirection": "Not formally encoded by the author. Verify facade/headlight orientation in the scene before applying final yaw."
+      },
+      "suggestedPlacement": {
+        "heightMeters": 1.2,
+        "uniformScale": 0.6528089563328802,
+        "centerXZ": [
+          0.0,
+          0.0
+        ],
+        "groundOffsetBeforeScale": 0.919105037054743
+      },
+      "animations": [],
+      "notes": "A grounded courier prop with a strapped battery, worn deck, suspension, tires, cables, and three forward lamps."
+    }
+  ]
+}
