@@ -1,4 +1,4 @@
-export type SoundCue = "hover" | "tap" | "typing" | "select"
+export type SoundCue = "hover" | "tap" | "select"
 
 // Separate timbres, envelopes and pitch contours make each action recognizable.
 const cues: Record<SoundCue, {
@@ -10,13 +10,6 @@ const cues: Record<SoundCue, {
 }> = {
   hover: { wave: "sine", start: 1100, end: 800, length: 0.035, volume: 0.035 },
   tap: { wave: "triangle", start: 920, end: 180, length: 0.045, volume: 0.12 },
-  typing: {
-    wave: "square",
-    start: 180,
-    end: 105,
-    length: 0.022,
-    volume: 0.055,
-  },
   select: { wave: "sine", start: 480, end: 1080, length: 0.105, volume: 0.14 },
 }
 
@@ -58,10 +51,7 @@ export function createInterfaceSounds(factory = () => new AudioContext()) {
     oscillator.frequency.setValueAtTime(start, now)
     oscillator.frequency.exponentialRampToValueAtTime(end, now + length)
     gain.gain.setValueAtTime(0, now)
-    gain.gain.linearRampToValueAtTime(
-      volume,
-      now + (cue === "typing" ? 0.002 : 0.004),
-    )
+    gain.gain.linearRampToValueAtTime(volume, now + 0.004)
     gain.gain.exponentialRampToValueAtTime(0.0001, now + length)
     oscillator.connect(gain)
     gain.connect(context.destination)

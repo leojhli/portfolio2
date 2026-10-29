@@ -872,7 +872,7 @@ test("native vertical scrolling drives sideways chapters without intercepting wh
   }
 })
 
-test("background clicks, typing and object activation have distinct sound timbres", async () => {
+test("typing stays silent while clicks and object activation retain distinct sound timbres", async () => {
   const f = fixture(),
     previous = globalThis.AudioContext,
     played = []
@@ -910,7 +910,17 @@ test("background clicks, typing and object activation have distinct sound timbre
       ),
     )
     await click(document.querySelector('[aria-controls="theme-pop"]'))
-    assert.deepEqual(played, ["triangle", "square", "sine"])
+    assert.deepEqual(played, ["triangle", "sine"])
+    const editor = document.createElement("textarea")
+    document.body.append(editor)
+    for (const key of ["a", " ", "Backspace", "Delete", "Enter"])
+      await act(async () =>
+        editor.dispatchEvent(
+          new KeyboardEvent("keydown", { key, bubbles: true }),
+        ),
+      )
+    assert.equal(played.length, 2, "editing remains silent with sound enabled")
+    editor.remove()
     await act(async () =>
       document.body.dispatchEvent(
         new KeyboardEvent("keydown", {
@@ -920,10 +930,10 @@ test("background clicks, typing and object activation have distinct sound timbre
         }),
       ),
     )
-    assert.equal(played.length, 3, "shortcuts stay silent")
+    assert.equal(played.length, 2, "shortcuts stay silent")
     await click(document.querySelector('[aria-label="Interface sounds"]'))
     await click(document.body)
-    assert.equal(played.length, 3, "mute covers every sound category")
+    assert.equal(played.length, 2, "mute covers every sound category")
   } finally {
     await unmount()
     if (previous === undefined) delete globalThis.AudioContext
@@ -1025,7 +1035,10 @@ test("Rain District preserves music, exposes every fallback destination and rest
     assert.equal(original.currentTime, 37)
     assert.equal(document.documentElement.style.overflow, "")
     assert.equal(document.documentElement.dataset.spiritWorld, undefined)
-    assert.ok(document.getElementById("projects").contains(document.activeElement), "following a portfolio link moves focus into its destination chapter")
+    assert.ok(
+      document.getElementById("projects").contains(document.activeElement),
+      "following a portfolio link moves focus into its destination chapter",
+    )
     await click(trigger)
     assert.equal(
       f.audioInstances.length,
@@ -1036,7 +1049,10 @@ test("Rain District preserves music, exposes every fallback destination and rest
       district.dispatchEvent(new Event("cancel", { cancelable: true })),
     )
     assert.equal(district.open, false)
-    assert.ok(document.activeElement === trigger, "Escape restores focus to the district ticket")
+    assert.ok(
+      document.activeElement === trigger,
+      "Escape restores focus to the district ticket",
+    )
     assert.equal(original.paused, false)
   } finally {
     await unmount()

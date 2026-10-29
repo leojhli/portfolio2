@@ -13,7 +13,7 @@ const finishId: Record<Finish, number> = {
   foliage: 7,
 }
 
-/** One periodic, linear-data atlas supplies both broad weathering and fine grain. */
+/** One periodic, linear-data atlas gives maintained finishes a subtle tactile grain. */
 function makeGrain() {
   const size = 256
   const data = new Uint8Array(size * size * 4)
@@ -106,27 +106,26 @@ const surfaceColor = `
   float cityMottle = citySample.r - 0.5;
   float cityFine = citySample.g - 0.5;
   float cityHeight = citySample.r * 0.7 + citySample.g * 0.3;
-  float cityRoughness = cityMottle * 0.13;
+  float cityRoughness = cityMottle * 0.05;
   float cityShade = 1.0;
   #if CITY_FINISH == 0
-    // Plaster has mineral mottling and a light weather line near the paving.
-    float cityFoot = exp(-max(vCityWorldPosition.y - 0.15, 0.0) * 1.9);
-    cityShade += cityMottle * 0.28 + cityFine * 0.075 - cityFoot * 0.12;
+    // Clean mineral enamel; no damp tide line along the street.
+    cityShade += cityMottle * 0.12 + cityFine * 0.025;
   #elif CITY_FINISH == 1
-    cityShade += cityMottle * 0.38 + cityFine * 0.13;
+    cityShade += cityMottle * 0.18 + cityFine * 0.045;
     cityHeight = citySample.r * 0.8 + citySample.g * 0.2;
-    cityRoughness += cityFine * 0.12;
+    cityRoughness += cityFine * 0.045;
   #elif CITY_FINISH == 2
-    cityShade += cityMottle * 0.25 + cityFine * 0.045;
-    cityRoughness += cityFine * 0.12;
+    cityShade += cityMottle * 0.12 + cityFine * 0.025;
+    cityRoughness += cityFine * 0.035;
   #elif CITY_FINISH == 3
     float cityFibers = citySample.b;
-    cityShade += cityMottle * 0.25 - pow(cityFibers, 4.0) * 0.2;
+    cityShade += cityMottle * 0.16 - pow(cityFibers, 4.0) * 0.12;
     cityHeight = cityFibers * 0.6 + citySample.r * 0.4;
-    cityRoughness += cityFibers * 0.1;
+    cityRoughness += cityFibers * 0.05;
   #elif CITY_FINISH == 4
-    cityShade += cityMottle * 0.22 + cityFine * 0.035;
-    cityRoughness += (1.0 - citySample.r) * 0.18;
+    cityShade += cityMottle * 0.1 + cityFine * 0.02;
+    cityRoughness += (1.0 - citySample.r) * 0.045;
   #elif CITY_FINISH == 5
     cityShade += cityMottle * 0.15 + cityFine * 0.045;
     totalEmissiveRadiance *= 0.85 + citySample.r * 0.15;
@@ -173,7 +172,7 @@ export function createDistrictMaterials() {
     result.userData.surfaceFinish = finish
     result.onBeforeCompile = (shader) => {
       shader.uniforms.cityGrain = grainUniform
-      shader.uniforms.cityWear = { value: 1 }
+      shader.uniforms.cityWear = { value: finish === "wood" ? 0.65 : 0.28 }
       shader.uniforms.cityRelief = { value: relief }
       shader.vertexShader =
         `${vertexDeclaration}\n${shader.vertexShader}`.replace(
@@ -196,57 +195,63 @@ export function createDistrictMaterials() {
           )
     }
     // Uniform values vary per material; only the finish changes the program source.
-    result.customProgramCacheKey = () => `rain-district-surface-v1/${finish}`
+    result.customProgramCacheKey = () => `rain-district-surface-v2/${finish}`
     owned.push(result)
     return result
   }
   const plaster = material(
-    "aged ivory plaster",
-    "#687778",
+    "warm ivory ceramic",
+    "#b4c0ba",
     "plaster",
-    0.9,
-    0.006,
+    0.38,
+    0.0015,
   )
   const stone = material(
-    "weathered blue-grey stone",
-    "#34494b",
+    "honed blue-grey stone",
+    "#526b76",
     "stone",
-    0.88,
-    0.018,
+    0.54,
+    0.004,
   )
   const roof = material(
     "deep indigo glazed tile",
-    "#21364b",
+    "#294e66",
     "tile",
-    0.38,
-    0.004,
-    { metalness: 0.12 },
+    0.25,
+    0.001,
+    { metalness: 0.22 },
   )
   const roofEdge = material(
     "tile ridge glaze",
-    "#395971",
+    "#618496",
     "tile",
-    0.32,
-    0.004,
-    { metalness: 0.15 },
+    0.22,
+    0.001,
+    { metalness: 0.32 },
   )
-  const dark = material("charcoal joinery", "#202934", "wood", 0.79, 0.007)
-  const wood = material("aged cedar", "#72513e", "wood", 0.74, 0.009)
+  const dark = material(
+    "midnight lacquer joinery",
+    "#2b3b4a",
+    "wood",
+    0.32,
+    0.002,
+  )
+  const wood = material("oiled honey timber", "#a77851", "wood", 0.46, 0.004)
   const metal = material(
-    "worn bronze hardware",
-    "#af9366",
+    "satin titanium hardware",
+    "#b6cbd0",
     "metal",
-    0.4,
-    0.003,
-    { metalness: 0.62 },
+    0.28,
+    0.001,
+    { metalness: 0.58, emissive: "#314c5c", emissiveIntensity: 0.08 },
   )
   const glow = material(
     "warm paper lanterns",
     "#f2ddbb",
     "paper",
-    0.95,
+    0.72,
     0.001,
-    { emissive: "#ffc78e", emissiveIntensity: 0.28 },
+    { emissive: "#ffc28a", emissiveIntensity: 0.8 },
   )
   const pink = material("sakura blossom", "#d889a4", "foliage", 0.95, 0.002)
   const palePink = material(
@@ -256,11 +261,11 @@ export function createDistrictMaterials() {
     0.95,
     0.002,
   )
-  const green = material("garden foliage", "#3b7461", "foliage", 0.94, 0.005)
-  const grass = material("moss garden", "#38594c", "foliage", 0.98, 0.012)
+  const green = material("garden foliage", "#528e69", "foliage", 0.82, 0.003)
+  const grass = material("planted garden", "#436f55", "foliage", 0.88, 0.004)
   const black = material("indigo cloth", "#151c28", "cloth", 0.92, 0.003)
-  const pavers = ["#293c40", "#344244", "#263638"].map((color, i) =>
-    material(`limestone paver ${i + 1}`, color, "stone", 0.85, 0.012),
+  const pavers = ["#50636d", "#647680", "#465b66"].map((color, i) =>
+    material(`honed paver ${i + 1}`, color, "stone", 0.46, 0.003),
   )
   let disposed = false
   return {

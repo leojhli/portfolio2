@@ -3,6 +3,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js"
 import { Reflector } from "three/addons/objects/Reflector.js"
 import { createDistrictMaterials } from "./districtMaterials"
 import { loadDistrictModels, type DistrictAssetStatus } from "./districtModels"
+import { createDistrictLife } from "./districtLife"
 import type { WalkRect } from "./walkGeometry"
 
 type Options = {
@@ -11,7 +12,7 @@ type Options = {
   onAssets?: (status: DistrictAssetStatus) => void
 }
 
-/** An original Chinese night lane: repair shops, a listening archive and a rain loom. */
+/** A welcoming future neighborhood: luminous shophouses, cafés and a rain loom. */
 export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
   const groundY = 0.12
   const spawn: [number, number, number] = [0, groundY + 1.7, 27]
@@ -25,10 +26,10 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
       maxZ: z + depth / 2,
     })
   }
-  scene.background = new THREE.Color("#071217")
-  scene.fog = new THREE.FogExp2("#10282b", 0.021)
-  scene.add(new THREE.HemisphereLight("#9ec8d6", "#172423", 1.25))
-  const moon = new THREE.DirectionalLight("#b2d1e1", 1.7)
+  scene.background = new THREE.Color("#18203b")
+  scene.fog = new THREE.FogExp2("#30364f", 0.009)
+  scene.add(new THREE.HemisphereLight("#c9dfff", "#806358", 2.05))
+  const moon = new THREE.DirectionalLight("#d5e6ff", 2.1)
   moon.position.set(-18, 34, 12)
   moon.castShadow = true
   moon.shadow.mapSize.set(2048, 2048)
@@ -43,6 +44,9 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
   moon.shadow.bias = -0.0003
   moon.shadow.normalBias = 0.035
   scene.add(moon)
+  const evening = new THREE.DirectionalLight("#ffd1a4", 1.05)
+  evening.position.set(18, 16, 28)
+  scene.add(evening)
   const root = new THREE.Group()
   root.name = "Rain District / 雨巷"
   scene.add(root)
@@ -57,17 +61,54 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
     ownedMaterials.add(mat)
     return mat
   }
-  const jade = glow("#83e7cd", 2.2),
-    amber = glow("#edb971", 1.15),
-    coral = glow("#e28b73", 1.05)
+  const jade = glow("#41ffe0", 2.8),
+    amber = glow("#ffd393", 1.8),
+    coral = glow("#ff70b6", 2.5),
+    violet = glow("#a694ff", 2.3)
+  jade.name = "Cyan architectural neon"
+  amber.name = "Warm café lighting"
+  coral.name = "Rose architectural neon"
+  violet.name = "Violet transit lighting"
   const glass = new THREE.MeshStandardMaterial({
-    color: "#1d4949",
-    metalness: 0.55,
-    roughness: 0.22,
-    emissive: "#24403a",
-    emissiveIntensity: 0.25,
+    color: "#436b7a",
+    metalness: 0.32,
+    roughness: 0.16,
+    emissive: "#375e72",
+    emissiveIntensity: 0.35,
   })
+  const shopGlass = new THREE.MeshStandardMaterial({
+    color: "#d6ad7e",
+    roughness: 0.3,
+    metalness: 0.1,
+    emissive: "#ffba70",
+    emissiveIntensity: 0.72,
+  })
+  shopGlass.name = "Warm open storefronts"
   ownedMaterials.add(glass)
+  ownedMaterials.add(shopGlass)
+  // A soft blue-hour sky gives the skyline depth without the old black void.
+  const skyGeometry = new THREE.SphereGeometry(110, 32, 16)
+  const skyColors = new Float32Array(skyGeometry.attributes.position.count * 3)
+  const horizon = new THREE.Color("#776379"),
+    zenith = new THREE.Color("#111c3c")
+  const skyColor = new THREE.Color()
+  for (let i = 0; i < skyGeometry.attributes.position.count; i++) {
+    const height = Math.max(0, skyGeometry.attributes.position.getY(i) / 110)
+    skyColor.copy(horizon).lerp(zenith, Math.min(1, height * 2.8))
+    skyColor.toArray(skyColors, i * 3)
+  }
+  skyGeometry.setAttribute("color", new THREE.BufferAttribute(skyColors, 3))
+  const skyMaterial = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+  })
+  ownedMaterials.add(skyMaterial)
+  const sky = new THREE.Mesh(skyGeometry, skyMaterial)
+  sky.name = "Blue-hour neighborhood sky"
+  sky.renderOrder = -10
+  root.add(sky)
   const box = (
     x: number,
     y: number,
@@ -120,7 +161,7 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
     return light
   }
   box(0, -0.08, 0, 60, 0.4, 76, palette.stone)
-  // Broken paving joints and brass drainage channels survive beneath the reflections.
+  // Regular ceramic paving, recessed drainage and light guides make the lane feel maintained.
   for (let z = -33; z < 34; z += 1.7) {
     box(0, groundY + 0.004, z, 12.8, 0.009, 0.025, palette.black)
     for (const x of [-4, -2, 0, 2, 4])
@@ -135,6 +176,16 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
       )
   }
   for (const side of [-1, 1]) {
+    for (let z = -31; z < 32; z += 2.4)
+      box(
+        side * 3.65,
+        groundY + 0.012,
+        z,
+        0.045,
+        0.014,
+        1.5,
+        side < 0 ? amber : jade,
+      )
     box(side * 5.9, groundY + 0.02, 0, 0.16, 0.035, 66, palette.metal)
     for (let z = -32; z < 32; z += 0.27)
       box(side * 5.9, groundY + 0.04, z, 0.2, 0.015, 0.035, palette.black)
@@ -145,12 +196,12 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
       box(side * 6.95, 0.53, z, 0.22, 0.82, 14.8, palette.stone)
       for (let bay = -1; bay <= 1; bay++) {
         const zz = z + bay * 4.6
-        box(side * 6.88, 1.9, zz, 0.09, 2.2, 3.6, glass)
+        box(side * 6.88, 1.9, zz, 0.09, 2.2, 3.6, shopGlass)
         for (const end of [-1, 1])
           box(side * 6.76, 1.9, zz + end * 1.8, 0.16, 2.7, 0.16, palette.wood)
         box(side * 6.76, 3.28, zz, 0.16, 0.18, 3.75, palette.wood)
-        // A few warm occupied rooms, never a wall of luminous windows.
-        box(side * 6.8, 4.65, zz, 0.1, 1.3, 2.6, bay === 0 ? amber : glass)
+        // Warm residential windows and open cafés continue all the way down the street.
+        box(side * 6.8, 4.65, zz, 0.1, 1.3, 2.6, shopGlass)
         for (let divider = -1; divider <= 1; divider++)
           box(
             side * 6.65,
@@ -161,80 +212,152 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
             0.045,
             palette.dark,
           )
-        box(side * 6.4, 3.6, zz, 1.2, 0.09, 4, palette.roof)
-        box(side * 5.85, 3.52, zz, 0.04, 0.04, 3.2, bay === -1 ? coral : jade)
-        // Ground-level shutters, pipework, sills, menus and crates give scale at eye level.
-        if (bay === 1)
-          for (let slat = 0; slat < 15; slat++)
+        box(side * 6.25, 3.6, zz, 1.5, 0.14, 4.1, palette.plaster)
+        box(side * 5.49, 3.55, zz, 0.07, 0.075, 4.1, bay === -1 ? coral : jade)
+        box(side * 6.2, 3.51, zz, 0.8, 0.025, 3.6, amber)
+        // Fine shelving and pendant lights are visible against the luminous shop glazing.
+        for (const shelf of [0.82, 1.5]) {
+          box(side * 6.7, shelf, zz, 0.22, 0.045, 2.6, palette.wood)
+          for (let item = 0; item < 5; item++)
             box(
-              side * 6.68,
-              0.55 + slat * 0.16,
-              zz,
-              0.08,
-              0.1,
-              3.45,
-              palette.roofEdge,
+              side * 6.63,
+              shelf + 0.14,
+              zz - 1 + item * 0.48,
+              0.12,
+              0.23,
+              0.11,
+              (item + bay) % 2 ? palette.plaster : palette.wood,
             )
-        rod(
-          [side * 6.55, 0.2, zz + 2],
-          [side * 6.55, 6.8, zz + 2],
-          0.055,
-          palette.metal,
-        )
-        box(side * 6.32, 0.4, zz - 1.6, 0.65, 0.55, 0.7, palette.wood)
+        }
+        for (const end of [-1, 1]) {
+          rod(
+            [side * 6.5, 3.25, zz + end],
+            [side * 6.5, 2.8, zz + end],
+            0.014,
+            palette.metal,
+          )
+          box(side * 6.5, 2.76, zz + end, 0.2, 0.12, 0.3, amber)
+        }
+        // Clean upper-floor frames overlay the retained shophouse geometry.
+        for (const y of [7.3, 10.4, 13.3]) {
+          box(
+            side * 6.7,
+            y,
+            zz,
+            0.14,
+            1.55,
+            2.8,
+            (bay + y) % 3 < 1 ? glass : shopGlass,
+          )
+          box(side * 6.55, y - 0.82, zz, 0.42, 0.13, 3.1, palette.plaster)
+          for (const dz of [-1.48, 0, 1.48])
+            box(side * 6.58, y, zz + dz, 0.16, 1.75, 0.065, palette.metal)
+        }
       }
-      // Setbacks above the shopfronts catch moonlight and make a layered skyline.
-      box(side * 13.5, 15.5, z, 11.3, 1, 12.8, palette.dark)
-      for (let mast = 0; mast < 3; mast++) {
-        rod(
-          [side * (10 + mast * 2), 16, z],
-          [side * (10 + mast * 2), 18.2, z],
-          0.035,
-          palette.metal,
+      // Satin façade fins, lit roof terraces and continuous cornices replace roof clutter.
+      box(side * 13.5, 15.5, z, 13.8, 0.55, 15.4, palette.plaster)
+      box(side * 6.57, 15.53, z, 0.06, 0.12, 15.45, side < 0 ? coral : jade)
+      for (const dz of [-7.2, 7.2]) {
+        box(side * 6.51, 9.3, z + dz, 0.24, 12, 0.3, palette.metal)
+        box(
+          side * 6.37,
+          9.3,
+          z + dz,
+          0.045,
+          11.7,
+          0.09,
+          side < 0 ? coral : jade,
         )
-        rod(
-          [side * (10 + mast * 2) - 0.6, 17.6, z],
-          [side * (10 + mast * 2) + 0.6, 17.6, z],
-          0.025,
-          palette.metal,
-        )
+        box(side * 13.5, 15.54, z + dz, 13.8, 0.08, 0.08, violet)
       }
     }
-    // Distant office towers are deliberately quiet, with irregular illuminated rooms.
+    // A layered, inhabited skyline with luminous crowns and fine vertical light seams.
     for (let i = 0; i < 8; i++) {
       const z = -48 + i * 13,
         h = 24 + ((i * 7) % 19),
         x = side * (31 + (i % 3) * 5)
       box(x, h / 2, z, 8, h, 10, palette.roof)
+      box(x - side * 4.05, h - 0.6, z, 0.1, 0.14, 10.3, i % 2 ? coral : jade)
+      for (const dz of [-4.8, 4.8])
+        box(
+          x - side * 4.08,
+          h / 2,
+          z + dz,
+          0.08,
+          h,
+          0.09,
+          i % 2 ? violet : jade,
+        )
       for (let floor = 1; floor < h / 2.8; floor++)
         for (let col = -1; col <= 1; col++) {
-          if ((floor * 7 + col + i * 3) % 5 > 1) continue
+          if ((floor * 7 + col + i * 3) % 7 === 0) continue
           box(
             x - side * 4.05,
             floor * 2.8,
             z + col * 2.3,
             0.02,
-            0.7,
-            1.25,
-            (floor + i) % 4 ? amber : jade,
+            1.15,
+            1.55,
+            (floor + i) % 4 ? shopGlass : glass,
           )
         }
     }
   }
-  // Low practical lighting: warm workshops on one side, cool archive light on the other.
+  // Pools of warm hospitality alternate with colored architectural light.
   for (const [x, z, color] of [
     [-5.4, -7, "#ffc48b"],
     [5.4, -15, "#7de5d5"],
     [-5.4, 9, "#f6b18a"],
     [5.4, 19, "#8ccddd"],
   ] as const)
-    lamp(x, 3.1, z, color, 43, 15)
-  lamp(0, 7, 0, "#70ddc4", 100, 24)
-  lamp(0, 6, 25, "#a7cfe0", 30, 18)
+    lamp(x, 3.1, z, color, 95, 18)
+  lamp(0, 7, 0, "#7efde1", 145, 24)
+  lamp(0, 6, 25, "#ffbacc", 70, 21)
+  lamp(-5.2, 4.5, -18, "#ff84c4", 90, 16)
+  lamp(5.2, 4.5, 3, "#ffc886", 100, 16)
+
+  // The far vista reads as a future city even from the ground-level arrival camera.
+  for (const [x, h, w] of [
+    [-20, 32, 8],
+    [-9, 43, 6],
+    [1, 32, 7],
+    [12, 48, 8],
+    [24, 35, 9],
+  ]) {
+    const z = -44 - Math.abs(x) * 0.12
+    box(x, h / 2, z, w, h, 8, palette.roof)
+    box(x, h, z, w + 0.5, 0.3, 8.4, palette.metal)
+    box(x, h + 0.2, z + 4.22, w + 0.6, 0.13, 0.07, x < 0 ? coral : jade)
+    for (const side of [-1, 1])
+      box(
+        x + side * (w / 2 - 0.12),
+        h / 2,
+        z + 4.1,
+        0.1,
+        h,
+        0.07,
+        x < 0 ? violet : jade,
+      )
+    for (let floor = 2; floor < h - 2; floor += 2.5) {
+      box(x, floor, z + 4.07, w - 0.65, 0.1, 0.1, palette.metal)
+      for (let col = -1; col <= 1; col++)
+        box(
+          x + col * (w / 3.6),
+          floor + 0.85,
+          z + 4.08,
+          w / 4.8,
+          1.15,
+          0.04,
+          (Math.round(floor) + col) % 4 ? shopGlass : glass,
+        )
+    }
+  }
 
   // An overhead tram ribbon crosses the lane, with a slow, self-contained night service.
   for (const z of [-25.5, -23.8])
     rod([-35, 9.1, z], [35, 9.1, z + 8], 0.17, palette.metal)
+  for (const z of [-25.5, -23.8])
+    rod([-35, 9.02, z], [35, 9.02, z + 8], 0.045, violet)
   for (const x of [-25, -10, 10, 25]) {
     rod(
       [x, 0, -24 + ((x + 35) * 8) / 70],
@@ -247,34 +370,83 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
   const tram = new THREE.Group()
   tram.name = "Last night tram"
   root.add(tram)
-  box(0, 0, 0, 7.8, 1.5, 1.8, palette.roofEdge, tram)
-  for (let x = -3; x < 3.5; x += 1.2)
-    box(x, 0.18, 0.91, 0.9, 0.66, 0.02, amber, tram)
-  box(0, -0.69, 0.93, 7.6, 0.035, 0.025, jade, tram)
+  const tramShell = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.78, 6.3, 6, 16),
+    palette.plaster,
+  )
+  tramShell.rotation.z = Math.PI / 2
+  tramShell.scale.z = 1.2
+  tram.add(tramShell)
+  for (const side of [-1, 1]) {
+    box(0, 0.15, side * 0.88, 6.6, 0.8, 0.06, palette.dark, tram)
+    for (let x = -2.7; x < 3; x += 1.08)
+      box(x, 0.18, side * 0.92, 0.88, 0.62, 0.025, shopGlass, tram)
+    box(0, -0.48, side * 0.88, 6.5, 0.055, 0.035, jade, tram)
+  }
+  box(3.7, -0.15, 0.54, 0.05, 0.16, 0.28, amber, tram)
+  box(-3.7, -0.15, 0.54, 0.05, 0.16, 0.28, coral, tram)
 
-  // Catenary utility wires, individually sagging, run above the pedestrian space.
-  for (let wire = 0; wire < 7; wire++) {
-    const z = -26 + wire * 8.4
+  // Warm festoon lights give the cafés an intimate ceiling below the neon skyline.
+  for (let wire = 0; wire < 5; wire++) {
+    const z = -23 + wire * 11
     const points = Array.from({ length: 25 }, (_, i) => {
       const u = i / 24
       return new THREE.Vector3(
         -7 + u * 14,
-        7.8 - Math.sin(u * Math.PI) * (0.7 + (wire % 3) * 0.2),
-        z + Math.sin(u * 3) * 1.5,
+        5.9 - Math.sin(u * Math.PI) * 0.65,
+        z,
       )
     })
     const cable = new THREE.Mesh(
       new THREE.TubeGeometry(
         new THREE.CatmullRomCurve3(points),
         24,
-        0.025,
+        0.012,
         5,
         false,
       ),
-      palette.black,
+      palette.metal,
     )
     root.add(cable)
+    for (let bulb = 1; bulb < 14; bulb++) {
+      const u = bulb / 14
+      const y = 5.9 - Math.sin(u * Math.PI) * 0.65
+      rod([-7 + u * 14, y, z], [-7 + u * 14, y - 0.15, z], 0.012, palette.metal)
+      const globe = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 6), amber)
+      globe.position.set(-7 + u * 14, y - 0.2, z)
+      root.add(globe)
+    }
   }
+
+  // Curved light ribbons connect the buildings and frame the pedestrian arrival.
+  for (const z of [-12, 22]) {
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-6.5, 4.8, z),
+      new THREE.Vector3(-5.8, 6.4, z),
+      new THREE.Vector3(0, 6.85, z),
+      new THREE.Vector3(5.8, 6.4, z),
+      new THREE.Vector3(6.5, 4.8, z),
+    ])
+    const frame = new THREE.Mesh(
+      new THREE.TubeGeometry(curve, 40, 0.1, 8, false),
+      palette.metal,
+    )
+    root.add(frame)
+    const neon = new THREE.Mesh(
+      new THREE.TubeGeometry(curve, 40, 0.04, 8, false),
+      z > 0 ? coral : jade,
+    )
+    neon.position.z = 0.1
+    root.add(neon)
+  }
+
+  // A glass skywalk and illuminated crown create a clear futuristic silhouette.
+  box(0, 17.8, -25, 24, 0.38, 2.4, palette.plaster)
+  box(0, 18.7, -23.79, 24, 1.4, 0.06, glass)
+  box(0, 17.72, -23.73, 24.1, 0.08, 0.08, coral)
+  box(0, 19.43, -23.73, 24.1, 0.06, 0.06, jade)
+  for (let x = -11; x <= 11; x += 1.5)
+    box(x, 18.7, -23.7, 0.045, 1.6, 0.07, palette.metal)
 
   // Rain loom: a bronze square holding a luminous circle, with fine suspended water threads.
   const loom = new THREE.Group()
@@ -283,14 +455,22 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
   loom.rotation.z = Math.PI / 4
   root.add(loom)
   for (const side of [-1, 1]) {
-    box(side * 2.6, 0, 0, 0.09, 5.25, 0.15, palette.metal, loom)
-    box(0, side * 2.6, 0, 5.25, 0.09, 0.15, palette.metal, loom)
+    box(side * 2.6, 0, 0, 0.12, 5.25, 0.15, palette.metal, loom)
+    box(0, side * 2.6, 0, 5.25, 0.12, 0.15, palette.metal, loom)
+    box(side * 2.6, 0, 0.09, 0.045, 5.25, 0.025, coral, loom)
+    box(0, side * 2.6, 0.09, 5.25, 0.045, 0.025, coral, loom)
   }
   const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(1.68, 0.045, 8, 100),
+    new THREE.TorusGeometry(1.68, 0.065, 8, 100),
     jade,
   )
   loom.add(ring)
+  const orbit = new THREE.Mesh(
+    new THREE.TorusGeometry(2.05, 0.028, 6, 80, Math.PI * 1.45),
+    violet,
+  )
+  orbit.position.z = 0.12
+  loom.add(orbit)
   for (let i = 0; i < 43; i++) {
     const x = -2.7 + i * 0.128
     const y = 7.1 + Math.sqrt(Math.max(0, 8 - x * x))
@@ -314,6 +494,13 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
   water.rotation.x = -Math.PI / 2
   water.position.set(0, 0.41, 0)
   root.add(water)
+  const collectorRim = new THREE.Mesh(
+    new THREE.TorusGeometry(1.63, 0.035, 6, 64),
+    jade,
+  )
+  collectorRim.rotation.x = Math.PI / 2
+  collectorRim.position.set(0, 0.43, 0)
+  root.add(collectorRim)
 
   // Lettering atlas is original typography, rasterized with the system Chinese font.
   const atlas = new THREE.Texture()
@@ -334,7 +521,9 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
     )
   const lettering = new THREE.MeshBasicMaterial({
     map: atlas,
+    color: new THREE.Color(1.65, 1.65, 1.65),
     toneMapped: false,
+    side: THREE.DoubleSide,
   })
   ownedMaterials.add(lettering)
   function sign(
@@ -362,6 +551,21 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
     return mesh
   }
   sign(0, 0, 6.2, -28, 4.5, 3.6, 0)
+  for (const side of [-1, 1]) {
+    for (const [i, z] of [-22, -10, 2, 14, 24].entries()) {
+      const x = side * 5.45,
+        y = 6.3 + (i % 2) * 1.4
+      const light = (i + (side > 0 ? 1 : 0)) % 2 ? coral : jade
+      // The forward-facing illuminated blades can be read while approaching along the lane.
+      box(x, y, z, 1.5, 2, 0.12, palette.dark)
+      sign((i + (side < 0 ? 1 : 3)) % 8, x, y, z + 0.067, 1.38, 1.82, 0)
+      for (const edge of [-1, 1]) {
+        box(x + edge * 0.76, y, z + 0.07, 0.045, 2.08, 0.04, light)
+        box(x, y + edge * 1.02, z + 0.07, 1.56, 0.045, 0.04, light)
+      }
+      rod([side * 6.6, y + 0.8, z], [x, y + 0.8, z], 0.035, palette.metal)
+    }
+  }
   for (const [side, z, index] of [
     [-1, -20, 7],
     [1, -10, 2],
@@ -529,7 +733,7 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
       clipBias: 0.003,
       shader: {
         uniforms: {
-          color: { value: new THREE.Color("#152b2e") },
+          color: { value: new THREE.Color("#697589") },
           tDiffuse: { value: null },
           textureMatrix: { value: new THREE.Matrix4() },
           time: { value: 0 },
@@ -546,8 +750,8 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
             reflected+=texture2D(tDiffuse,uv+ripple-vec2(.0015,0.)).rgb*.15;
             reflected+=texture2D(tDiffuse,uv+ripple+vec2(0.,.0015)).rgb*.15;
             reflected+=texture2D(tDiffuse,uv+ripple-vec2(0.,.0015)).rgb*.15;
-            float wet=smoothstep(-.5,.65,n)*.3+.18;
-            gl_FragColor=vec4(mix(color*.3,reflected,wet),1.);
+            float wet=smoothstep(-.5,.65,n)*.32+.3;
+            gl_FragColor=vec4(mix(color*.5,reflected,wet),1.);
             #include <tonemapping_fragment>
             #include <colorspace_fragment>
           }`,
@@ -559,7 +763,7 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
     root.add(reflection)
   }
   // GPU rain: no per-frame buffer allocation and no thousands of individual draw calls.
-  const rainCount = 1800
+  const rainCount = 1400
   const rainGeometry = new THREE.BufferGeometry()
   const rainPositions = new Float32Array(rainCount * 6)
   const rainEnds = new Float32Array(rainCount * 2)
@@ -584,14 +788,16 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
     uniforms: { time: { value: 0 } },
     transparent: true,
     depthWrite: false,
-    vertexShader: `uniform float time; attribute float end; varying float fade; void main(){vec3 p=position;p.y=mod(position.y-time*7.,20.)+.2;p+=vec3(.018,.28,.025)*end;vec4 mv=modelViewMatrix*vec4(p,1.);fade=clamp(1.-length(mv.xyz)/44.,0.,1.);gl_Position=projectionMatrix*mv;}`,
-    fragmentShader: `varying float fade;void main(){gl_FragColor=vec4(.55,.77,.78,fade*.22);}`,
+    vertexShader: `uniform float time; attribute float end; varying float fade; void main(){vec3 p=position;p.y=mod(position.y-time*4.8,20.)+.2;p+=vec3(.012,.2,.018)*end;vec4 mv=modelViewMatrix*vec4(p,1.);fade=clamp(1.-length(mv.xyz)/44.,0.,1.);gl_Position=projectionMatrix*mv;}`,
+    fragmentShader: `varying float fade;void main(){gl_FragColor=vec4(.67,.77,.92,fade*.15);}`,
   })
   ownedMaterials.add(rainMaterial)
   const rain = new THREE.LineSegments(rainGeometry, rainMaterial)
   rain.name = "Rain threads"
   rain.frustumCulled = false
   root.add(rain)
+  const life = createDistrictLife(root)
+  colliders.push(...life.colliders)
   const models =
     options.assets === false
       ? undefined
@@ -610,6 +816,7 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
       const dt = Math.max(0, Math.min(0.05, seconds - previous))
       previous = seconds
       models?.update(dt)
+      life.update(seconds)
       rainMaterial.uniforms.time.value = seconds % 1000
       if (reflection)
         (reflection.material as THREE.ShaderMaterial).uniforms.time.value =
@@ -618,11 +825,13 @@ export function createRainDistrict(scene: THREE.Scene, options: Options = {}) {
       tram.position.set(x, 10.1, -24.65 + ((x + 35) * 8) / 70)
       tram.rotation.y = -Math.atan2(8, 70)
       ring.rotation.z = seconds * 0.018
+      orbit.rotation.z = seconds * -0.12
     },
     dispose() {
       if (disposed) return
       disposed = true
       models?.dispose()
+      life.dispose()
       const geometry = new Set<THREE.BufferGeometry>()
       const materials = new Set<THREE.Material>()
       root.traverse((object) => {

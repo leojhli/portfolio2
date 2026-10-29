@@ -170,13 +170,13 @@ export default function Garganta() {
           </span>
           <span className="district-caption">
             <span>RAIN DISTRICT</span>
-            <span>A city after hours. Come wander.</span>
+            <span>A little neighborhood in the future.</span>
             <span className="district-enter">
               Enter the district <span aria-hidden="true">↗</span>
             </span>
           </span>
         </button>
-        <p>Rain on concrete. Tea still warm. The last tram hasn’t left.</p>
+        <p>Neon outside. Warm tea inside. Stay a little longer.</p>
       </div>
       <dialog
         ref={dialog}

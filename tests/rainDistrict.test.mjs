@@ -174,6 +174,11 @@ test("the procedural district stays within a batched geometry budget and animati
     scene.updateMatrixWorld(true)
     scene.traverse((object) => {
       assert.ok(object.matrixWorld.elements.every(Number.isFinite))
+      if (object.isInstancedMesh)
+        assert.ok(
+          object.instanceMatrix.array.every(Number.isFinite),
+          `${object.name} instance transforms remain finite`,
+        )
       for (const uniform of Object.values(object.material?.uniforms ?? {})) {
         if (typeof uniform.value === "number")
           assert.ok(Number.isFinite(uniform.value))
@@ -204,6 +209,7 @@ for (const reflections of [false, true]) {
     }
     scene.traverse((object) => {
       if (object.geometry) resources.add(object.geometry)
+      if (object.isInstancedMesh) resources.add(object)
       for (const material of object.material
         ? Array.isArray(object.material)
           ? object.material

@@ -1,12 +1,18 @@
 # Handoff to the next chat — portfolio2 / Rain District
 
-The latest requested direction is implemented in the local portfolio. Continue from this checkout, not an old build plan. The user asked for this handoff after the work was finished.
+The latest requested direction is implemented in the local portfolio. Continue from this checkout, not an old build plan.
+
+## October 28 design revision
+
+The user rejected the worn, sparse atmosphere as lifeless and explicitly requested a **cozy, futuristic neighborhood with more neon**. This supersedes the earlier restrained lighting and weathered-material direction below. The current scene uses clean ceramic and satin metal, warm open storefronts and residential windows, cyan/rose/violet architectural light, brighter blue-hour lighting, illuminated street guides, a glass skywalk, a rounded tram, and a populated café garden. `districtLife.ts` owns café residents, seating, greenery and gentle ambient motion; its colliders join the main walking geometry and its resources are released before world teardown. The imported buildings retain their modeled detail and licensed source files while their runtime finish is restored.
+
+The user also requested removal of keyboard typing sounds. Keep typing silent while retaining the existing click, hover and control-activation cues.
 
 ## Current request and decisions
 
-The user scrapped the Bleach world and wants a distinctive, predominantly **Chinese cyberpunk environment**, with dark lighting, neon, first- and third-person exploration, and good models from Sketchfab. The implementation is **Rain District / 雨巷**: an inhabited after-hours lane rather than an anime location. The user values visual quality and smoothness, dislikes generic results, and prefers autonomous implementation without repeated confirmation.
+The user scrapped the Bleach world and wants a distinctive, predominantly **Chinese cyberpunk environment**, with cozy futuristic lighting, plentiful neon, first- and third-person exploration, and good models from Sketchfab. The implementation is **Rain District / 雨巷**: an inhabited after-hours lane. The user values visual quality and smoothness, dislikes generic results, and prefers autonomous implementation without repeated confirmation.
 
-**Do not use computer use or browser automation.** The user's existing preference still applies. No browser or headless-browser visual verification was performed in this pass. Do not present native graphics proofs or jsdom tests as browser verification.
+**Do not use computer use or browser automation for development visual QA.** The user subsequently authorized browser control for hosting and signed into Vercel and Name.com. That authorization was used to connect `leoli.dev`, which redirects to `www.leoli.dev`, to the existing GitHub-connected Vercel project `portfolio2`. No browser or headless-browser scene verification was performed in this pass. Do not present native graphics proofs or jsdom tests as browser verification.
 
 Workspace: `C:\Users\aweso\OneDrive\Desktop\Personal Projects\Port`
 
@@ -14,10 +20,10 @@ Repository: `https://github.com/leojhli/portfolio2.git`, branch `main`. The prio
 
 ## What is implemented
 
-- A jade-and-copper transit ticket at the end of Contact opens the optional district with a 700ms arrival fade. The old sword, Bleach city/characters, portal sound and Treachery MP3 were removed.
-- Six authored Taiwanese shophouse blocks, worn shopfronts, Chinese signage, drainage channels, awnings, utility wires, a moving overhead night tram, rooftop antennas and a quiet distant skyline.
-- A suspended bronze square / jade circle **rain loom** and rain collector form the central landmark. Nearby radio-repair workbenches, a tea table and stools, archive tape reels, scooters and an animated condenser installation add street-level detail.
-- Dark neutral surfaces, jade neon, warm amber interiors and small coral accents. Actual softened planar street reflections, HDR bloom, fog, GPU rain and textured weathering. The single paper lantern is tuned for warm emission rather than costly glass transmission.
+- A cyan-and-rose transit ticket at the end of Contact opens the optional district with a 700ms arrival fade. The old sword, Bleach city/characters, portal sound and Treachery MP3 were removed.
+- Six Taiwanese shophouse blocks with restored ceramic finishes, open warm shopfronts, illuminated Chinese signage, residential windows, a glass skywalk, a rounded overhead tram and a brighter skyline with neon crowns.
+- A suspended rose square / cyan circle **rain loom**, rotating violet orbit and rain collector form the central landmark. Radio-repair workbenches, tea tables, archive reels, scooters and animated condenser fans add street-level detail. Eight residents, six planters, additional café furniture and GPU tea steam make the lane inhabited.
+- Clean blue-grey paving, honey timber and satin titanium, cyan/rose/violet neon, warm amber interiors, festoon lights and recessed street guides. Softened planar street reflections, HDR bloom, lighter fog and GPU rain remain. The paper lantern uses warm emission rather than costly glass transmission.
 - First/third-person switching preserves player position. Third person uses an original articulated night courier with a coat, sling bag, restrained jade details and walking animation. The chase camera folds in around walls/bounds.
 - WASD/arrows move, Shift runs, dragging looks, optional Capture Mouse locks the pointer, E/click interacts with nearby terminals. Touch has a directional pad and drag-look. Escape unlocks first; a subsequent Escape returns to the portfolio. Reset View returns to spawn.
 - Four always-accessible destination buttons open the existing portfolio content: Dispatch Workshop → Experience; Signal Archive → Projects; After-hours Tea House → About; Last Tram → Contact. These work without WebGL too.
@@ -45,7 +51,7 @@ The `.garganta` dialog class and `document.documentElement.dataset.spiritWorld` 
 
 ## Model provenance and budgets
 
-Four actual CC BY 4.0 Sketchfab models are bundled in `public/models/neon-district/`. Total source download size is **15,394,084 bytes**. All embedded textures are 1024px or smaller and require no external compression decoder. Raw GLBs are unchanged; runtime scale, placement, instancing and lantern material tuning are original modifications.
+Four actual CC BY 4.0 Sketchfab models are bundled in `public/models/neon-district/`. Total source download size is **15,394,084 bytes**. All embedded textures are 1024px or smaller and require no external compression decoder. Raw GLBs are unchanged; runtime scale, placement, instancing, restored building finishes and equipment/lantern material tuning are original modifications.
 
 1. Solarliu — **Asia Building**, 14,336 triangles, 53 source meshes.
 2. HusarL — **Industrial Air Conditioner**, 1,500 triangles, two skinned meshes, 4.958-second fan animation.
@@ -73,7 +79,7 @@ GLBs load only after entering the optional district. Six buildings and two scoot
 - Controller checks: wall clearance, tunnelling prevention, normalized movement, first/third continuity, chase-camera collision, pointer-lock denial/late resolution, blur/suspension and avatar cleanup.
 - District checks: real collision-based route search to all four terminals, bounded geometry, finite GPU-animation state, repeated teardown with/without reflections, failed/late model loads, instancing and audio failure recovery.
 - React/jsdom checks: entry/skip/automatic arrival, every fallback destination, navigation/focus, muted ambience/toggling, exit/unmount cleanup and music time/playback restoration. Existing themes, scrolling, books, ASCII, signature and player tests remain passing.
-- Native EGL/GLES 3: **12 complete Three shader programs compiled and linked**, including rain, puddle reflection, eight surface finishes and two instanced variants.
+- Native EGL/GLES 3: **15 complete Three shader programs compiled and linked**, including rain, puddle reflection, tea steam, eight surface finishes, two instanced variants and two restored imported-building variants.
 - Native offscreen geometry proofs included the real imported geometry and were inspected for street composition and model placement using approximate lighting. They omit final texture/PBR/post-processing fidelity. Temporary proof scripts/images are ignored under `.tmp-neon/` and depend on local ANGLE libraries; they are not CI/browser tests.
 
 During testing, a mistaken DOM-node equality assertion tried to print a large jsdom/React tree and exhausted the worker heap. It was corrected to assert identity with a concise message and the intended focus behavior: following a portfolio link focuses its destination chapter; Return/Escape focuses the transit ticket. The complete suite then passed.
@@ -82,7 +88,7 @@ During testing, a mistaken DOM-node equality assertion tried to print a large js
 
 The requested implementation is complete; **actual browser appearance, touch hardware, audio balance and real-device frame rate are not visually/perceptually verified**. Do not claim otherwise. If the user later authorizes a visual review, prioritize dusk exposure/neon bloom, reflected puddles, sign readability, source-model textures/front orientation, mobile controls, fan animation and first/third-person transitions. A low-end quality setting could reduce reflection size, shadow resolution and rain count if measured performance warrants it.
 
-The scene is a bounded original district, not a fully enterable open-world game. It has a procedural courier rather than a downloaded animated character. Current signs are intentionally Chinese and restrained; avoid turning the lane into a generic wall of saturated advertisements or adding anime references again.
+The scene is a bounded original district, not a fully enterable open-world game. It has a procedural courier and original neighborhood residents. Current signs retain Chinese typography with brighter cyan, rose, violet and amber light; preserve the cozy futuristic direction and avoid adding anime references again.
 
 ## Preserve the portfolio outside this feature
 

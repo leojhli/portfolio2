@@ -14,6 +14,46 @@ export const districtAssetFiles = [
   "chinese-lantern",
 ] as const
 
+/** Restore source paint without erasing modeled balconies, frames or equipment. */
+function restoreBuildingFinishes(scene: THREE.Object3D) {
+  const finished = new Set<THREE.MeshStandardMaterial>()
+  scene.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return
+    for (const source of Array.isArray(object.material)
+      ? object.material
+      : [object.material]) {
+      const material = source as THREE.MeshStandardMaterial
+      if (!material.isMeshStandardMaterial || finished.has(material)) continue
+      finished.add(material)
+      const concrete = material.name.startsWith("concrete")
+      const facade = material.name.startsWith("build_")
+      material.roughness = concrete ? 0.42 : 0.46
+      material.metalness = concrete ? 0.08 : 0.22
+      if (concrete) material.color.set("#bbc9c5")
+      if (!concrete && !facade) continue
+      material.userData.districtRestoration = concrete ? "ceramic" : "facade"
+      material.onBeforeCompile = (shader) => {
+        shader.fragmentShader = shader.fragmentShader.replace(
+          "#include <map_fragment>",
+          `#include <map_fragment>
+          float restoredLuma = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+          ${
+            concrete
+              ? `// The source atlas contains peeling paint; retain only a fine tonal grain.
+                 diffuseColor.rgb = diffuse * (0.97 + 0.03 * sqrt(clamp(restoredLuma, 0.0, 1.0)));`
+              : `// Preserve dark window/frame detail while replacing the baked brown patina.
+                 float restoredDetail = smoothstep(0.025, 0.64, restoredLuma);
+                 vec3 restoredPaint = mix(vec3(0.032, 0.075, 0.1), vec3(0.62, 0.68, 0.62), restoredDetail);
+                 diffuseColor.rgb = mix(diffuseColor.rgb, restoredPaint, 0.84);`
+          }`,
+        )
+      }
+      material.customProgramCacheKey = () =>
+        `rain-district-restored-v1/${concrete ? "ceramic" : "facade"}`
+    }
+  })
+}
+
 /** Public, licensed Sketchfab models. Load only after the visitor enters the district. */
 export function loadDistrictModels(
   root: THREE.Group,
@@ -164,14 +204,15 @@ export function loadDistrictModels(
               // Warm paper reads better than full glass transmission, and avoids another scene render.
               if (paper.isMeshPhysicalMaterial) paper.transmission = 0
               if (paper.isMeshStandardMaterial) {
-                paper.emissive.set("#e3a874")
-                paper.emissiveIntensity = 0.4
+                paper.emissive.set("#ffd2a0")
+                paper.emissiveIntensity = 1.1
                 paper.emissiveMap = paper.map
-                paper.roughness = 0.8
+                paper.roughness = 0.68
               }
             }
           })
         if (name === "asia-building") {
+          restoreBuildingFinishes(gltf.scene)
           for (const side of [-1, 1])
             for (const z of [-21, -3, 15])
               place(
@@ -182,6 +223,18 @@ export function loadDistrictModels(
                 side < 0 ? Math.PI / 2 : -Math.PI / 2,
               )
         } else if (name === "industrial-ac") {
+          gltf.scene.traverse((object) => {
+            if (!(object instanceof THREE.Mesh)) return
+            for (const source of Array.isArray(object.material)
+              ? object.material
+              : [object.material]) {
+              const material = source as THREE.MeshStandardMaterial
+              if (!material.isMeshStandardMaterial) continue
+              material.roughness = 0.5
+              material.metalness = 0.42
+              material.normalScale.setScalar(0.45)
+            }
+          })
           for (const side of [-1, 1])
             for (const z of [-19, -8, 4, 17])
               place(
@@ -193,6 +246,18 @@ export function loadDistrictModels(
                 3.8,
               )
         } else if (name === "courier-scooter") {
+          gltf.scene.traverse((object) => {
+            if (!(object instanceof THREE.Mesh)) return
+            for (const source of Array.isArray(object.material)
+              ? object.material
+              : [object.material]) {
+              const material = source as THREE.MeshStandardMaterial
+              if (!material.isMeshStandardMaterial) continue
+              material.roughness = 0.48
+              material.metalness = 0.46
+              material.emissiveIntensity = 1.65
+            }
+          })
           place(gltf, -4.7, -9.8, 1.65, 0.35)
           place(gltf, 4.5, 15.1, 1.65, -0.6)
         } else place(gltf, -5.8, 8.3, 0.85, 0, 2.9)

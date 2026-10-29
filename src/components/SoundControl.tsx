@@ -39,32 +39,6 @@ export default function SoundControl() {
         return
       sound.play(target ? "select" : "tap", true)
     }
-    let lastKey = -Infinity
-    const typing = (event: KeyboardEvent) => {
-      if (
-        document.hidden ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.altKey ||
-        event.isComposing
-      )
-        return
-      const editing =
-        event.target instanceof Element &&
-        event.target.matches('input,textarea,[contenteditable="true"]')
-      if (
-        event.key.length !== 1 &&
-        !["Backspace", "Delete"].includes(event.key) &&
-        !(editing && event.key === "Enter")
-      )
-        return
-      // Space on a button is an activation, not typing; its click gets one cue.
-      if (event.key === " " && !editing && control(event.target)) return
-      const now = performance.now()
-      if (now - lastKey < 25) return
-      lastKey = now
-      sound.play("typing", true)
-    }
     const hover = (event: PointerEvent) => {
       const target = control(event.target)
       if (
@@ -78,11 +52,9 @@ export default function SoundControl() {
     }
     document.addEventListener("click", click)
     document.addEventListener("pointerover", hover)
-    document.addEventListener("keydown", typing)
     return () => {
       document.removeEventListener("click", click)
       document.removeEventListener("pointerover", hover)
-      document.removeEventListener("keydown", typing)
       sound.dispose()
       engine.current = null
     }

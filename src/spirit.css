@@ -5,11 +5,11 @@
 .district-trigger { position: relative; display: flex; align-items: center; justify-content: center; gap: 40px; width: min(100%, 670px); padding: 45px 12px 35px; color: var(--c-fg); cursor: pointer; text-align: left; }
 .district-ticket { display: block; width: min(46vw, 292px); flex-shrink: 0; rotate: -7deg; filter: drop-shadow(0 14px 26px #0003); transition: rotate .65s cubic-bezier(.2,.7,.2,1), translate .65s cubic-bezier(.2,.7,.2,1), filter .65s; }
 .district-ticket svg { display: block; width: 100%; height: auto; }
-.district-ticket-face { fill: #101d1d; stroke: #69887c; }
-.district-ticket-border { stroke: #a4bb9d; stroke-opacity: .36; }
+.district-ticket-face { fill: #16273a; stroke: #65daca; }
+.district-ticket-border { stroke: #f3a1c8; stroke-opacity: .55; }
 .district-ticket-perforation { stroke: #8a9f8b; stroke-opacity: .45; stroke-dasharray: 2 4; }
-.district-ticket-line { stroke: #d5a276; stroke-opacity: .7; }
-.district-ticket-stop { fill: #101d1d; stroke: #ddad84; stroke-width: 2; }
+.district-ticket-line { stroke: #6df2db; stroke-opacity: .9; }
+.district-ticket-stop { fill: #192a3e; stroke: #ffc78f; stroke-width: 2; }
 .district-ticket-hanzi { fill: #e5ead8; font: 46px "Noto Sans SC", "Microsoft YaHei", sans-serif; letter-spacing: .08em; }
 .district-ticket-caption { fill: #9cafa1; font: 7px monospace; letter-spacing: .06em; }
 .district-ticket-number { fill: #d5a276; font: 24px monospace; letter-spacing: -.1em; }
@@ -24,7 +24,7 @@
 .district-enter > span { transition: translate .3s; }
 .district-trigger:hover .district-enter > span { translate: 3px -3px; }
 .district-ticket-ascii { color: var(--c-accent); font: clamp(9px, 1.8vw, 13px)/1.4 monospace; }
-.garganta { position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; overflow: hidden; background: #060e13; color: #eef1e8; color-scheme: dark; }
+.garganta { position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; overflow: hidden; background: #18203b; color: #fff4e6; color-scheme: dark; }
 .garganta:not([open]) { display: none; }
 .garganta::backdrop { background: #03070a; }
 .spirit-world-viewport { position: absolute; inset: 0; }
@@ -38,12 +38,12 @@
 .spirit-eyebrow { font-size: 9px; letter-spacing: .16em; color: #b4ccbd; text-transform: uppercase; }
 .spirit-header h2 { font-size: 26px; font-weight: 450; letter-spacing: -.035em; line-height: 1.15; margin-top: 7px; }
 .spirit-header p:last-child { font-size: 11px; color: #becac9; margin-top: 7px; }
-.spirit-button { font-size: 11px; border: 1px solid #b4d2c43d; border-radius: 100px; background: #091719d9; color: #eef3ed; padding: 9px 15px; min-height: 40px; cursor: pointer; transition: background .2s, border-color .2s; }
-.spirit-button:hover { background: #1c3737; border-color: #b4d2c480; }
+.spirit-button { font-size: 11px; border: 1px solid #8ae5dc59; border-radius: 100px; background: #16283be8; color: #fff4e6; padding: 9px 15px; min-height: 40px; cursor: pointer; transition: background .2s, border-color .2s; }
+.spirit-button:hover { background: #29465a; border-color: #91f6de; }
 .spirit-button[aria-pressed='true'] { border-color: #a8d1bd80; }
 .spirit-toolbar { position: absolute; z-index: 5; bottom: 124px; left: 30px; right: 30px; display: flex; align-items: center; justify-content: center; gap: 14px; }
 .spirit-toolbar > span { color: #c8d2ce; font-size: 11px; text-shadow: 0 1px 8px #000; }
-.spirit-locations { position: absolute; z-index: 6; bottom: 40px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(4,1fr); width: min(860px,calc(100% - 48px)); border: 1px solid #b7d0c42e; border-radius: 8px; background: #081617e8; backdrop-filter: blur(14px); overflow: hidden; }
+.spirit-locations { position: absolute; z-index: 6; bottom: 40px; left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(4,1fr); width: min(860px,calc(100% - 48px)); border: 1px solid #8ae5dc59; border-radius: 14px; background: #142639e8; backdrop-filter: blur(18px); box-shadow: 0 12px 36px #080f284d, inset 0 1px #9de5da20; overflow: hidden; }
 .spirit-locations button { min-width: 0; min-height: 66px; padding: 13px 17px; display: grid; grid-template-columns: auto 1fr; align-content: center; gap: 4px 10px; text-align: left; font-size: 12px; line-height: 1.25; cursor: pointer; transition: background .2s; }
 .spirit-locations button:hover { background: #b7d0c410; }
 .spirit-locations button > span { color: #e0ae7d; font-size: 10px; }

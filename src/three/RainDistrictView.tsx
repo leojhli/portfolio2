@@ -64,7 +64,7 @@ export default function RainDistrictView({
     s.renderer.shadowMap.enabled = true
     s.renderer.shadowMap.type = THREE.PCFShadowMap
     s.renderer.toneMapping = THREE.ACESFilmicToneMapping
-    s.renderer.toneMappingExposure = 1.05
+    s.renderer.toneMappingExposure = 1.12
     s.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.35))
     s.camera.near = 0.08
     s.camera.far = 150
@@ -85,7 +85,7 @@ export default function RainDistrictView({
     s.scene.add(avatar.root)
     const composer = new EffectComposer(s.renderer)
     const render = new RenderPass(s.scene, s.camera)
-    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.32, 0.35, 0.95)
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.62, 0.48, 1.05)
     const output = new OutputPass()
     composer.addPass(render)
     composer.addPass(bloom)

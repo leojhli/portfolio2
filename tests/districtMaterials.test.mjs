@@ -41,9 +41,9 @@ test("city finishes retain PBR lighting while giving stone, tile, wood and paper
     assert.ok(palette.roof.roughness < palette.stone.roughness)
     assert.ok(palette.metal.metalness > 0.5)
     assert.ok(
-      palette.glow.emissiveIntensity > 0 &&
-        palette.glow.emissiveIntensity < 0.35,
-      "paper emits gently rather than flooding the window with yellow",
+      palette.glow.emissiveIntensity >= 0.6 &&
+        palette.glow.emissiveIntensity <= 1,
+      "warm windows remain legible in the neighborhood's night lighting",
     )
     assert.notEqual(
       palette.wood.customProgramCacheKey(),
