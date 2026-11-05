@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
+import { applyCloisterSilhouette } from "./cloisterSilhouette"
 
 export type RunnerBlend = {
   action: string
@@ -14,14 +15,14 @@ export async function loadCloisterRunner(
   parent: THREE.Group,
   signal?: AbortSignal,
 ) {
-  const response = await fetch("/models/cloister/runner.glb", { signal })
+  const response = await fetch("/models/cloister/altair.glb", { signal })
   if (!response.ok) throw new Error("The runner could not be loaded.")
   const bytes = await response.arrayBuffer()
   signal?.throwIfAborted()
 
   const { scene, animations } = await new GLTFLoader().parseAsync(bytes, "")
   const root = new THREE.Group()
-  root.name = "Wayfarer"
+  root.name = "Altaïr"
   scene.name = "Rig"
   // The authored mesh faces +Z. Stage headings use -Z. Normalizing the
   // child keeps the public root free for world-space choreography.
@@ -37,11 +38,11 @@ export async function loadCloisterRunner(
   const skeletons = new Set<THREE.Skeleton>()
   scene.traverse((object) => {
     const mesh = object as THREE.SkinnedMesh
-    if (!mesh.isSkinnedMesh) return
+    if (!mesh.isMesh) return
     // The static bind-pose bounds do not contain the vault's extending arms.
     mesh.frustumCulled = false
     geometries.add(mesh.geometry)
-    skeletons.add(mesh.skeleton)
+    if (mesh.isSkinnedMesh) skeletons.add(mesh.skeleton)
     for (const material of Array.isArray(mesh.material)
       ? mesh.material
       : [mesh.material]) {
@@ -49,6 +50,7 @@ export async function loadCloisterRunner(
       materials.add(material)
     }
   })
+  const silhouette = applyCloisterSilhouette(scene)
 
   const mixer = new THREE.AnimationMixer(scene)
   const actions = new Map<string, THREE.AnimationAction>()
@@ -93,6 +95,7 @@ export async function loadCloisterRunner(
     root.removeFromParent()
     mixer.stopAllAction()
     mixer.uncacheRoot(scene)
+    silhouette.dispose()
     for (const skeleton of skeletons) skeleton.dispose()
     for (const geometry of geometries) geometry.dispose()
     for (const material of materials) material.dispose()

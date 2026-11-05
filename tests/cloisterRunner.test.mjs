@@ -14,10 +14,10 @@ test("the shipped runner can seek and blend real poses, with a planted hand on t
     "/src/three/cloisterRunner.ts",
   )
   const bytes = await readFile(
-    new URL("../public/models/cloister/runner.glb", import.meta.url),
+    new URL("../public/models/cloister/altair.glb", import.meta.url),
   )
   t.mock.method(globalThis, "fetch", async (url) => {
-    assert.equal(url, "/models/cloister/runner.glb")
+    assert.equal(url, "/models/cloister/altair.glb")
     return new Response(bytes)
   })
   const stage = new THREE.Group()

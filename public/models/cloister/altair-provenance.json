@@ -1,0 +1,121 @@
+{
+  "model": "Assassins-creed-altair-blend",
+  "author": "Nexus321",
+  "source": "https://sketchfab.com/3d-models/assassins-creed-altair-blend-1c9466cd5283403dace6991565b4a2cc",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "file": "altair.glb",
+  "sha256": "f337494e1e874baaf3f758055ef8c1a1c68e7f68d7dd36d2328da96bd0e3cbe6",
+  "sourceGeometrySha256": "f6ea21a6090b3a2ff112e5405194ee1e24636cd4097a5b20876accf5a9b2e318",
+  "downloadedSource": "Official Sketchfab glTF download; 14 static meshes, no skeleton or animations",
+  "sourceTriangles": 23590,
+  "sourceVerticesWithAttributeSeams": 18584,
+  "geometry": "All original triangle indices and positions retained after uniform unit conversion, source node transforms, and global alignment; no substitute character geometry.",
+  "skinning": "Barycentric nearest-body triangle transfer from Quaternius runner, with corresponding-leg robe assignment, rigid weapons, and head/hood constraints.",
+  "rigAndAnimations": "Existing portfolio Quaternius CC0 rig; eight clips retained byte-for-byte. Custom vault retained.",
+  "rendering": "Textures omitted; pitch black unlit material; white contours added at runtime.",
+  "coordinateSystem": {
+    "up": "+Y",
+    "facing": "+Z",
+    "heightBeforeRuntimeNormalization": 1.8935096696168185,
+    "footPlane": -0.009509669616818428,
+    "uniformSourceScale": 0.014935529063100944,
+    "globalDepthOffset": -0.055
+  },
+  "clips": [
+    "idle",
+    "run",
+    "jog",
+    "climb",
+    "jump",
+    "takeoff",
+    "land",
+    "vault"
+  ],
+  "meshes": [
+    {
+      "mesh": 0,
+      "material": "Eyes",
+      "vertices": 130,
+      "triangles": 224
+    },
+    {
+      "mesh": 1,
+      "material": "Shirt",
+      "vertices": 614,
+      "triangles": 1070
+    },
+    {
+      "mesh": 2,
+      "material": "Pants",
+      "vertices": 1558,
+      "triangles": 2246
+    },
+    {
+      "mesh": 3,
+      "material": "Shirt",
+      "vertices": 4484,
+      "triangles": 5280
+    },
+    {
+      "mesh": 4,
+      "material": "TorsoDefault",
+      "vertices": 102,
+      "triangles": 136
+    },
+    {
+      "mesh": 5,
+      "material": "Hands",
+      "vertices": 4332,
+      "triangles": 4654
+    },
+    {
+      "mesh": 6,
+      "material": "Sword",
+      "vertices": 104,
+      "triangles": 158
+    },
+    {
+      "mesh": 7,
+      "material": "Sword",
+      "vertices": 522,
+      "triangles": 758
+    },
+    {
+      "mesh": 8,
+      "material": "Hood",
+      "vertices": 755,
+      "triangles": 1242
+    },
+    {
+      "mesh": 9,
+      "material": "Hands",
+      "vertices": 58,
+      "triangles": 42
+    },
+    {
+      "mesh": 10,
+      "material": "Fingers",
+      "vertices": 995,
+      "triangles": 1510
+    },
+    {
+      "mesh": 11,
+      "material": "SmallSword",
+      "vertices": 2053,
+      "triangles": 2012
+    },
+    {
+      "mesh": 12,
+      "material": "material",
+      "vertices": 950,
+      "triangles": 1722
+    },
+    {
+      "mesh": 13,
+      "material": "Boots",
+      "vertices": 1927,
+      "triangles": 2536
+    }
+  ]
+}

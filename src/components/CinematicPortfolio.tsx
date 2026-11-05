@@ -682,6 +682,18 @@ export default function CinematicPortfolio() {
             </a>
             .
           </p>
+          <p className="cine-kicker">The runner</p>
+          <p>
+            <a
+              href="https://sketchfab.com/3d-models/assassins-creed-altair-blend-1c9466cd5283403dace6991565b4a2cc"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Altaïr by Nexus321 ↗
+            </a>
+            <br />
+            CC BY 4.0. Rigged and outlined for this film.
+          </p>
           <a
             className="cine-text-button"
             href="/models/cloister/credits.html"

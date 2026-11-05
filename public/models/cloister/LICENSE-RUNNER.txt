@@ -1,6 +1,14 @@
-Wayfarer / portfolio runner
+Altaïr / portfolio runner
 
-Male body and rig: Universal Base Characters [Standard], by Quaternius.
+Model: "Assassins-creed-altair-blend" by Nexus321.
+https://sketchfab.com/3d-models/assassins-creed-altair-blend-1c9466cd5283403dace6991565b4a2cc
+https://sketchfab.com/Nexus321
+Licensed under Creative Commons Attribution 4.0 International.
+https://creativecommons.org/licenses/by/4.0/
+Original download attribution is preserved in LICENSE-ALTAIR.txt.
+
+Animation skeleton and skin-weight reference: Universal Base Characters
+[Standard], by Quaternius.
 https://quaternius.itch.io/universal-base-characters
 
 Motion: Universal Animation Library [Standard] and Universal Animation Library
@@ -11,6 +19,9 @@ https://quaternius.itch.io/universal-animation-library-2
 The three source packs are released under CC0 1.0 Universal.
 https://creativecommons.org/publicdomain/zero/1.0/
 
-Changes for this site: new hood, mantle, split coat and belt bound to the
-character; monochrome vertex colors; texture removal; motion retargeting;
-new keyed vault with a solved right-hand contact; export of selected clips.
+Changes for this site: geometry normalization; skin-weight transfer to the
+animation skeleton; texture removal; pitch-black surfaces with pale outlines;
+motion retargeting; new keyed vault with a solved right-hand contact; export
+of selected clips. The opening loop and still depict the adapted model.
+
+Altaïr and Assassin's Creed are characters and properties of Ubisoft.
