@@ -56,6 +56,21 @@ export async function loadCloisterEnvironment(
       material.color.set("#b8b8b8")
       material.toneMapped = false
       material.fog = true
+      // A drawn line has physical width. Very close to the lens, one stroke
+      // can cover most of the screen, so let nearby ink dissolve out of focus.
+      material.transparent = true
+      material.depthWrite = false
+      material.onBeforeCompile = (shader) => {
+        shader.vertexShader = "varying float cloisterDepth;\n" + shader.vertexShader.replace(
+          "#include <project_vertex>",
+          "#include <project_vertex>\ncloisterDepth = -mvPosition.z;",
+        )
+        shader.fragmentShader = "varying float cloisterDepth;\n" + shader.fragmentShader.replace(
+          "#include <alphatest_fragment>",
+          "diffuseColor.a *= smoothstep(0.8, 2.0, cloisterDepth);\n#include <alphatest_fragment>",
+        )
+      }
+      material.customProgramCacheKey = () => "cloister-ink-near-fade"
     }
   })
   parent.add(root)
