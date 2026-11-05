@@ -7,7 +7,7 @@ React + Vite + Tailwind CSS portfolio exported from Figma Make and adapted for l
 Run `npm install`, then `npm run dev` to start Vite at http://127.0.0.1:5173. Use `npm.cmd` if PowerShell blocks the npm script wrapper. Dependencies are already installed in this checkout. pnpm is optional; the original export lockfile is retained.
 
 - Validation: `npm run build` runs the TypeScript check and production build. `npm run preview` serves the built output at http://127.0.0.1:4173.
-- Interaction checks: `npm test` runs geometry, renderer lifecycle and React/jsdom tests without computer use. The current vertical story with sticky sideways chapters takes precedence over historical build plans. See `docs/interaction-effects.md`.
+- Interaction checks: `npm test` covers the cloister assets, animation, playback and reading controls. The main site is the cinematic cloister in `src/components/CinematicPortfolio.tsx` and `src/three/CloisterView.tsx`. The vertical story in `docs/interaction-effects.md` describes the previous design.
 - Hot reload: Changes to source files are reflected immediately
 
 ## Project Structure

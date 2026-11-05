@@ -1,0 +1,11 @@
+Model Information:
+* title:	Claustre del Reial Monestir de Santes Creus
+* source:	https://sketchfab.com/3d-models/claustre-del-reial-monestir-de-santes-creus-66787ebf720f4687aa11a51d6e883de7
+* author:	Giravolt (https://sketchfab.com/giravolt)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Claustre del Reial Monestir de Santes Creus" (https://sketchfab.com/3d-models/claustre-del-reial-monestir-de-santes-creus-66787ebf720f4687aa11a51d6e883de7) by Giravolt (https://sketchfab.com/giravolt) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

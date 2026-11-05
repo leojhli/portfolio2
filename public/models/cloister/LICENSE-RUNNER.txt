@@ -1,0 +1,16 @@
+Wayfarer / portfolio runner
+
+Male body and rig: Universal Base Characters [Standard], by Quaternius.
+https://quaternius.itch.io/universal-base-characters
+
+Motion: Universal Animation Library [Standard] and Universal Animation Library
+2 [Standard], by Quaternius.
+https://quaternius.itch.io/universal-animation-library
+https://quaternius.itch.io/universal-animation-library-2
+
+The three source packs are released under CC0 1.0 Universal.
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Changes for this site: new hood, mantle, split coat and belt bound to the
+character; monochrome vertex colors; texture removal; motion retargeting;
+new keyed vault with a solved right-hand contact; export of selected clips.

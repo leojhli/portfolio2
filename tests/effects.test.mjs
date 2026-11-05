@@ -11,7 +11,10 @@ let server,
   snapshotModule,
   coordinatorModule,
   asciiTextModule,
-  App
+  Page,
+  PreferencesProvider,
+  AudioProvider,
+  tracks
 before(async () => {
   server = await createServer({
     server: { middlewareMode: true },
@@ -31,7 +34,11 @@ before(async () => {
     "/src/three/RainDistrictView.tsx",
   ])
     await server.ssrLoadModule(path)
-  App = (await server.ssrLoadModule("/src/App.tsx")).default
+  // These tests exercise the retained scrolling page and its effects.
+  Page = (await server.ssrLoadModule("/src/components/Page.tsx")).default
+  ;({ PreferencesProvider } = await server.ssrLoadModule("/src/state/preferences.tsx"))
+  ;({ AudioProvider } = await server.ssrLoadModule("/src/state/audio.tsx"))
+  tracks = (await server.ssrLoadModule("/src/content/data.ts")).getContent().tracks
 })
 after(async () => server?.close())
 
@@ -545,7 +552,7 @@ test("ASCII pointer motion never starts pixel displacement or copies viewport ra
 
 test("cursor toggle persists independently and clears active displacement while motion stays on", async () => {
   let f = fixture({ reduced: true, stored: { "pf.v2.motion": "off" } }),
-    unmount = await mountApp(f)
+    unmount = await mountScrollingPage(f)
   try {
     assert.equal(document.documentElement.dataset.motion, "on")
     assert.equal(document.querySelector('[aria-controls="motion-pop"]'), null)
@@ -572,7 +579,7 @@ test("cursor toggle persists independently and clears active displacement while 
   f = fixture({
     stored: { "pf.cursorBarrier": "off", "pf.v2.motion": "system" },
   })
-  unmount = await mountApp(f)
+  unmount = await mountScrollingPage(f)
   try {
     assert.equal(document.documentElement.dataset.motion, "on")
     assert.equal(
@@ -788,10 +795,11 @@ test("a failed canvas leaves navigation/content usable and closes dialogs immedi
   f.dom.window.close()
 })
 
-async function mountApp(f) {
+async function mountScrollingPage(f) {
   const root = createRoot(document.getElementById("root"))
   await act(async () => {
-    root.render(React.createElement(App))
+    root.render(React.createElement(PreferencesProvider, null,
+      React.createElement(AudioProvider, { tracks }, React.createElement(Page))))
     await new Promise((resolve) => setTimeout(resolve, 50))
   })
   await act(async () => {
@@ -817,7 +825,7 @@ const click = async (el) => {
 
 test("native vertical scrolling drives sideways chapters without intercepting wheel or keys", async () => {
   const f = fixture(),
-    unmount = await mountApp(f)
+    unmount = await mountScrollingPage(f)
   try {
     assert.equal(document.documentElement.dataset.layout, "story")
     assert.equal(document.documentElement.dataset.rails, "on")
@@ -901,7 +909,7 @@ test("typing stays silent while clicks and object activation retain distinct sou
     }
     async close() {}
   }
-  const unmount = await mountApp(f)
+  const unmount = await mountScrollingPage(f)
   try {
     await click(document.body)
     await act(async () =>
@@ -943,7 +951,7 @@ test("typing stays silent while clicks and object activation retain distinct sou
 
 test("Rain District preserves music, exposes every fallback destination and restores focus on return", async () => {
   const f = fixture({ stored: { "pf.sound": "off" } })
-  const unmount = await mountApp(f)
+  const unmount = await mountScrollingPage(f)
   try {
     assert.equal(
       f.audioInstances.length,
@@ -1120,7 +1128,7 @@ test("Rain District ambience respects mute, toggles independently and releases a
       return this.source()
     }
   }
-  const unmount = await mountApp(f)
+  const unmount = await mountScrollingPage(f)
   let mounted = true
   try {
     const trigger = document.querySelector("[data-world-trigger]")
@@ -1188,7 +1196,7 @@ test("Rain District ambience respects mute, toggles independently and releases a
 
 test("Rain District arrival completes without input and never starts previously paused music", async () => {
   const f = fixture({ stored: { "pf.sound": "off" } })
-  const unmount = await mountApp(f)
+  const unmount = await mountScrollingPage(f)
   try {
     await click(document.querySelector('[aria-label="Play"]'))
     const original = f.audioInstances[0]
@@ -1212,7 +1220,7 @@ test("Rain District arrival completes without input and never starts previously 
 
 test("rail focus reveals hidden controls and resizing preserves chapter position", async () => {
   const f = fixture(),
-    unmount = await mountApp(f)
+    unmount = await mountScrollingPage(f)
   try {
     const chapter = document.getElementById("projects")
     const target = chapter.querySelectorAll("summary")[2]
@@ -1247,7 +1255,7 @@ test("rail focus reveals hidden controls and resizing preserves chapter position
 
 test("overlay scrollbar supports keyboard and dragging without reserving a gutter; sounds persist", async () => {
   const f = fixture(),
-    unmount = await mountApp(f)
+    unmount = await mountScrollingPage(f)
   try {
     const bar = document.querySelector('[role="scrollbar"]')
     assert.equal(document.documentElement.dataset.overlayScrollbar, "true")
@@ -1321,7 +1329,7 @@ test("signature follows hero scroll, reverses, and draws Contact only once", asy
       this.targets = []
     }
   }
-  const unmount = await mountApp(f)
+  const unmount = await mountScrollingPage(f)
   try {
     assert.equal(document.querySelectorAll(".photo img").length, 5)
     const hero = document.querySelector(".signature-hero")
@@ -1372,7 +1380,7 @@ test("signature follows hero scroll, reverses, and draws Contact only once", asy
 
 test("ASCII presentation uses character controls and frames, keeps media mounted, and cleans up on leaving", async () => {
   const f = fixture(),
-    unmount = await mountApp(f)
+    unmount = await mountScrollingPage(f)
   try {
     const footerNav = document.querySelector("[data-deck-status] nav")
     assert.ok(footerNav.querySelector('a[href="#about"]'))
@@ -1429,7 +1437,7 @@ test("ASCII presentation uses character controls and frames, keeps media mounted
 
 test("real React tree preserves audio and text through rapid navigation, history, mode changes and cursor toggles", async () => {
   const f = fixture(),
-    unmount = await mountApp(f)
+    unmount = await mountScrollingPage(f)
   try {
     assert.equal(document.documentElement.dataset.layout, "story")
     assert.equal(document.documentElement.dataset.theme, "dark")
@@ -1496,7 +1504,7 @@ test("three curated themes migrate existing preferences and persist one explicit
   let f = fixture({
       stored: { "pf.v3.palette": "candy", "pf.v2.motion": "off" },
     }),
-    unmount = await mountApp(f)
+    unmount = await mountScrollingPage(f)
   try {
     assert.equal(document.documentElement.dataset.palette, "electric-blue")
     await click(document.querySelector('[aria-controls="theme-pop"]'))
@@ -1518,7 +1526,7 @@ test("three curated themes migrate existing preferences and persist one explicit
       "pf.v3.palette": "candy",
     },
   })
-  unmount = await mountApp(f)
+  unmount = await mountScrollingPage(f)
   try {
     assert.equal(document.documentElement.dataset.palette, "ink")
   } finally {
@@ -1532,7 +1540,7 @@ test("book dialogs reopen, close on cancel, and return focus without unmounting 
       reduced: true,
       stored: { "pf.v2.motion": "system" },
     }),
-    unmount = await mountApp(f)
+    unmount = await mountScrollingPage(f)
   try {
     assert.equal(document.documentElement.dataset.layout, "story")
     const book = document.querySelector('[aria-haspopup="dialog"]')
@@ -1587,7 +1595,7 @@ test("new defaults replace legacy preferences once, while new explicit choices r
       "pf.motion": "off",
     },
   })
-  let unmount = await mountApp(f)
+  let unmount = await mountScrollingPage(f)
   try {
     assert.equal(document.documentElement.dataset.theme, "dark")
     assert.equal(document.documentElement.dataset.motion, "on")
@@ -1609,7 +1617,7 @@ test("new defaults replace legacy preferences once, while new explicit choices r
       "pf.v2.motion": "off",
     },
   })
-  unmount = await mountApp(f)
+  unmount = await mountScrollingPage(f)
   try {
     assert.equal(document.documentElement.dataset.theme, "light")
     assert.equal(document.documentElement.dataset.motion, "on")
@@ -1625,7 +1633,7 @@ test("new defaults replace legacy preferences once, while new explicit choices r
 
 test("handwritten name replays on hover, keyboard and touch, and cleans up in ASCII mode", async () => {
   const f = fixture(),
-    unmount = await mountApp(f)
+    unmount = await mountScrollingPage(f)
   try {
     const button = document.querySelector(".name-drawing")
     assert.equal(button.dataset.language, "english")
@@ -1768,7 +1776,7 @@ test("handwritten name replays on hover, keyboard and touch, and cleans up in AS
 
 test("taskbar music shares playback and cover shelves keep book details accessible", async () => {
   const f = fixture({ width: 390 }),
-    unmount = await mountApp(f)
+    unmount = await mountScrollingPage(f)
   try {
     const dock = document.querySelector('[aria-label="Taskbar music player"]')
     assert.ok(dock.closest("[data-deck-status]"))
