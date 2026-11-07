@@ -28,6 +28,11 @@
 .cine-world { position: absolute; inset: 0; z-index: -3; }
 .cine-world > * { width: 100%; height: 100%; }
 .cine-world canvas { display: block; }
+.cine-letterbox { position: absolute; inset: 0; z-index: -2; pointer-events: none; }
+.cine-letterbox::before, .cine-letterbox::after { content: ""; position: absolute; left: 0; right: 0; height: min(8.5vh, 82px); background: #000; }
+.cine-letterbox::before { top: 0; }
+.cine-letterbox::after { bottom: 0; }
+.cine-portfolio[data-phase="aerial"] .cine-letterbox { display: none; }
 .cine-world > .cine-still { position: absolute; right: -6vw; top: 0; width: 76vw; height: 100%; object-fit: contain; pointer-events: none; }
 .cine-vignette { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(180deg, #000b, transparent 23%, transparent 73%, #000c); }
 .cine-portfolio[data-reading="true"] .cine-vignette { background: linear-gradient(90deg, #000 0%, #000e 23%, #0009 44%, transparent 70%), linear-gradient(180deg, #0009, transparent 22%, transparent 75%, #000b); }
@@ -52,6 +57,11 @@
 .cine-loading-runner img { width: 100%; height: 100%; object-fit: contain; }
 .cine-reading { position: absolute; top: 17vh; bottom: 110px; left: 7.2vw; width: min(560px, 43vw); overflow: auto; overscroll-behavior: contain; padding: 0 22px 24px 0; scrollbar-width: thin; scrollbar-color: #555 transparent; }
 .cine-reading[hidden], .cine-reading section[hidden] { display: none; }
+.cine-reading section:not([hidden]) { animation: cine-section-cut 150ms ease-out both; }
+.cine-reading .cine-chapter-number { display: flex; align-items: center; gap: 10px; font: 10px/1.2 "Geist Mono", monospace; letter-spacing: .12em; color: #d6d6d6; }
+.cine-chapter-number::before { content: ""; height: 1px; width: 28px; background: #b8b8b8; }
+.cine-chapter-number span { color: #646464; }
+@keyframes cine-section-cut { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 .cine-reading h2 { margin: 20px 0 25px; max-width: 500px; font-size: clamp(38px, 4.2vw, 67px); font-weight: 400; line-height: 1.02; letter-spacing: -.055em; outline: none; }
 .cine-reading h3 { margin-bottom: 8px; color: #f5f5f2; font-size: 21px; font-weight: 400; line-height: 1.25; letter-spacing: -.02em; }
 .cine-reading p { color: #bcbcb8; }
@@ -120,6 +130,7 @@
 .cine-skip { position: absolute; top: -100px; left: 20px; z-index: 20; padding: 12px 20px; background: #fff; color: #000; font-size: 13px; }
 .cine-skip:focus { top: 12px; }
 @media (max-width: 800px) {
+  .cine-letterbox::before, .cine-letterbox::after { height: 64px; }
   .cine-header { padding: 16px 22px 10px; gap: 13px; align-items: flex-start; }
   .cine-brand > span { display: none; }
   .cine-brand .surname-mark { width: 24px; height: 32px; }
@@ -133,7 +144,7 @@
   .cine-reading { top: 108px; left: 7vw; width: 86vw; bottom: 90px; padding-right: 9px; }
   .cine-reading h2 { max-width: 380px; font-size: clamp(40px, 9vw, 60px); margin: 16px 0 22px; }
   .cine-reading .cine-lead { font-size: 16px; }
-  .cine-portfolio[data-reading="true"] .cine-vignette { background: linear-gradient(90deg, #000e, #000c 70%, #0009), linear-gradient(180deg, #0009, transparent 30%, #0009); }
+  .cine-portfolio[data-reading="true"] .cine-vignette { background: linear-gradient(180deg, #000d, #000b 38%, #0005 55%, #0003 72%, #000a); }
   .cine-footer { padding: 13px 22px 16px; gap: 10px; }
   .cine-sequence-label { font-size: 9px; gap: 7px; }
   .cine-film-controls { gap: 14px; }
@@ -158,6 +169,7 @@
   .cine-introduction h1 { font-size: 80px; }
 }
 @media (max-height: 520px) {
+  .cine-letterbox::before, .cine-letterbox::after { height: 43px; }
   .cine-reading h2 { font-size: 38px; margin: 8px 0 18px; }
   .cine-reading .cine-contact-list { margin: 14px 0; }
   .cine-reading .cine-contact-list a { min-height: 46px; }

@@ -1,4 +1,4 @@
-export const CLOISTER_SEGMENT_DURATIONS = [8, 9, 10, 8, 6] as const
+export const CLOISTER_SEGMENT_DURATIONS = [3.15, 2.3, 2.8, 4.7, 5] as const
 export const CLOISTER_MAX_FRAME_DELTA = 0.05
 
 export type CloisterPhase = "loading" | "playing" | "paused" | "reading" | "aerial" | "fallback"

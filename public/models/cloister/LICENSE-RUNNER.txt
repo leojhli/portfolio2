@@ -23,5 +23,7 @@ Changes for this site: geometry normalization; skin-weight transfer to the
 animation skeleton; texture removal; pitch-black surfaces with pale outlines;
 motion retargeting; new keyed vault with a solved right-hand contact; export
 of selected clips. The opening loop and still depict the adapted model.
+Additional authored work: Leap of Faith pose sequence, stride-distance timing,
+turn anticipation and torso lean, trailer camera edit and shutter treatment.
 
 Altaïr and Assassin's Creed are characters and properties of Ubisoft.

@@ -162,6 +162,23 @@ export function buildCloisterStones(parent: THREE.Object3D) {
     { y: bench.height, inset: 0, ink: 0.95 },
   ])
 
+  // A short projecting cornice meets the original east arcade's roof edge.
+  // Its inner lip at x=15.1 is the Leap of Faith's planted takeoff surface.
+  const ledge = { x: 15.7, z: 7, width: 1.2, depth: 1.8, height: 6.65 }
+  for (const side of [-1, 1]) {
+    block({ ...ledge, x: 15.98, z: 7 + side * .56, width: .56, depth: .24 }, [
+      { y: 6.12, inset: .07, ink: .28 },
+      { y: 6.36, inset: .025, ink: .45 },
+      { y: 6.46, inset: 0, ink: .6 },
+    ])
+  }
+  block(ledge, [
+    { y: 6.43, inset: .045, ink: .4 },
+    { y: 6.5, inset: .01, ink: .56 },
+    { y: 6.62, inset: .01, ink: .42 },
+    { y: 6.65, inset: 0, ink: .92 },
+  ])
+
   const bodyGeometry = new THREE.BufferGeometry()
   bodyGeometry.setAttribute(
     "position",

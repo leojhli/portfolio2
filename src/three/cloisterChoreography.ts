@@ -64,12 +64,12 @@ const path: Track[] = [
   [
     [0, 13.65, 0, 1.6],
     [0.4, 13.55, 0, 1.6],
-    [2.6, 10.7, 0, 1.6],
-    [3.1, 10.51, 0, 1.6],
-    [3.4, 10.39, 0.26, 1.6],
-    [3.55, 10.19, 0.3, 1.6],
-    [3.94, 9.65, 1, 1.6],
-    [5, 9.15, 1, 1.6],
+    [2.6, 11.1, 0, 1.6],
+    [3.1, 10.7, 0, 1.6],
+    [3.4, 10.128571, 0.357143, 1.6],
+    [3.55, 9.842857, 0.535714, 1.6],
+    [3.94, 9.1, 1, 1.6],
+    [5, 8.4, 1, 1.6],
     [7.5, 4.15, 1, 1.6],
     [9.35, 1.04, 1, 1.6],
     [9.85, 0.8, 1, 1.6],
@@ -95,209 +95,300 @@ const path: Track[] = [
   ],
 ]
 
-// Each shot moves the lens relative to the moving actor. Matching first/last
-// keys keeps the picture continuous when a reader presses Continue.
-const lens: Track[] = [
-  [
-    [0, -2.2, 0.94, -2.45],
-    [1.8, -1.45, 1.05, -3.15],
-    [4.6, 1.38, 1.35, -4.25],
-    [6.7, 3.5, 1.72, -2.9],
-    [8, 3.85, 1.65, -1.4],
-  ],
-  [
-    [0, 3.85, 1.65, -1.4],
-    [2, 0.9, 1.72, -4.2],
-    [3.7, -2.27, 1.34, -2.5],
-    [4.6, -3.48, 0.96, -0.75],
-    [5.5, -3.5, 1.45, 0.9],
-    [7.4, -3.4, 2.05, 2.9],
-    [9, -3.5, 2.25, 3.6],
-  ],
-  [
-    [0, -3.5, 2.25, 3.6],
-    [2.25, -1.75, 1.37, 3.08],
-    [3.8, 0.4, 1.54, 3.0],
-    [6.2, 2.2, 2.2, 4.25],
-    [8.2, 1.7, 2.65, 4.65],
-    [10, 1.15, 2.9, 5.1],
-  ],
-  [
-    [0, 1.15, 2.9, 5.1],
-    [1.8, 0.3, 1.25, 3.8],
-    [2.38, -0.8, 1.17, 4.35],
-    [3.55, -1.5, 1.32, 4.6],
-    [5.8, -2.3, 1.63, 4],
-    [8, -3.2, 2.65, 5.15],
-  ],
+// The original route remains the physical source of truth. Editing its clock
+// changes the pace without changing a planted hand, a step, or a jump arc.
+const SOURCE_STARTS = [0, 8, 17, 27] as const
+const SOURCE_LENGTHS = [8, 9, 10, 8] as const
+type TimeKey = readonly [edit: number, source: number]
+const editClocks: readonly (readonly TimeKey[])[] = [
+  [[0, 0], [.6, 1.28], [1.5, 3.3], [3.15, 7]],
+  [[0, 7], [.2, 7.5], [.3, 8.5], [.82, 9.6], [1.45, 11.55], [1.9, 12.15], [2.3, 12.55]],
+  [[0, 12.55], [.6, 13.15], [1.06, 14.9], [1.75, 17.55], [2.35, 20.1], [2.8, 20.55]],
+  [[0, 20.55], [.39, 20.94], [.56, 22], [1.53, 26.3], [1.65, 27.45], [1.82, 28.42], [2.22, 28.82], [2.93, 29.65], [3.1, 29.82]],
 ]
-const targets: Track[] = [
-  [
-    [0, 0.32, 0.98, 0],
-    [4, 0.45, 0.98, 0],
-    [8, 0, 1.15, 0],
-  ],
-  [
-    [0, 0, 1.15, 0],
-    [2, 0, 1.05, -0.08],
-    [4.7, 0, 0.86, -0.24],
-    [9, 0, 1.13, 0],
-  ],
-  [
-    [0, 0, 1.13, 0],
-    [2.6, -0.2, 0.98, 0],
-    [4.35, -0.15, 0.85, 0],
-    [10, 0, 1.13, 0],
-  ],
-  [
-    [0, 0, 1.13, 0],
-    [2.4, -0.23, 0.72, 0],
-    [5.3, -0.12, 1, 0],
-    [8, 0, 1.13, 0],
-  ],
-]
-const END = new Vector3(-7.78, 1, 1.6)
-export const AERIAL_TARGET = new Vector3(0.7, 3.8, 5.4)
-const AERIAL_DIRECTION = new Vector3(0.82, 0.84, 1.06).normalize()
-
-type Cue = {
-  at: number
-  action: string
-  stretchTo?: number
-  offset?: number
-  blend: number
+const editTracks: Track[] = editClocks.map((keys) => keys.map(([edit, source]) => [edit, source, 0, 0]))
+const clockSample = new Vector3()
+function editedTime(segment: number, seconds: number) {
+  return along(editTracks[segment], seconds, clockSample).x
 }
+function sourceAt(time: number) {
+  let segment = 0
+  while (segment < 3 && time >= SOURCE_STARTS[segment + 1]) segment++
+  return { segment, time: clamp(time - SOURCE_STARTS[segment], 0, SOURCE_LENGTHS[segment]) }
+}
+function sourcePosition(segment: number, time: number, out: Vector3) {
+  along(path[segment], time, out)
+  if (segment === 1 && time >= 4.15 && time <= 5.15) {
+    const crossing = time - 4.15
+    out.z = stones.bench.z + .9 - 1.8 * crossing
+    out.y = .3 * Math.sin(Math.PI * crossing)
+  }
+  if (segment === 2 && time >= 3.1 && time <= 3.94) {
+    const climb = (time - 3.1) / .84
+    out.x = MathUtils.lerp(10.7, 9.1, climb)
+    out.y = climb
+  }
+  return out
+}
+function routePosition(time: number, out: Vector3) {
+  const source = sourceAt(time)
+  return sourcePosition(source.segment, source.time, out)
+}
+
+// Integrating the authored path once gives a phase based on metres travelled.
+// A sprint therefore keeps its stride length through speed ramps and corners.
+const DISTANCE_STEP = .025
+const distanceTables: number[][] = []
+const routeDistances: number[] = []
+const routePoints: Vector3[] = []
+let totalDistance = 0
+for (let segment = 0; segment < 4; segment++) {
+  const table: number[] = []
+  const previous = sourcePosition(segment, 0, new Vector3())
+  const point = new Vector3()
+  for (let i = 0; i <= SOURCE_LENGTHS[segment] / DISTANCE_STEP; i++) {
+    sourcePosition(segment, i * DISTANCE_STEP, point)
+    if (i) totalDistance += Math.hypot(point.x - previous.x, point.z - previous.z)
+    table.push(totalDistance)
+    if (!routeDistances.length || totalDistance > routeDistances[routeDistances.length - 1] + 1e-7) {
+      routeDistances.push(totalDistance)
+      routePoints.push(point.clone())
+    }
+    previous.copy(point)
+  }
+  distanceTables.push(table)
+}
+function distanceAt(segment: number, time: number) {
+  const table = distanceTables[segment]
+  const sample = clamp(time / DISTANCE_STEP, 0, table.length - 1)
+  const left = Math.floor(sample)
+  return MathUtils.lerp(table[left], table[Math.min(left + 1, table.length - 1)], sample - left)
+}
+
+// A spatial look-ahead keeps heading stable through the old route's brief
+// stationary keys. Time derivatives there collapse to zero and snap the torso.
+function pointAtDistance(distance: number, out: Vector3) {
+  const d = clamp(distance, 0, routeDistances[routeDistances.length - 1])
+  let low = 0, high = routeDistances.length - 1
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2)
+    if (routeDistances[middle] < d) low = middle + 1
+    else high = middle
+  }
+  if (low === 0) return out.copy(routePoints[0])
+  const before = low - 1
+  return out.lerpVectors(routePoints[before], routePoints[low],
+    (d - routeDistances[before]) / (routeDistances[low] - routeDistances[before]))
+}
+
+type Cue = { at: number; action: string; stretchTo?: number; rate?: number; offset?: number; blend: number }
 const cues: Cue[][] = [
-  [
-    { at: 0, action: "run", blend: 0 },
-    { at: 7.43, action: "idle", blend: 0.42 },
-  ],
-  [
-    { at: 0, action: "idle", offset: 0.57, blend: 0 },
-    { at: 0.12, action: "jog", blend: 0.32 },
-    { at: 4.15, action: "vault", blend: 0.08 },
-    { at: 5.15, action: "jog", offset: 0.36, blend: 0.15 },
-    { at: 8.32, action: "idle", blend: 0.35 },
-  ],
-  [
-    { at: 0, action: "idle", offset: 0.68, blend: 0 },
-    { at: 0.16, action: "jog", blend: 0.3 },
-    { at: 3.1, action: "climb", stretchTo: 0.84, blend: 0.09 },
-    { at: 3.94, action: "jog", offset: 0.58, blend: 0.19 },
-    { at: 9.45, action: "idle", blend: 0.4 },
-  ],
-  [
-    { at: 0, action: "idle", offset: 0.55, blend: 0 },
-    { at: 0.23, action: "jog", blend: 0.25 },
-    { at: 1.16, action: "takeoff", stretchTo: 0.66, blend: 0.09 },
-    { at: 1.82, action: "jump", blend: 0.1 },
-    { at: 2.54, action: "land", stretchTo: 0.94, blend: 0.08 },
-    { at: 3.48, action: "jog", blend: 0.17 },
-    { at: 6.03, action: "idle", blend: 0.28 },
-  ],
-  [{ at: 0, action: "idle", offset: 1.97, blend: 0 }],
+  [{ at: 0, action: "run", blend: 0 }],
+  [{ at: 0, action: "run", blend: 0 }, { at: 4.15, action: "vault", blend: .08 }, { at: 5.15, action: "run", blend: .16 }],
+  [{ at: 0, action: "run", blend: 0 }, { at: 3.1, action: "climb", stretchTo: .84, blend: .09 }, { at: 3.94, action: "run", blend: .18 }],
+  [{ at: 0, action: "run", blend: 0 }, { at: 1.42, action: "takeoff", rate: .8, blend: .18 }, { at: 1.82, action: "jump", blend: .12 }, { at: 2.65, action: "land", blend: .08 }, { at: 3.48, action: "run", blend: .18 }],
 ]
+
+type Point = readonly [x: number, y: number, z: number]
+type Shot = {
+  at: number
+  from: Point
+  to: Point
+  aim: Point
+  endAim: Point
+  fov: readonly [number, number]
+  roll: readonly [number, number]
+  frame: readonly [number, number]
+}
+function shot(at: number, from: Point, to: Point, fov: readonly [number, number], aim: Point = [0, 1.02, 0], roll: readonly [number, number] = [0, 0], frame: readonly [number, number] = [.055, .055]): Shot {
+  return { at, from, to, aim, endAim: aim, fov, roll, frame }
+}
+const shots: Shot[][] = [
+  [
+    shot(0, [2.3, .7, -2.65], [1.4, .8, -2.45], [55, 60], [.1, .93, 0], [-.018, -.035]),
+    shot(.7, [-1.65, 1.65, -1.25], [-1.2, 1.45, -1.45], [62, 58], [.38, 1.12, 0], [.03, .012]),
+    shot(1.42, [2.3, 4.8, -3.2], [1.1, 4.05, -3.1], [48, 51], [.1, .8, 0], [-.02, .015]),
+    shot(2.2, [1.45, 1.08, -3.1], [1.05, 1.13, -3.4], [48, 46], [.12, 1.02, 0], [.025, .008], [.07, .235]),
+  ],
+  [
+    shot(0, [1.05, 1.13, -3.4], [.8, 1.07, -3.1], [46, 49], [.12, 1.02, 0], [.008, .018], [.235, .16]),
+    shot(.24, [2.1, .65, -2.35], [1.4, .78, -2.65], [58, 61], [0, .86, 0], [-.025, -.012]),
+    shot(.85, [-2.7, 3.6, -1.4], [-2.5, 2.6, -1.1], [54, 58], [0, .8, -.15], [.035, .015]),
+    shot(1.45, [-1.9, 1.42, 2.6], [-2.35, 1.18, 1.8], [59, 54], [0, .94, -.1], [-.018, -.032]),
+    shot(1.9, [-3.05, 1.05, -.55], [-3.4, 1.2, -.7], [50, 48], [0, .86, -.1], [.016, .008], [.08, .235]),
+  ],
+  [
+    shot(0, [-3.4, 1.2, -.7], [-3.15, 1.13, -.42], [48, 51], [0, .86, -.1], [.008, -.012], [.235, .1]),
+    shot(.6, [1.4, .78, -2.5], [1.95, .91, -2.65], [59, 57], [0, .96, -.1], [.03, .012]),
+    shot(1.1, [-3.4, 3.7, .8], [-2.7, 3.2, 1.4], [51, 55], [-.1, .83, 0], [-.025, -.012]),
+    shot(1.43, [-1.8, 1.23, 2.1], [-1.5, 1.42, 2.55], [60, 56], [-.18, .96, 0], [.02, -.015]),
+    shot(2.35, [.4, 1.6, 3.2], [.2, 1.55, 3.55], [49, 47], [-.15, .87, 0], [-.02, -.006], [.08, .235]),
+  ],
+  [
+    shot(0, [.2, 1.55, 3.55], [.05, 1.48, 3.3], [47, 50], [-.15, .87, 0], [-.006, .012], [.235, .1]),
+    shot(.56, [2.2, .73, 2.6], [1.65, .9, 2.4], [60, 63], [-.28, .91, 0], [.025, -.018]),
+    shot(1.65, [-1.75, 3.8, 3.15], [-1.1, 3.3, 3.3], [51, 56], [-.25, .85, 0], [-.025, .014]),
+    shot(2.25, [.25, 1.15, 3.55], [-.5, 1.22, 3.95], [53, 51], [-.15, .72, 0], [.03, .01]),
+    // These last two offsets are in leap-local right/up/forward coordinates.
+    shot(3.1, [.4, 2.7, -3.15], [.15, 2.25, -2.7], [58, 61], [0, .95, .15], [-.02, -.008]),
+    shot(3.8, [-.8, 4.8, -1.9], [-1.4, 5.1, -2.3], [48, 47], [0, .85, .4], [.018, .006], [.08, .235]),
+  ],
+]
+
+export const CLOISTER_SHOT_CUTS = shots.map((sequence) => sequence.map(({ at }) => at))
+export const CLOISTER_LEAP_START_TIME = 3.1
+export const CLOISTER_LEAP_FREEZE_TIME = 1.25
+// The body and gravity share a speed ramp; the camera keeps its own edit clock.
+// Launch at full speed, linger as the arms open, then accelerate into the drop.
+const leapClock: Track = [
+  [0, 0, 0, 0],
+  [.42, .48, 0, 0],
+  [.65, .65, 0, 0],
+  [1.28, .88, 0, 0],
+  [CLOISTER_SEGMENT_DURATIONS[3] - CLOISTER_LEAP_START_TIME, CLOISTER_LEAP_FREEZE_TIME, 0, 0],
+]
+// The placement is a single authorable anchor; the leap clip owns pose only.
+export const LEAP_START = new Vector3(15.1, 6.65, 7)
+export const LEAP_FORWARD = new Vector3(-1, 0, 0)
+export const AERIAL_TARGET = new Vector3(.7, 3.8, 5.4)
+const AERIAL_DIRECTION = new Vector3(.82, .84, 1.06).normalize()
+const END = new Vector3(10.52, 0, 7)
+const AERIAL_CUT = .55
 
 export function createChoreography() {
-  const position = new Vector3(),
-    camera = new Vector3(),
-    target = new Vector3(),
-    sampleA = new Vector3(),
-    sampleB = new Vector3()
+  const position = new Vector3(), camera = new Vector3(), target = new Vector3()
+  const sampleA = new Vector3(), sampleB = new Vector3(), offset = new Vector3(), aim = new Vector3()
+  const leapRight = new Vector3(LEAP_FORWARD.z, 0, -LEAP_FORWARD.x)
   const pose = {
-    position,
-    camera,
-    target,
-    yaw: 0,
-    action: "run",
-    actionTime: 0,
-    blend: undefined as {
-      action: string
-      time: number
-      weight: number
-    } | undefined,
-    framing: 0,
-    fov: 43,
+    position, camera, target, yaw: 0, action: "run", actionTime: 0,
+    blend: undefined as { action: string; time: number; weight: number } | undefined,
+    framing: 0, fov: 48, shotId: "", roll: 0, bank: 0, lean: 0, motionBlur: 0, aerialProgress: 0,
   }
-  return (
-    segment: number,
-    seconds: number,
-    aspect: number,
-    durations: Record<string, number> = {},
-  ) => {
-    const t = clamp(seconds, 0, CLOISTER_SEGMENT_DURATIONS[segment])
-    const widthFactor = clamp((aspect - 0.68) / 0.82, 0, 1)
-    along(path[segment], t, position)
-    if (segment === 1 && t >= 4.15 && t <= 5.15) {
-      const crossing = t - 4.15
-      position.z = stones.bench.z + 0.9 - 1.8 * crossing
-      position.y = 0.3 * Math.sin(Math.PI * crossing)
-    }
-    const faceTime = Math.min(t, [7.66, 8.48, 9.52, 6.12, 0][segment])
-    along(path[segment], Math.max(0, faceTime - 0.045), sampleA)
-    along(path[segment], faceTime + 0.045, sampleB)
-    pose.yaw =
-      segment === 4
-        ? Math.PI / 2
-        : Math.atan2(sampleA.x - sampleB.x, sampleA.z - sampleB.z)
-    if (segment === 2 && t < 0.55)
-      pose.yaw = MathUtils.lerp(0.28, Math.PI / 2, smooth(0, 0.55, t))
-    const settle = [7.6, 8.52, 9.6, 6.03, 0][segment]
-    const track = cues[segment]
-    let index = track.length - 1
-    while (index > 0 && track[index].at > t) index--
-    const cue = track[index]
-    const localTime = (c: Cue) =>
-      (c.offset ?? 0) +
-      (t - c.at) *
-        (c.stretchTo ? (durations[c.action] ?? c.stretchTo) / c.stretchTo : 1)
-    pose.action = cue.action
-    pose.actionTime = localTime(cue)
+  function setLeap(time: number) {
+    const flight = Math.max(0, time - .6)
+    position.copy(LEAP_START).addScaledVector(LEAP_FORWARD, flight * 3.6)
+    position.y += flight - 4.905 * flight * flight
+    pose.yaw = Math.atan2(-LEAP_FORWARD.x, -LEAP_FORWARD.z)
+    pose.action = "leap"
+    pose.actionTime = time
     pose.blend = undefined
-    if (index && t < cue.at + cue.blend) {
-      const previous = track[index - 1]
-      pose.blend = {
-        action: previous.action,
-        time: localTime(previous),
-        weight: 1 - smooth(cue.at, cue.at + cue.blend, t),
+    pose.bank = 0
+    pose.lean = 0
+  }
+  function localLeapVector(point: Vector3) {
+    const x = point.x, z = point.z
+    point.x = leapRight.x * x + LEAP_FORWARD.x * z
+    point.z = leapRight.z * x + LEAP_FORWARD.z * z
+    return point
+  }
+  function sampleCamera(segment: number, seconds: number, widthFactor: number) {
+    const track = shots[segment]
+    let index = track.length - 1
+    while (index > 0 && track[index].at > seconds) index--
+    const lens = track[index]
+    const until = track[index + 1]?.at ?? CLOISTER_SEGMENT_DURATIONS[segment]
+    const progress = clamp((seconds - lens.at) / (until - lens.at), 0, 1)
+    offset.fromArray(lens.from).lerp(sampleA.fromArray(lens.to), progress)
+    aim.fromArray(lens.aim).lerp(sampleA.fromArray(lens.endAim), progress)
+    if (segment === 3 && seconds >= CLOISTER_LEAP_START_TIME) {
+      localLeapVector(offset)
+      localLeapVector(aim)
+    }
+    // Moving closer in portrait would crop the extended arms in the leap.
+    // Widen the camera distance and the vertical FOV instead.
+    offset.multiplyScalar(1 + .48 * (1 - widthFactor))
+    camera.copy(position).add(offset)
+    target.copy(position).add(aim)
+    pose.fov = MathUtils.lerp(lens.fov[0], lens.fov[1], progress) + 5 * (1 - widthFactor)
+    pose.framing = MathUtils.lerp(lens.frame[0], lens.frame[1], progress) * widthFactor
+    pose.roll = MathUtils.lerp(lens.roll[0], lens.roll[1], progress)
+    pose.shotId = `${segment}/${index}`
+  }
+  return (segment: number, seconds: number, aspect: number, durations: Record<string, number> = {}) => {
+    const safeSegment = clamp(Math.floor(segment), 0, 4)
+    const time = clamp(Number.isFinite(seconds) ? seconds : 0, 0, CLOISTER_SEGMENT_DURATIONS[safeSegment])
+    const safeAspect = Number.isFinite(aspect) && aspect > 0 ? aspect : 1
+    const widthFactor = clamp((safeAspect - .68) / .82, 0, 1)
+    pose.blend = undefined
+    pose.aerialProgress = 0
+    pose.bank = 0
+    pose.lean = 0
+    pose.motionBlur = time < CLOISTER_SEGMENT_DURATIONS[safeSegment] ? .75 : 0
+    if (safeSegment === 4) {
+      if (time < AERIAL_CUT) {
+        setLeap(CLOISTER_LEAP_FREEZE_TIME + Math.min(time, .49))
+        // The first resumed frame is exactly the frozen Contact frame.
+        sampleCamera(3, CLOISTER_SEGMENT_DURATIONS[3], widthFactor)
+        const travel = time / AERIAL_CUT
+        camera.addScaledVector(LEAP_FORWARD, -.35 * travel)
+        camera.y += .25 * travel
+        pose.shotId = "3/5"
+      } else {
+        const progress = smooth(AERIAL_CUT, CLOISTER_SEGMENT_DURATIONS[4], time)
+        pose.aerialProgress = progress
+        position.copy(END)
+        pose.yaw = Math.PI / 2
+        pose.action = "idle"
+        pose.actionTime = 1.97
+        sampleA.set(11, 14, 18)
+        sampleB.copy(AERIAL_DIRECTION).multiplyScalar(Math.max(63, 59 / safeAspect)).add(AERIAL_TARGET)
+        camera.lerpVectors(sampleA, sampleB, progress)
+        camera.x -= Math.sin(progress * Math.PI) * 6
+        camera.y += Math.sin(progress * Math.PI) * 4
+        target.copy(AERIAL_TARGET)
+        pose.fov = MathUtils.lerp(53, 44, progress)
+        pose.framing = 0
+        pose.roll = .015 * (1 - progress)
+        pose.shotId = "4/aerial"
+        pose.motionBlur = .3 * (1 - progress)
+      }
+      return pose
+    }
+    if (safeSegment === 3 && time >= CLOISTER_LEAP_START_TIME) {
+      setLeap(along(leapClock, time - CLOISTER_LEAP_START_TIME, sampleA).x)
+    } else {
+      const routeTime = editedTime(safeSegment, time)
+      const source = sourceAt(routeTime)
+      sourcePosition(source.segment, source.time, position)
+      const travelled = distanceAt(source.segment, source.time)
+      // Anticipate turns by distance, even while a planted foot is momentarily
+      // stationary. This also avoids pivoting in place at old chapter joins.
+      pointAtDistance(travelled - .4, sampleA)
+      pointAtDistance(travelled + 1.4, sampleB)
+      pose.yaw = Math.atan2(sampleA.x - sampleB.x, sampleA.z - sampleB.z)
+      const track = cues[source.segment]
+      let index = track.length - 1
+      while (index > 0 && track[index].at > source.time) index--
+      const cue = track[index]
+      const sprintTime = travelled / 8.8
+      const localTime = (c: Cue) => c.action === "run" ? sprintTime :
+        (c.offset ?? 0) + (source.time - c.at) * (c.stretchTo ? (durations[c.action] ?? c.stretchTo) / c.stretchTo : c.rate ?? 1)
+      pose.action = cue.action
+      pose.actionTime = localTime(cue)
+      if (index && source.time < cue.at + cue.blend) {
+        const previous = track[index - 1]
+        pose.blend = { action: previous.action, time: localTime(previous), weight: 1 - smooth(cue.at, cue.at + cue.blend, source.time) }
+      }
+      if (pose.action === "run") {
+        const heading = pose.yaw
+        pointAtDistance(travelled + .1, sampleA)
+        pointAtDistance(travelled + 1.9, sampleB)
+        const upcoming = Math.atan2(sampleA.x - sampleB.x, sampleA.z - sampleB.z)
+        const turn = Math.atan2(Math.sin(upcoming - heading), Math.cos(upcoming - heading))
+        pose.bank = clamp(-turn * .16, -.12, .12)
+        const a = time < .01 && safeSegment > 0
+          ? editedTime(safeSegment - 1, CLOISTER_SEGMENT_DURATIONS[safeSegment - 1] + time - .01)
+          : editedTime(safeSegment, Math.max(0, time - .01))
+        const b = time > CLOISTER_SEGMENT_DURATIONS[safeSegment] - .01 && safeSegment < 3
+          ? editedTime(safeSegment + 1, time + .01 - CLOISTER_SEGMENT_DURATIONS[safeSegment])
+          : editedTime(safeSegment, time + .01)
+        routePosition(a, sampleA)
+        routePosition(b, sampleB)
+        const speed = Math.hypot(sampleB.x - sampleA.x, sampleB.z - sampleA.z) / .02
+        pose.lean = clamp((speed - 4) * .01, 0, .045)
       }
     }
-    if (segment !== 4) {
-      along(lens[segment], t, camera)
-      // A little more breathing room in portrait. The runner stays readable in
-      // profile through the vault and jump, rather than disappearing behind text.
-      camera.multiplyScalar(1.13 - 0.13 * widthFactor).add(position)
-      along(targets[segment], t, target).add(position)
-      pose.fov =
-        [44, 46, 45, 46][segment] +
-        4 * (1 - widthFactor) -
-        2 * smooth(settle - 1, settle + 0.35, t)
-      if (segment > 0)
-        pose.fov +=
-          ([42, 44, 43][segment - 1] - [44, 46, 45, 46][segment]) *
-          (1 - smooth(0, 1.2, t))
-      pose.framing =
-        (0.115 + 0.119 * smooth(settle - 1.15, settle + 0.35, t)) * widthFactor
-      if (segment > 0)
-        pose.framing += 0.119 * (1 - smooth(0, 1.2, t)) * widthFactor
-    } else {
-      // Back away from the Contact portrait in a single crane shot. Size the
-      // final distance against the narrower dimension, so portrait fits too.
-      const p = smooth(0, 6, t),
-        d = Math.max(63, 59 / aspect)
-      const lift = Math.sin(p * Math.PI)
-      along(lens[3], 8, sampleA)
-        .multiplyScalar(1.13 - 0.13 * widthFactor)
-        .add(END)
-      sampleB.copy(AERIAL_DIRECTION).multiplyScalar(d).add(AERIAL_TARGET)
-      camera.lerpVectors(sampleA, sampleB, p)
-      camera.x -= lift * 10
-      camera.y += lift * 9
-      target.copy(END).y += 1.13
-      target.lerp(AERIAL_TARGET, p)
-      pose.fov = MathUtils.lerp(44 + 4 * (1 - widthFactor), 44, p)
-      pose.framing = 0.234 * widthFactor * (1 - p)
-    }
+    sampleCamera(safeSegment, time, widthFactor)
     return pose
   }
 }

@@ -454,9 +454,9 @@ const map = {
   run: "Sprint_Loop",
   jog: "Jog_Fwd_Loop",
   climb: "ClimbUp_1m",
-  jump: "NinjaJump_Idle_Loop",
-  takeoff: "NinjaJump_Start",
-  land: "NinjaJump_Land",
+  jump: "Jump_Loop",
+  takeoff: "Jump_Start",
+  land: "Jump_Land",
 }
 for (const [alias, name] of Object.entries(map))
   bake(alias, clips[name].duration, (t) => pose(name, t))

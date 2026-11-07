@@ -1,12 +1,15 @@
 import * as THREE from "three"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 import { applyCloisterSilhouette } from "./cloisterSilhouette"
+import { createLeapClip } from "./cloisterLeap"
 
 export type RunnerBlend = {
   action: string
   time: number
   weight: number
 }
+
+export type RunnerMotion = { bank: number; lean: number }
 
 const looping = new Set(["run", "jog", "idle", "jump"])
 
@@ -21,6 +24,7 @@ export async function loadCloisterRunner(
   signal?.throwIfAborted()
 
   const { scene, animations } = await new GLTFLoader().parseAsync(bytes, "")
+  animations.push(createLeapClip(scene, animations))
   const root = new THREE.Group()
   root.name = "Altaïr"
   scene.name = "Rig"
@@ -68,6 +72,15 @@ export async function loadCloisterRunner(
     animations.map((clip) => [clip.name, clip.duration]),
   )
   let disposed = false
+  const torso = scene.getObjectByName("spine_01")
+  const unbankedTorso = torso?.quaternion.clone()
+  const frameRotation = new THREE.Quaternion()
+  const parentRotation = new THREE.Quaternion()
+  const bodyTilt = new THREE.Quaternion()
+  const leanRotation = new THREE.Quaternion()
+  const forwardAxis = new THREE.Vector3(0, 0, 1)
+  const lateralAxis = new THREE.Vector3(1, 0, 0)
+  let torsoAdjusted = false
   function configure(name: string, time: number, weight: number) {
     const action = actions.get(name)
     if (!action || weight <= 0) return
@@ -77,8 +90,13 @@ export async function loadCloisterRunner(
     action.time = looping.has(name) ? t % duration : Math.min(t, duration)
     action.setEffectiveWeight(weight)
   }
-  function sample(name: string, time: number, blend?: RunnerBlend) {
+  function sample(name: string, time: number, blend?: RunnerBlend, motion?: RunnerMotion) {
     if (disposed) return
+    // Some source clips leave this spine joint at its bind pose. Restore the
+    // previous unmodified sample before mixing so repeated seeks cannot bank
+    // farther on each call, including when moving between tracked/untracked clips.
+    if (torsoAdjusted && torso && unbankedTorso) torso.quaternion.copy(unbankedTorso)
+    torsoAdjusted = false
     for (const a of actions.values()) a.enabled = false
     const primary = actions.has(name) ? name : "idle"
     const mix =
@@ -88,6 +106,22 @@ export async function loadCloisterRunner(
     configure(primary, time, 1 - mix)
     if (blend && mix > 0) configure(blend.action, blend.time, mix)
     mixer.update(0)
+    if (torso && unbankedTorso && motion && (primary === "run" || primary === "jog")) {
+      const bank = Number.isFinite(motion.bank) ? THREE.MathUtils.clamp(motion.bank, -.12, .12) : 0
+      const lean = Number.isFinite(motion.lean) ? THREE.MathUtils.clamp(motion.lean, -.045, .045) : 0
+      if (bank || lean) {
+        unbankedTorso.copy(torso.quaternion)
+        scene.getWorldQuaternion(frameRotation)
+        torso.parent!.getWorldQuaternion(parentRotation)
+        bodyTilt.setFromAxisAngle(forwardAxis, bank)
+        leanRotation.setFromAxisAngle(lateralAxis, lean)
+        bodyTilt.multiply(leanRotation)
+        bodyTilt.premultiply(frameRotation).multiply(frameRotation.invert())
+        bodyTilt.premultiply(parentRotation.clone().invert()).multiply(parentRotation)
+        torso.quaternion.premultiply(bodyTilt).normalize()
+        torsoAdjusted = true
+      }
+    }
   }
   function dispose() {
     if (disposed) return

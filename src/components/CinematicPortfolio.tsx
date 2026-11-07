@@ -386,6 +386,7 @@ export default function CinematicPortfolio() {
           </SceneBoundary>
         )}
       </div>
+      <div className="cine-letterbox" aria-hidden="true" />
       <div className="cine-vignette" aria-hidden="true" />
       <header className="cine-header">
         <a
@@ -468,6 +469,9 @@ export default function CinematicPortfolio() {
             hidden={!reading || story.segment !== index}
             aria-labelledby={`cine-${item.id}-heading`}
           >
+            <p className="cine-chapter-number" aria-hidden="true">
+              {String(index + 1).padStart(2, "0")} <span>/ 04</span>
+            </p>
             <h2
               id={`cine-${item.id}-heading`}
               tabIndex={-1}

@@ -38,6 +38,16 @@ test("the shipped runner can seek and blend real poses, with a planted hand on t
     joint("ball_l").distanceTo(foot) < 1e-6,
     "seeking must restore the same pose after a blend",
   )
+  const shoulder = joint("upperarm_l")
+  actor.sample("run", .13, undefined, { bank: .1, lean: .025 })
+  const banked = joint("upperarm_l")
+  assert.ok(banked.distanceTo(shoulder) > .02, "a turn shifts the upper-body weight")
+  assert.ok(joint("ball_l").distanceTo(foot) < 1e-6, "torso banking cannot lift a planted foot")
+  actor.sample("run", .13, undefined, { bank: .1, lean: .025 })
+  assert.ok(joint("upperarm_l").distanceTo(banked) < 1e-6, "banking does not accumulate on repeated seeks")
+  actor.sample("leap", 1.25)
+  actor.sample("run", .13)
+  assert.ok(joint("upperarm_l").distanceTo(shoulder) < 1e-6, "leaving a banked pose restores the source motion")
 
   for (const t of [0.35, 0.4, 0.45, 0.5]) {
     actor.root.position.set(0, 0.3 * Math.sin(Math.PI * t), (0.5 - t) * 1.8)

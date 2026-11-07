@@ -76,17 +76,17 @@ test("pause, loading and fallback freeze the shot and repeated playing configura
   }
   timeline.configure("playing", 1, 0)
   assert.deepEqual(play(timeline, 8), [1])
-  assert.equal(timeline.time, 9)
+  assert.equal(timeline.time, CLOISTER_SEGMENT_DURATIONS[1])
 })
 
 test("direct chapter selection seeks the reading pose without leaking a prior shot completion", () => {
   const timeline = new CloisterTimeline()
   timeline.configure("playing", 0, 0)
-  play(timeline, 7.95)
+  play(timeline, CLOISTER_SEGMENT_DURATIONS[0] - .05)
   timeline.configure("reading", 2, 0)
   assert.deepEqual(timeline.sample(), {
     segment: 2,
-    time: 10,
+    time: CLOISTER_SEGMENT_DURATIONS[2],
     progress: 1,
     completed: true,
   })
@@ -102,7 +102,7 @@ test("direct chapter selection seeks the reading pose without leaking a prior sh
   timeline.configure("aerial", 4, 0)
   assert.deepEqual(timeline.sample(), {
     segment: 4,
-    time: 6,
+    time: CLOISTER_SEGMENT_DURATIONS[4],
     progress: 1,
     completed: true,
   })
@@ -125,10 +125,11 @@ test("frame-rate variations are deterministic and a background gap cannot consum
   for (const fps of [30, 60, 120]) {
     const timeline = new CloisterTimeline()
     timeline.configure("playing", 2, 0)
-    assert.deepEqual(play(timeline, 4, fps), [])
-    near(timeline.time, 4)
-    assert.deepEqual(play(timeline, 6, fps), [2])
-    assert.equal(timeline.time, 10)
+    const half = CLOISTER_SEGMENT_DURATIONS[2] / 2
+    assert.deepEqual(play(timeline, half, fps), [])
+    near(timeline.time, half)
+    assert.deepEqual(play(timeline, half + 1, fps), [2])
+    assert.equal(timeline.time, CLOISTER_SEGMENT_DURATIONS[2])
   }
   const timeline = new CloisterTimeline()
   timeline.configure("playing", 0, 0)
@@ -144,7 +145,7 @@ test("frame-rate variations are deterministic and a background gap cannot consum
 test("disposing mid-shot is inert even after replay or a pending completion frame", () => {
   const timeline = new CloisterTimeline()
   timeline.configure("playing", 0, 0)
-  play(timeline, 7.95)
+  play(timeline, CLOISTER_SEGMENT_DURATIONS[0] - .05)
   const before = timeline.sample()
   timeline.dispose()
   timeline.dispose()
