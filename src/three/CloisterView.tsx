@@ -3,11 +3,10 @@ import * as THREE from "three"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 import type { CloisterSceneProps } from "../components/CinematicPortfolio"
 import { loadCloisterEnvironment } from "./cloisterEnvironment"
-import { loadCloisterRunner } from "./cloisterRunner"
+import { loadCloisterClassicRoute } from "./cloisterBakedRoute"
 import { buildCloisterStones } from "./cloisterStones"
 import { createCloisterInk } from "./cloisterInk"
-import { createChoreography, AERIAL_TARGET } from "./cloisterChoreography"
-import { CloisterTimeline, CLOISTER_SEGMENT_DURATIONS } from "./cloisterTimeline"
+import { CloisterTimeline, CLOISTER_SEGMENT_STARTS } from "./cloisterTimeline"
 
 /** One renderer throughout the film. Reading poses are still images on the GPU:
  * no render loop runs until playback, resize, or an actual orbit gesture. */
@@ -59,9 +58,8 @@ export default function CloisterView(props: CloisterSceneProps) {
         const stones = buildCloisterStones(scene)
         const ink = createCloisterInk(renderer)
         let setting: Awaited<ReturnType<typeof loadCloisterEnvironment>> | undefined
-        let runner: Awaited<ReturnType<typeof loadCloisterRunner>> | undefined
+        let runner: Awaited<ReturnType<typeof loadCloisterClassicRoute>> | undefined
         const timeline = new CloisterTimeline()
-        const sampleShot = createChoreography()
         let ready = false,
           frame = 0,
           previous = 0,
@@ -87,18 +85,10 @@ export default function CloisterView(props: CloisterSceneProps) {
           const dt = previous ? (now - previous) / 1000 : 0
           previous = now
           const done = timeline.advance(dt)
-          const p = sampleShot(
-            segment,
-            timeline.time,
-            width / height,
-            runner.actionDurations,
-          )
+          const globalTime = CLOISTER_SEGMENT_STARTS[segment] + timeline.time
+          const p = runner.sampleCamera(globalTime, width / height)
           if (!orbit) {
-            actor.position.copy(p.position)
-            actor.rotation.y = p.yaw
-            runner.sample(p.action, p.actionTime, p.blend, {
-              bank: p.bank, lean: p.lean,
-            })
+            runner.sample(globalTime)
             camera.position.copy(p.camera)
             camera.fov = p.fov
             if (p.framing > 0)
@@ -148,23 +138,20 @@ export default function CloisterView(props: CloisterSceneProps) {
             frame = requestAnimationFrame(paint)
         }
         const setAerial = () => {
-          const p = sampleShot(
-            4, CLOISTER_SEGMENT_DURATIONS[4], width / height, runner?.actionDurations,
-          )
+          if (!runner) return
+          const p = runner.sampleCamera(runner.duration, width / height)
           camera.position.copy(p.camera)
           camera.clearViewOffset()
           camera.fov = p.fov
           camera.updateProjectionMatrix()
-          controls.target.copy(AERIAL_TARGET)
+          controls.target.copy(p.target)
           camera.lookAt(controls.target)
           controls.maxDistance = Math.max(
             117,
             p.camera.distanceTo(p.target) * 1.25,
           )
           controls.update()
-          actor.position.copy(p.position)
-          actor.rotation.y = p.yaw
-          runner?.sample(p.action, p.actionTime, p.blend)
+          runner.sample(runner.duration)
         }
         const configure = () => {
           const { phase, segment, revision } = latest.current
@@ -296,7 +283,7 @@ export default function CloisterView(props: CloisterSceneProps) {
             if (disposed || abort.signal.aborted) value.dispose()
             else setting = value
           }),
-          loadCloisterRunner(actor, abort.signal).then((value) => {
+          loadCloisterClassicRoute(actor, abort.signal).then((value) => {
             if (disposed || abort.signal.aborted) value.dispose()
             else runner = value
           }),

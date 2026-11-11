@@ -1,5 +1,7 @@
 import { MathUtils, Vector3 } from "three"
-import { CLOISTER_SEGMENT_DURATIONS } from "./cloisterTimeline"
+// Retained as the previous edit; its authored timing is independent of V6.
+export const CLOISTER_LEGACY_SEGMENT_DURATIONS = [3.15, 2.3, 2.8, 4.7, 5] as const
+const CLOISTER_SEGMENT_DURATIONS = CLOISTER_LEGACY_SEGMENT_DURATIONS
 
 // All measurements are in the drawing's world coordinates (metres, Y up).
 // These same stone edges determine both the rendered scenery and the foot path.

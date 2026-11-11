@@ -7,8 +7,7 @@ import * as THREE from "three"
 let server, createChoreography, durations, cuts, loadCloisterRunner, LEAP_START
 before(async () => {
   server = await createServer({ server: { middlewareMode: true }, logLevel: "silent" })
-  ;({ createChoreography, CLOISTER_SHOT_CUTS: cuts, LEAP_START } = await server.ssrLoadModule("/src/three/cloisterChoreography.ts"))
-  ;({ CLOISTER_SEGMENT_DURATIONS: durations } = await server.ssrLoadModule("/src/three/cloisterTimeline.ts"))
+  ;({ createChoreography, CLOISTER_SHOT_CUTS: cuts, LEAP_START, CLOISTER_LEGACY_SEGMENT_DURATIONS: durations } = await server.ssrLoadModule("/src/three/cloisterChoreography.ts"))
   ;({ loadCloisterRunner } = await server.ssrLoadModule("/src/three/cloisterRunner.ts"))
 })
 after(() => server?.close())

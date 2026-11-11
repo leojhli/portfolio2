@@ -698,6 +698,11 @@ export default function CinematicPortfolio() {
             <br />
             CC BY 4.0. Rigged and outlined for this film.
           </p>
+          <p className="cine-kicker">The movement</p>
+          <p>
+            Wall climbing by Adobe Mixamo, retargeted for this character.
+            Original running and vault animations by Quaternius.
+          </p>
           <a
             className="cine-text-button"
             href="/models/cloister/credits.html"
