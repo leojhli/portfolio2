@@ -321,11 +321,15 @@ test("About retains media and expansion state across chapters, and failed graphi
   }
 })
 
-test("reduced motion reads from the first paint, reaches aerial without a moving camera, and allows explicit replay", async () => {
+test("arrival autoplays the hero; later preference changes still skip motion", async () => {
   const f = await mount({ reduced: true })
   try {
-    assert.equal(f.phase(), "reading", "reading does not wait for the assets")
+    assert.equal(f.phase(), "loading")
+    assert.match(f.w.document.querySelector(".cine-introduction h1").textContent, /Leo Li/)
     await act(async () => f.props().onReady())
+    assert.equal(f.phase(), "playing", "no logo click is needed")
+    await f.changeReducedMotion(false)
+    await f.changeReducedMotion(true)
     assert.equal(f.phase(), "reading")
     assert.equal(f.props().segment, 0)
     assert.equal(f.w.document.activeElement.id, "cine-experience-heading")
@@ -343,7 +347,7 @@ test("reduced motion reads from the first paint, reaches aerial without a moving
     assert.equal(f.props().segment, 4)
     await f.click(
       [...f.w.document.querySelectorAll(".cine-film-controls button")].find(
-        (b) => b.textContent === "Play film",
+        (b) => b.textContent.includes("Replay film"),
       ),
     )
     assert.equal(f.phase(), "playing")
@@ -370,13 +374,10 @@ test("reduced motion reads from the first paint, reaches aerial without a moving
   }
 })
 
-test("choosing Play film before assets arrive starts the film with reduced motion enabled", async () => {
+test("logo replay before assets arrive still starts the introduction", async () => {
   const f = await mount({ reduced: true })
   try {
-    const trigger = [
-      ...f.w.document.querySelectorAll(".cine-film-controls button"),
-    ].find((button) => button.textContent === "Play film")
-    await f.click(trigger)
+    await f.click(".cine-brand")
     assert.equal(f.phase(), "loading")
     await act(async () => f.props().onReady())
     assert.equal(f.phase(), "playing")

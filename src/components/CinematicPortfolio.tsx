@@ -57,9 +57,6 @@ const contacts = c.contacts.flatMap(({ id, label, href }) => {
 })
 const indexFromHash = () =>
   chapters.findIndex((chapter) => `#${chapter.id}` === window.location.hash)
-const prefersReducedMotion = () =>
-  typeof window !== "undefined" &&
-  !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
 
 class SceneBoundary extends Component<{
   children: ReactNode
@@ -167,7 +164,8 @@ function AboutContent() {
 
 export default function CinematicPortfolio() {
   const { mode, setMode } = usePrefs()
-  const [skipMotion, setSkipMotion] = useState(prefersReducedMotion)
+  // The opening film starts on arrival; visitors can pause or skip immediately.
+  const [skipMotion, setSkipMotion] = useState(false)
   const [story, setStory] = useState<{
     phase: CinematicPhase
     segment: number
