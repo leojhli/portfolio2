@@ -2,6 +2,9 @@ import * as THREE from "three"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 import { applyCloisterSilhouette } from "./cloisterSilhouette"
 import { createLeapClip } from "./cloisterLeap"
+import { readBytes } from "./fetchProgress"
+
+export const RUNNER_BYTES = 1_467_712
 
 export type RunnerBlend = {
   action: string
@@ -17,10 +20,11 @@ const looping = new Set(["run", "jog", "idle", "jump"])
 export async function loadCloisterRunner(
   parent: THREE.Group,
   signal?: AbortSignal,
+  onProgress?: (fraction: number) => void,
 ) {
   const response = await fetch("/models/cloister/altair.glb", { signal })
   if (!response.ok) throw new Error("The runner could not be loaded.")
-  const bytes = await response.arrayBuffer()
+  const bytes = await readBytes(response, RUNNER_BYTES, onProgress)
   signal?.throwIfAborted()
 
   const { scene, animations } = await new GLTFLoader().parseAsync(bytes, "")
@@ -72,6 +76,29 @@ export async function loadCloisterRunner(
     animations.map((clip) => [clip.name, clip.duration]),
   )
   let disposed = false
+  // Clip seconds at which each boot is lowest in the run cycle. Footstep
+  // sounds are timed from these, so they follow the stride at any speed.
+  const footfalls: number[] = []
+  const run = actions.get("run")
+  const feet = ["foot_l", "foot_r"].map((name) => scene.getObjectByName(name))
+  if (run && feet.every(Boolean)) {
+    const lowest = feet.map(() => ({ y: Infinity, time: 0 }))
+    const point = new THREE.Vector3()
+    const length = run.getClip().duration
+    run.enabled = true
+    run.setEffectiveWeight(1)
+    for (let i = 0; i < 48; i++) {
+      run.time = (i / 48) * length
+      mixer.update(0)
+      scene.updateMatrixWorld(true)
+      feet.forEach((foot, index) => {
+        const y = foot!.getWorldPosition(point).y
+        if (y < lowest[index].y) lowest[index] = { y, time: run.time }
+      })
+    }
+    run.enabled = false
+    footfalls.push(...lowest.map((entry) => entry.time))
+  }
   const torso = scene.getObjectByName("spine_01")
   const unbankedTorso = torso?.quaternion.clone()
   const frameRotation = new THREE.Quaternion()
@@ -141,5 +168,5 @@ export async function loadCloisterRunner(
   }
   sample("run", 0)
   parent.add(root)
-  return { root, clips, actionDurations, sample, dispose }
+  return { root, clips, actionDurations, footfalls, sample, dispose }
 }

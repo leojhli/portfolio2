@@ -1,5 +1,6 @@
-export const CLOISTER_SEGMENT_DURATIONS = [3.15, 2.3, 2.8, 4.7, 5] as const
-export const CLOISTER_SEGMENT_STARTS = [0, 3.15, 5.45, 8.25, 12.95] as const
+// Three chapter runs, then the finale: the slow-motion wall jump and aerial pullback.
+export const CLOISTER_SEGMENT_DURATIONS = [3.15, 2.3, 2.8, 8.55] as const
+export const CLOISTER_FINALE = 3
 export const CLOISTER_MAX_FRAME_DELTA = 0.05
 
 export type CloisterPhase = "loading" | "playing" | "paused" | "reading" | "aerial" | "fallback"
@@ -26,7 +27,7 @@ export class CloisterTimeline {
       durations.length !== CLOISTER_SEGMENT_DURATIONS.length ||
       durations.some((duration) => !Number.isFinite(duration) || duration <= 0)
     )
-      throw new RangeError("The cloister requires five positive shot durations")
+      throw new RangeError("The cloister requires four positive shot durations")
     this.durations = [...durations]
   }
 

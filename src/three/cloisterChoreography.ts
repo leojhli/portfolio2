@@ -394,3 +394,152 @@ export function createChoreography() {
     return pose
   }
 }
+
+// ---------------------------------------------------------------------------
+// The three-chapter film. Its finale is one take: the sprint along the garden
+// wall, a running jump across the gap shown in slow motion, then the pullback.
+
+/** Finale seconds played from the previous edit before the new jump begins. */
+const JUMP_SHOT_START = 1.5
+const RUN_UP = .28
+const TAKEOFF_X = -.72
+const LAND_X = -4.35
+const FLIGHT = .58
+const APEX = .56
+const RUN_OUT_SPEED = 5.4
+const SLOW_MOTION = 1.72
+const RUN_OUT = .6
+const AERIAL_LENGTH = CLOISTER_SEGMENT_DURATIONS[4] - AERIAL_CUT
+const JUMP_LENGTH = RUN_UP + SLOW_MOTION + RUN_OUT
+const WALL_END = new Vector3(-7.6, 1, 1.6)
+export const CLOISTER_FINALE_DURATION = JUMP_SHOT_START + JUMP_LENGTH + AERIAL_LENGTH
+/** Edit seconds after the jump shot begins, for [takeoff, touchdown]. */
+export const CLOISTER_JUMP_WINDOW = [
+  JUMP_SHOT_START + RUN_UP,
+  JUMP_SHOT_START + RUN_UP + SLOW_MOTION,
+] as const
+
+// Edit seconds to physical seconds. The launch and the touchdown play at full
+// speed; the middle of the flight runs at roughly a quarter speed.
+const jumpClock: Track = [
+  [0, 0, 0, 0],
+  [RUN_UP, RUN_UP, 0, 0],
+  [RUN_UP + .11, RUN_UP + .19 * FLIGHT, 0, 0],
+  [RUN_UP + SLOW_MOTION - .12, RUN_UP + .8 * FLIGHT, 0, 0],
+  [RUN_UP + SLOW_MOTION, RUN_UP + FLIGHT, 0, 0],
+  [JUMP_LENGTH, RUN_UP + FLIGHT + RUN_OUT, 0, 0],
+]
+
+export function createFilm() {
+  const sample = createChoreography()
+  const start = sample(3, JUMP_SHOT_START, 16 / 9)
+  const startX = start.position.x, wallY = start.position.y, wallZ = start.position.z
+  const startYaw = start.yaw, startStride = start.actionTime
+  const speed = (startX - TAKEOFF_X) / RUN_UP
+  const clock = new Vector3(), from = new Vector3(), to = new Vector3()
+  const runOutStride = startStride + (startX - TAKEOFF_X) / 8.8 + .12
+
+  return (segment: number, seconds: number, aspect: number, durations?: Record<string, number>) => {
+    if (segment < 3 || seconds < JUMP_SHOT_START)
+      return sample(segment, seconds, aspect, durations)
+    const time = Math.min(seconds, CLOISTER_FINALE_DURATION)
+    const edit = time - JUMP_SHOT_START
+    if (edit >= JUMP_LENGTH) {
+      const pose = sample(4, AERIAL_CUT + (edit - JUMP_LENGTH), aspect, durations)
+      // The runner waits at the far end of the wall he landed on.
+      pose.position.copy(WALL_END)
+      pose.yaw = startYaw
+      return pose
+    }
+    const pose = sample(3, JUMP_SHOT_START, aspect, durations)
+    const safeAspect = Number.isFinite(aspect) && aspect > 0 ? aspect : 1
+    const narrow = 1 - clamp((safeAspect - .68) / .82, 0, 1)
+    const physical = along(jumpClock, edit, clock).x
+    const flight = physical - RUN_UP
+    const position = pose.position
+    pose.yaw = startYaw
+    pose.blend = undefined
+    pose.bank = 0
+    pose.lean = 0
+    pose.framing = 0
+    pose.aerialProgress = 0
+    if (flight < 0) {
+      position.set(startX - speed * physical, wallY, wallZ)
+      pose.action = "run"
+      pose.actionTime = startStride + (startX - position.x) / 8.8
+      pose.lean = .045
+    } else if (flight < FLIGHT) {
+      const u = flight / FLIGHT
+      position.set(MathUtils.lerp(TAKEOFF_X, LAND_X, u), wallY + 4 * APEX * u * (1 - u), wallZ)
+      if (u < .78) {
+        // Leave the wall mid-stride, then open into the airborne pose.
+        pose.action = "jump"
+        pose.actionTime = .2 + flight
+        const stride = 1 - smooth(0, .34, u)
+        if (stride > 0)
+          pose.blend = {
+            action: "run",
+            time: startStride + (startX - TAKEOFF_X) / 8.8 + flight * .35,
+            weight: stride,
+          }
+      } else {
+        // Reach for the stone; the boots meet it as the knees begin to bend.
+        pose.action = "land"
+        pose.actionTime = .1 * smooth(.78, 1, u)
+        pose.blend = { action: "jump", time: .2 + flight, weight: 1 - smooth(.78, .92, u) }
+      }
+    } else {
+      const after = flight - FLIGHT
+      position.set(Math.max(WALL_END.x, LAND_X - RUN_OUT_SPEED * after), wallY, wallZ)
+      const stride = runOutStride + (LAND_X - position.x) / 8.8
+      const recover = smooth(.16, .4, after)
+      if (recover < 1) {
+        pose.action = "land"
+        pose.actionTime = .1 + after
+        if (recover > 0) pose.blend = { action: "run", time: stride, weight: recover }
+      } else {
+        pose.action = "run"
+        pose.actionTime = stride
+      }
+    }
+
+    const [takeoff, touchdown] = [RUN_UP, RUN_UP + SLOW_MOTION]
+    const mix = (a: number, b: number, at: number) => MathUtils.lerp(a, b, at)
+    if (edit < takeoff + .5) {
+      // Low in the gap: he sprints at the lens and launches over it.
+      const at = edit / (takeoff + .5)
+      pose.camera.set(mix(-2.25, -2.05, at), .42, wallZ + 2.35 + 1.4 * narrow)
+      pose.target.copy(position)
+      pose.target.y += mix(.95, .8, at)
+      pose.fov = mix(57, 61, at) + 7 * narrow
+      pose.roll = mix(-.03, .02, at)
+      pose.shotId = "3/jump-low"
+    } else if (edit < touchdown - .22) {
+      // Below and ahead of him while the flight hangs, so the open sky and
+      // not the arcade sits behind the silhouette.
+      const at = (edit - takeoff - .5) / (touchdown - .22 - takeoff - .5)
+      from.set(-2.5, -.95, -1.7)
+      to.set(-1.6, -.8, -2.4)
+      from.lerp(to, at).multiplyScalar(1 + .48 * narrow)
+      pose.camera.copy(position).add(from)
+      pose.camera.y = Math.max(.22, pose.camera.y)
+      pose.target.copy(position)
+      pose.target.y += .95
+      pose.fov = mix(50, 46, at) + 5 * narrow
+      pose.roll = mix(.03, -.02, at)
+      pose.shotId = "3/jump-profile"
+    } else {
+      // From the far end of the landing wall: touchdown, then the run-out.
+      const at = (edit - touchdown + .22) / (JUMP_LENGTH - touchdown + .22)
+      pose.camera.set(mix(-8.6, -8.9, at), mix(1.55, 1.7, at), wallZ + .95 + .5 * narrow)
+      pose.target.copy(position)
+      pose.target.y += .92
+      pose.fov = mix(44, 48, at) + 7 * narrow
+      pose.roll = mix(.02, -.01, at)
+      pose.shotId = "3/jump-landing"
+    }
+    const hang = smooth(takeoff + .05, takeoff + .3, edit) * (1 - smooth(touchdown - .25, touchdown - .05, edit))
+    pose.motionBlur = mix(.75, .3, hang)
+    return pose
+  }
+}

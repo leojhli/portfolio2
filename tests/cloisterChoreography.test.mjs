@@ -156,3 +156,35 @@ test("the leap slows in midair while the camera keeps moving, then accelerates i
     previous = current
   }
 })
+
+test("the finale is one running jump across the garden walls, then the aerial view, with no leap", async () => {
+  const { createFilm, CLOISTER_FINALE_DURATION, CLOISTER_JUMP_WINDOW, stones } = await server.ssrLoadModule("/src/three/cloisterChoreography.ts")
+  const { CLOISTER_SEGMENT_DURATIONS: film, CLOISTER_FINALE } = await server.ssrLoadModule("/src/three/cloisterTimeline.ts")
+  assert.equal(CLOISTER_FINALE, 3)
+  assert.ok(Math.abs(film[3] - CLOISTER_FINALE_DURATION) < 1e-9)
+  const sample = createFilm()
+  const [takeoff, touchdown] = CLOISTER_JUMP_WINDOW
+  const walkEnd = stones.walk.x - stones.walk.width / 2
+  const landingStart = stones.landing.x + stones.landing.width / 2
+  let previous, apex = 0, actions = new Set()
+  for (let t = 0; t <= film[3] - 4.4; t += 1 / 120) {
+    const p = sample(3, t, 16 / 9)
+    actions.add(p.action)
+    assert.notEqual(p.action, "leap")
+    const airborne = t > takeoff + 1e-6 && t < touchdown - 1e-6
+    if (!airborne && t > 1.6) {
+      assert.ok(Math.abs(p.position.y - 1) < 1e-6, `feet on the wall at ${t}`)
+      assert.ok(p.position.x > walkEnd || p.position.x < landingStart, `over stone at ${t}`)
+    }
+    if (airborne) apex = Math.max(apex, p.position.y - 1)
+    if (previous && p.shotId === previous.shot)
+      assert.ok(p.position.distanceTo(previous.position) < .12, `continuous travel at ${t}`)
+    previous = { position: p.position.clone(), shot: p.shotId }
+  }
+  assert.ok(apex > .45 && apex < .7)
+  for (const action of ["run", "jump", "land"]) assert.ok(actions.has(action))
+  assert.ok(touchdown - takeoff > 1.5, "the flight is shown in slow motion")
+  const end = sample(3, film[3], 16 / 9)
+  assert.equal(end.aerialProgress, 1)
+  assert.equal(end.motionBlur, 0)
+})

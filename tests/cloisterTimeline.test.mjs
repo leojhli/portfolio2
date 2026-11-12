@@ -98,11 +98,11 @@ test("direct chapter selection seeks the reading pose without leaking a prior sh
   )
   timeline.configure("playing", 3, 0)
   assert.equal(timeline.time, 0)
-  assert.deepEqual(play(timeline, 8), [3])
-  timeline.configure("aerial", 4, 0)
+  assert.deepEqual(play(timeline, 12), [3])
+  timeline.configure("aerial", 3, 1)
   assert.deepEqual(timeline.sample(), {
-    segment: 4,
-    time: CLOISTER_SEGMENT_DURATIONS[4],
+    segment: 3,
+    time: CLOISTER_SEGMENT_DURATIONS[3],
     progress: 1,
     completed: true,
   })

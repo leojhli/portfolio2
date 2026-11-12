@@ -2,11 +2,16 @@ import { useEffect, useLayoutEffect, useRef } from "react"
 import * as THREE from "three"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 import type { CloisterSceneProps } from "../components/CinematicPortfolio"
-import { loadCloisterEnvironment } from "./cloisterEnvironment"
-import { loadCloisterClassicRoute } from "./cloisterBakedRoute"
+import { CLOISTER_BYTES, loadCloisterEnvironment } from "./cloisterEnvironment"
+import { loadCloisterRunner, RUNNER_BYTES } from "./cloisterRunner"
 import { buildCloisterStones } from "./cloisterStones"
 import { createCloisterInk } from "./cloisterInk"
-import { CloisterTimeline, CLOISTER_SEGMENT_STARTS } from "./cloisterTimeline"
+import { createFilm, AERIAL_TARGET } from "./cloisterChoreography"
+import {
+  CloisterTimeline,
+  CLOISTER_FINALE,
+  CLOISTER_SEGMENT_DURATIONS,
+} from "./cloisterTimeline"
 
 /** One renderer throughout the film. Reading poses are still images on the GPU:
  * no render loop runs until playback, resize, or an actual orbit gesture. */
@@ -58,8 +63,9 @@ export default function CloisterView(props: CloisterSceneProps) {
         const stones = buildCloisterStones(scene)
         const ink = createCloisterInk(renderer)
         let setting: Awaited<ReturnType<typeof loadCloisterEnvironment>> | undefined
-        let runner: Awaited<ReturnType<typeof loadCloisterClassicRoute>> | undefined
+        let runner: Awaited<ReturnType<typeof loadCloisterRunner>> | undefined
         const timeline = new CloisterTimeline()
+        const sampleShot = createFilm()
         let ready = false,
           frame = 0,
           previous = 0,
@@ -69,6 +75,10 @@ export default function CloisterView(props: CloisterSceneProps) {
         let stateKey = "",
           orbitRevision = -1,
           wasHidden = document.hidden
+        // What the body did on the previous frame, for sound cues.
+        let heard:
+          | { action: string; strides: number; y: number; falling: boolean; airborne: boolean }
+          | undefined
         let previousShot = "",
           resetBlur = true
         const draw = (now: number) => {
@@ -85,10 +95,84 @@ export default function CloisterView(props: CloisterSceneProps) {
           const dt = previous ? (now - previous) / 1000 : 0
           previous = now
           const done = timeline.advance(dt)
-          const globalTime = CLOISTER_SEGMENT_STARTS[segment] + timeline.time
-          const p = runner.sampleCamera(globalTime, width / height)
+          const seek = import.meta.env.DEV
+            ? (window as { __cloisterSeek?: [number, number] }).__cloisterSeek
+            : undefined
+          const p = sampleShot(
+            seek?.[0] ?? segment,
+            seek?.[1] ?? timeline.time,
+            width / height,
+            runner.actionDurations,
+          )
           if (!orbit) {
-            runner.sample(globalTime)
+            actor.position.copy(p.position)
+            actor.rotation.y = p.yaw
+            runner.sample(p.action, p.actionTime, p.blend, {
+              bank: p.bank, lean: p.lean,
+            })
+            const rawPose = import.meta.env.DEV
+              ? (window as { __cloisterPose?: [string, number] }).__cloisterPose
+              : undefined
+            if (rawPose) runner.sample(rawPose[0], rawPose[1])
+            const say = latest.current.onSound
+            if (say && phase === "playing" && !seek) {
+              const cycle = runner.actionDurations.run || 1
+              const strides =
+                p.action === "run"
+                  ? runner.footfalls.reduce(
+                      (sum, at) => sum + Math.floor((p.actionTime - at) / cycle),
+                      0,
+                    )
+                  : 0
+              const y = p.position.y
+              if (heard) {
+                // The second test catches a touchdown that fell between two
+                // frames on a slow device.
+                const landed =
+                  (heard.falling && y >= heard.y - 1e-5) ||
+                  (heard.airborne && p.action === "run")
+                if (p.action !== heard.action) {
+                  if (p.action === "vault") say({ kind: "vault" })
+                  else if (p.action === "climb") say({ kind: "mount" })
+                  else if (
+                    p.action === "takeoff" ||
+                    (p.action === "jump" && heard.action === "run")
+                  )
+                    say({ kind: "takeoff" })
+                }
+                if (heard.airborne && landed)
+                  say({ kind: "land", weight: heard.action === "vault" ? .45 : 1 })
+                else if (
+                  p.action === "run" &&
+                  heard.action === "run" &&
+                  strides > heard.strides &&
+                  strides - heard.strides < 3
+                )
+                  say({ kind: "step" })
+                heard = {
+                  action: p.action,
+                  strides,
+                  y,
+                  falling: y < heard.y - 1e-5,
+                  airborne:
+                    p.action === "jump" || p.action === "vault" || p.action === "land"
+                      ? !(heard.airborne && landed) && (heard.airborne || p.action !== "land")
+                      : false,
+                }
+              } else
+                // A chapter can stop the film mid-vault; it resumes in the air.
+                heard = {
+                  action: p.action,
+                  strides,
+                  y,
+                  falling: false,
+                  airborne: p.action === "vault" || p.action === "jump",
+                }
+              say({
+                kind: "air",
+                level: Math.min(1, .28 + .72 * p.aerialProgress + (p.shotId === "3/jump-profile" ? .45 : 0)),
+              })
+            } else heard = undefined
             camera.position.copy(p.camera)
             camera.fov = p.fov
             if (p.framing > 0)
@@ -138,20 +222,24 @@ export default function CloisterView(props: CloisterSceneProps) {
             frame = requestAnimationFrame(paint)
         }
         const setAerial = () => {
-          if (!runner) return
-          const p = runner.sampleCamera(runner.duration, width / height)
+          const p = sampleShot(
+            CLOISTER_FINALE, CLOISTER_SEGMENT_DURATIONS[CLOISTER_FINALE],
+            width / height, runner?.actionDurations,
+          )
           camera.position.copy(p.camera)
           camera.clearViewOffset()
           camera.fov = p.fov
           camera.updateProjectionMatrix()
-          controls.target.copy(p.target)
+          controls.target.copy(AERIAL_TARGET)
           camera.lookAt(controls.target)
           controls.maxDistance = Math.max(
             117,
             p.camera.distanceTo(p.target) * 1.25,
           )
           controls.update()
-          runner.sample(runner.duration)
+          actor.position.copy(p.position)
+          actor.rotation.y = p.yaw
+          runner?.sample(p.action, p.actionTime, p.blend)
         }
         const configure = () => {
           const { phase, segment, revision } = latest.current
@@ -259,6 +347,9 @@ export default function CloisterView(props: CloisterSceneProps) {
         resize()
         sync.current = configure
         configure()
+        // Development aid: window.__cloisterSeek = [segment, seconds], then call this.
+        if (import.meta.env.DEV)
+          (window as { __cloisterDraw?: () => void }).__cloisterDraw = invalidate
         clean = () => {
           ready = false
           sync.current = null
@@ -278,12 +369,21 @@ export default function CloisterView(props: CloisterSceneProps) {
           renderer.forceContextLoss()
           canvas.remove()
         }
+        const loaded = [0, 0]
+        const report = (index: number) => (fraction: number) => {
+          loaded[index] = fraction
+          if (!disposed)
+            latest.current.onProgress?.(
+              (loaded[0] * CLOISTER_BYTES + loaded[1] * RUNNER_BYTES) /
+                (CLOISTER_BYTES + RUNNER_BYTES),
+            )
+        }
         Promise.all([
-          loadCloisterEnvironment(scene, abort.signal).then((value) => {
+          loadCloisterEnvironment(scene, abort.signal, report(0)).then((value) => {
             if (disposed || abort.signal.aborted) value.dispose()
             else setting = value
           }),
-          loadCloisterClassicRoute(actor, abort.signal).then((value) => {
+          loadCloisterRunner(actor, abort.signal, report(1)).then((value) => {
             if (disposed || abort.signal.aborted) value.dispose()
             else runner = value
           }),

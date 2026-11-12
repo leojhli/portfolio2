@@ -11,19 +11,25 @@ import {
 import { getContent, type Project } from "../content/data"
 import { usePrefs } from "../state/preferences"
 import Logo from "./Logo"
-import Photo from "./Photo"
-import Bookshelf from "./Bookshelf"
-import CDPlayer from "./CDPlayer"
-import Games from "./Games"
+import AsciiPreview from "./AsciiPreview"
+import { createCloisterAudio, type CloisterAudio } from "../effects/cloisterAudio"
 import "../cinematic.css"
 
 export type CinematicPhase = "loading" | "playing" | "paused" | "reading" | "aerial" | "fallback"
+
+/** What the runner is doing right now, reported by the scene for sound. */
+export type SceneSound =
+  | { kind: "step" | "vault" | "mount" | "takeoff" }
+  | { kind: "land"; weight: number }
+  | { kind: "air"; level: number }
 
 export type CloisterSceneProps = {
   phase: CinematicPhase
   segment: number
   revision: number
   onReady: () => void
+  onProgress?: (fraction: number) => void
+  onSound?: (event: SceneSound) => void
   onComplete: (segment: number) => void
   onFailure: (message: string) => void
 }
@@ -32,29 +38,20 @@ const CloisterView = lazy(() => import("../three/CloisterView"))
 const chapters = [
   { id: "experience", title: "Experience" },
   { id: "projects", title: "Projects" },
-  { id: "about", title: "About" },
   { id: "contact", title: "Contact" },
 ] as const
+const LAST = chapters.length - 1
+/** The segment after the last chapter: wall jump, Leap of Faith, aerial view. */
+const FINALE = chapters.length
 
 const c = getContent()
 const isFilled = (value: string | undefined) =>
   !!value?.trim() && !value.trim().startsWith("[")
 const experiences = c.experience.filter((item) => isFilled(item.role))
 const projects: Project[] = c.projects.filter((item) => isFilled(item.title))
-if (!projects.length)
-  projects.push({
-    id: "cloister-portfolio",
-    title: "The cloister portfolio",
-    summary:
-      "I built a moving camera and parkour sequence inside a hand-drawn model of Santes Creus. Each stop opens a chapter of the portfolio.",
-    technologies: ["React", "Three.js", "TypeScript"],
-    repoUrl: "https://github.com/leojhli/portfolio2",
-  })
-const contacts = c.contacts.flatMap(({ id, label, href }) => {
-  const url =
-    href || (id === "github" ? "https://github.com/leojhli" : undefined)
-  return url ? [{ id, label, href: url }] : []
-})
+const contacts = c.contacts.flatMap(({ id, label, href }) =>
+  href ? [{ id, label, href }] : [],
+)
 const indexFromHash = () =>
   chapters.findIndex((chapter) => `#${chapter.id}` === window.location.hash)
 
@@ -91,80 +88,10 @@ function RunningSilhouette() {
   )
 }
 
-function AboutContent() {
-  return (
-    <>
-      <div className="cine-about-folds">
-        <details>
-          <summary>Photos</summary>
-          <div className="cine-photo-grid">
-            <figure>
-              <Photo
-                name="fairground"
-                alt="Leo at a fairground at night, wearing headphones"
-              />
-              <figcaption>At the fairground</figcaption>
-            </figure>
-            <figure>
-              <Photo
-                name="school"
-                alt="Leo wearing headphones outdoors after school"
-              />
-              <figcaption>On the way / September 2024</figcaption>
-            </figure>
-            <figure>
-              <Photo
-                name="hallway"
-                alt="Leo exploring a warmly lit yellow hallway"
-              />
-              <figcaption>A change of scenery</figcaption>
-            </figure>
-            <figure>
-              <Photo
-                name="city"
-                alt="A colorful illuminated bridge over the city at night"
-              />
-              <figcaption>After hours</figcaption>
-            </figure>
-          </div>
-        </details>
-        <details>
-          <summary>Swimming & coaching</summary>
-          <div className="cine-fold-content">
-            <p>{c.beyond.intro}</p>
-            {[c.beyond.swimming, c.beyond.coaching, c.beyond.funFact]
-              .filter(isFilled)
-              .map((text) => (
-                <p key={text}>{text}</p>
-              ))}
-          </div>
-        </details>
-        <details>
-          <summary>Books</summary>
-          <div className="cine-fold-content">
-            <Bookshelf books={c.books} />
-          </div>
-        </details>
-        <details>
-          <summary>Music</summary>
-          <div className="cine-fold-content">
-            <CDPlayer />
-          </div>
-        </details>
-        <details>
-          <summary>Games</summary>
-          <div className="cine-fold-content cine-games">
-            <Games games={c.games} />
-          </div>
-        </details>
-      </div>
-    </>
-  )
-}
-
 export default function CinematicPortfolio() {
   const { mode, setMode } = usePrefs()
-  // The opening film starts on arrival; visitors can pause or skip immediately.
+  // Arrival shows the loading screen; one click enters and starts the film
+  // with sound. A chapter link skips straight to reading.
   const [skipMotion, setSkipMotion] = useState(false)
   const [story, setStory] = useState<{
     phase: CinematicPhase
@@ -179,6 +106,17 @@ export default function CinematicPortfolio() {
     }
   })
   const [ready, setReady] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [entered, setEntered] = useState(story.phase !== "loading")
+  const enteredRef = useRef(entered)
+  const [sound, setSound] = useState(() => {
+    try {
+      return localStorage.getItem("pf.sound") !== "off"
+    } catch {
+      return true
+    }
+  })
+  const audio = useRef<CloisterAudio | null>(null)
   const [failed, setFailed] = useState(false)
   const [credits, setCredits] = useState(false)
   const hasPlayed = useRef(false)
@@ -189,7 +127,7 @@ export default function CinematicPortfolio() {
   const creditsClose = useRef<HTMLButtonElement>(null)
   const previousPhase = useRef(story.phase)
   const reading = story.phase === "reading" || story.phase === "fallback"
-  const chapter = chapters[Math.min(story.segment, 3)]
+  const chapter = chapters[Math.min(story.segment, LAST)]
 
   useEffect(() => {
     document.title = `${c.profile.displayName} — ${c.profile.chineseName}`
@@ -205,7 +143,7 @@ export default function CinematicPortfolio() {
       if (preference.matches)
         setStory((s) =>
           s.phase === "playing" || s.phase === "loading" || s.phase === "paused"
-            ? { ...s, phase: s.segment === 4 ? "aerial" : "reading" }
+            ? { ...s, phase: s.segment === FINALE ? "aerial" : "reading" }
             : s,
         )
     }
@@ -245,6 +183,38 @@ export default function CinematicPortfolio() {
   }, [failed])
 
   useEffect(() => {
+    const engine = createCloisterAudio(c.profile.music)
+    audio.current = engine
+    if (import.meta.env.DEV)
+      (window as { __cloisterAudio?: CloisterAudio }).__cloisterAudio = engine
+    // Browsers allow sound only after a click or key press.
+    const unlock = () => engine.unlock()
+    window.addEventListener("pointerdown", unlock, true)
+    window.addEventListener("keydown", unlock, true)
+    return () => {
+      window.removeEventListener("pointerdown", unlock, true)
+      window.removeEventListener("keydown", unlock, true)
+      audio.current = null
+      engine.dispose()
+    }
+  }, [])
+
+  useEffect(() => {
+    audio.current?.setEnabled(sound)
+    try {
+      localStorage.setItem("pf.sound", sound ? "on" : "off")
+    } catch {
+      // Private browsing: the choice lasts for this visit only.
+    }
+  }, [sound])
+
+  useEffect(() => {
+    const was = previousPhase.current
+    audio.current?.setReading(story.phase !== "playing")
+    if (was !== story.phase && was !== "loading" && story.phase !== "loading") {
+      if (story.phase === "playing") audio.current?.cue("go")
+      else if (was === "playing") audio.current?.cue("stop")
+    }
     if (story.phase === "playing") hasPlayed.current = true
     if (reading) {
       panel.current?.scrollTo({ top: 0, behavior: "instant" })
@@ -275,13 +245,13 @@ export default function CinematicPortfolio() {
       visit((story.segment + 1) % chapters.length)
       return
     }
-    if (skipMotion && story.segment < 3) {
+    if (skipMotion && story.segment < LAST) {
       visit(story.segment + 1)
       return
     }
     setStory((s) => ({
       ...s,
-      segment: Math.min(s.segment + 1, 4),
+      segment: Math.min(s.segment + 1, FINALE),
       phase: skipMotion ? "aerial" : "playing",
     }))
     window.history.replaceState(
@@ -291,7 +261,17 @@ export default function CinematicPortfolio() {
     )
   }
 
+  const enter = () => {
+    enteredRef.current = true
+    setEntered(true)
+    setStory((s) =>
+      s.phase === "loading" && ready ? { ...s, phase: "playing" } : s,
+    )
+  }
+
   const replay = () => {
+    enteredRef.current = true
+    setEntered(true)
     setSkipMotion(false)
     setCredits(false)
     setStory((s) => ({
@@ -313,7 +293,7 @@ export default function CinematicPortfolio() {
         s.phase === "playing" &&
         s.segment === segment &&
         s.revision === story.revision
-          ? { ...s, phase: segment === 4 ? "aerial" : "reading" }
+          ? { ...s, phase: segment === FINALE ? "aerial" : "reading" }
           : s,
       )
     },
@@ -323,26 +303,31 @@ export default function CinematicPortfolio() {
   const sceneReady = useCallback(() => {
     setReady(true)
     setStory((s) =>
-      s.phase === "loading"
-        ? {
-            ...s,
-            phase: "playing",
-          }
+      s.phase === "loading" && enteredRef.current
+        ? { ...s, phase: "playing" }
         : s,
     )
+  }, [])
+
+  const sceneSound = useCallback((event: SceneSound) => {
+    audio.current?.scene(event)
+  }, [])
+
+  const sceneProgress = useCallback((fraction: number) => {
+    setProgress((value) => Math.max(value, Math.round(fraction * 100) / 100))
   }, [])
 
   const sceneFailed = useCallback(() => {
     setFailed(true)
     setStory((s) => ({
       ...s,
-      segment: Math.min(s.segment, 3),
+      segment: Math.min(s.segment, LAST),
       phase: "fallback",
     }))
   }, [])
 
   const skip = () => {
-    if (story.segment === 4) setStory((s) => ({ ...s, phase: "aerial" }))
+    if (story.segment === FINALE) setStory((s) => ({ ...s, phase: "aerial" }))
     else visit(story.segment)
   }
 
@@ -351,6 +336,17 @@ export default function CinematicPortfolio() {
       className="cine-portfolio"
       data-phase={story.phase}
       data-reading={reading}
+      onClick={(event) => {
+        // A click on the drawing continues the film. Text stays selectable,
+        // and every control keeps its own behaviour.
+        if (
+          reading &&
+          !(event.target as Element).closest(
+            "a, button, summary, main, header, footer, aside",
+          )
+        )
+          next()
+      }}
     >
       <a
         className="cine-skip"
@@ -377,6 +373,8 @@ export default function CinematicPortfolio() {
               <CloisterView
                 {...story}
                 onReady={sceneReady}
+                onProgress={sceneProgress}
+                onSound={sceneSound}
                 onComplete={complete}
                 onFailure={sceneFailed}
               />
@@ -419,22 +417,75 @@ export default function CinematicPortfolio() {
             </a>
           ))}
         </nav>
+        <button
+          type="button"
+          className="cine-sound"
+          aria-pressed={sound}
+          aria-label={sound ? "Turn music and sound off" : "Turn music and sound on"}
+          title={sound ? "Sound on" : "Sound off"}
+          onClick={() => setSound((value) => !value)}
+        >
+          <span className="cine-sound-bars" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
+          <span className="cine-sound-label">{sound ? "Sound on" : "Sound off"}</span>
+        </button>
       </header>
-      {!ready && !failed && !reading && (
-        <div className="cine-loading">
-          <RunningSilhouette />
-          <p role="status">
-            Entering the cloister<span aria-hidden="true"> …</span>
-          </p>
-          <button
-            type="button"
-            className="cine-text-button"
-            onClick={() => visit(0)}
-          >
-            Read the portfolio now ↗
-          </button>
-        </div>
-      )}
+      <div
+        className="cine-gate"
+        data-open={story.phase !== "loading" || failed}
+      >
+        {story.phase === "loading" && !failed && (
+          <div className="cine-loading">
+            <RunningSilhouette />
+            <p className="cine-loading-name">
+              Leo Li <span lang="zh">{c.profile.chineseName}</span>
+            </p>
+            <div
+              className="cine-progress"
+              role="progressbar"
+              aria-label="Loading the cloister"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={ready ? 100 : Math.min(99, Math.round(progress * 100))}
+            >
+              <span
+                style={{
+                  transform: `scaleX(${ready ? 1 : Math.min(.99, progress)})`,
+                }}
+              />
+            </div>
+            <p className="cine-loading-status" role="status">
+              {ready
+                ? "The cloister is ready"
+                : `Entering the cloister ${String(Math.min(99, Math.round(progress * 100))).padStart(2, "0")}%`}
+            </p>
+            {ready && !entered ? (
+              <button
+                type="button"
+                className="cine-enter"
+                autoFocus
+                onClick={enter}
+              >
+                Click to enter
+                <span aria-hidden="true">→</span>
+              </button>
+            ) : (
+              <span className="cine-enter-space" aria-hidden="true" />
+            )}
+            <button
+              type="button"
+              className="cine-text-button"
+              onClick={() => visit(0)}
+            >
+              Read the portfolio now ↗
+            </button>
+          </div>
+        )}
+      </div>
       {!reading && story.phase !== "aerial" && (
         <div className="cine-introduction" aria-hidden={story.segment > 0}>
           {story.segment === 0 && (
@@ -468,7 +519,7 @@ export default function CinematicPortfolio() {
             aria-labelledby={`cine-${item.id}-heading`}
           >
             <p className="cine-chapter-number" aria-hidden="true">
-              {String(index + 1).padStart(2, "0")} <span>/ 04</span>
+              {String(index + 1).padStart(2, "0")} <span>/ {String(chapters.length).padStart(2, "0")}</span>
             </p>
             <h2
               id={`cine-${item.id}-heading`}
@@ -503,10 +554,6 @@ export default function CinematicPortfolio() {
                     ))}
                   </ol>
                 ) : null}
-                <div className="cine-small-note">
-                  <h3>Swim coaching</h3>
-                  <p>{c.beyond.intro}</p>
-                </div>
               </>
             )}
             {index === 1 && (
@@ -519,6 +566,25 @@ export default function CinematicPortfolio() {
                       {item.image && (
                         <img src={item.image} alt="" loading="lazy" />
                       )}
+                      {/* Clips play only while this chapter is open. */}
+                      {item.video &&
+                        reading &&
+                        story.segment === 1 &&
+                        (item.demo === "ascii" ? (
+                          <AsciiPreview src={item.video} />
+                        ) : (
+                          <video
+                            className="cine-project-video"
+                            src={item.video}
+                            poster={item.poster}
+                            aria-label={item.mediaLabel}
+                            muted
+                            loop
+                            playsInline
+                            autoPlay
+                            preload="metadata"
+                          />
+                        ))}
                       {item.technologies.filter(isFilled).length > 0 && (
                         <p className="cine-project-tech">
                           {item.technologies.filter(isFilled).join(" / ")}
@@ -549,16 +615,14 @@ export default function CinematicPortfolio() {
                 </ol>
               </>
             )}
-            {index === 2 && <AboutContent />}
-            {index === 3 && (
+            {index === 2 && (
               <>
                 <ul className="cine-contact-list">
                   {contacts.map((contact) => (
                     <li key={contact.id}>
                       <a
                         href={contact.href}
-                        {...(contact.id !== "email" &&
-                        !contact.href.startsWith("/")
+                        {...(contact.id !== "email"
                           ? { target: "_blank", rel: "noreferrer" }
                           : {})}
                       >
@@ -570,18 +634,6 @@ export default function CinematicPortfolio() {
                 </ul>
               </>
             )}
-            <div className="cine-continue-row">
-              <button type="button" className="cine-continue" onClick={next}>
-                {index === 3
-                  ? failed || !ready
-                    ? "Back to Experience"
-                    : "Explore the cloister"
-                  : failed || !ready || skipMotion
-                    ? `Next: ${chapters[index + 1].title}`
-                    : "Continue"}
-                <span aria-hidden="true">→</span>
-              </button>
-            </div>
           </section>
         ))}
       </main>
@@ -601,9 +653,28 @@ export default function CinematicPortfolio() {
         </div>
       )}
       <footer className="cine-footer">
+        {reading && (
+          <button type="button" className="cine-continue" onClick={next}>
+            {failed || !ready || (skipMotion && story.segment < LAST) ? (
+              `Next: ${chapters[(story.segment + 1) % chapters.length].title}`
+            ) : (
+              <span>
+                <span className="cine-continue-click">Click</span>
+                <span className="cine-continue-tap">Tap</span>
+                {story.segment === LAST ? " to explore" : " to continue"}
+                {story.segment === LAST && (
+                  <span className="cine-continue-long"> the cloister</span>
+                )}
+              </span>
+            )}
+            <span className="cine-continue-arrow" aria-hidden="true">
+              →
+            </span>
+          </button>
+        )}
         {(story.phase === "playing" || story.phase === "paused") && (
           <div className="cine-sequence-label" role="status">
-            {story.segment === 4 ? "Aerial view" : chapter.title}
+            {story.segment === FINALE ? "The jump" : chapter.title}
             {story.phase === "paused" && " / Paused"}
           </div>
         )}
@@ -627,9 +698,9 @@ export default function CinematicPortfolio() {
               </button>
             </>
           )}
-          {(reading || story.phase === "aerial") && !failed && (
+          {!failed && (
             <button type="button" onClick={replay}>
-              {hasPlayed.current ? "Replay film ↺" : "Play film"}
+              {hasPlayed.current || story.phase === "playing" || story.phase === "paused" ? "Replay film ↺" : "Play film"}
             </button>
           )}
           <button
@@ -661,6 +732,8 @@ export default function CinematicPortfolio() {
           >
             ×
           </button>
+          <p className="cine-kicker">The film</p>
+          <p>Inspired by Assassin’s Creed.</p>
           <p className="cine-kicker">The architecture</p>
           <p>
             <a
@@ -698,8 +771,7 @@ export default function CinematicPortfolio() {
           </p>
           <p className="cine-kicker">The movement</p>
           <p>
-            Wall climbing by Adobe Mixamo, retargeted for this character.
-            Original running and vault animations by Quaternius.
+            Running, vault and jump animations by Quaternius.
           </p>
           <a
             className="cine-text-button"

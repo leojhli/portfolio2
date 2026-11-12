@@ -1,15 +1,19 @@
 import * as THREE from "three"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
+import { readBytes } from "./fetchProgress"
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js"
+
+export const CLOISTER_BYTES = 6_337_620
 
 /** The original licensed Grease Pencil drawing, kept as authored stroke geometry. */
 export async function loadCloisterEnvironment(
   parent: THREE.Object3D,
   signal?: AbortSignal,
+  onProgress?: (fraction: number) => void,
 ) {
   const response = await fetch("/models/cloister/cloister.glb", { signal })
   if (!response.ok) throw new Error("The cloister could not be loaded.")
-  const bytes = await response.arrayBuffer()
+  const bytes = await readBytes(response, CLOISTER_BYTES, onProgress)
   signal?.throwIfAborted()
   const gltf = await new GLTFLoader()
     .setMeshoptDecoder(MeshoptDecoder)

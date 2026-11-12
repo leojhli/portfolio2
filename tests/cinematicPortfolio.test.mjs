@@ -147,13 +147,17 @@ test("late scene readiness preserves direct chapter navigation and keeps portfol
     assert.equal(f.props().segment, 1)
     assert.equal(f.w.location.hash, "#projects")
     assert.equal(f.w.document.activeElement.id, "cine-projects-heading")
+    const clip = f.w.document.querySelector("#projects video.cine-project-video")
+    assert.equal(clip.getAttribute("src"), "/projects/betago.mp4")
+    assert.ok(clip.muted && clip.loop)
+    assert.ok(f.w.document.querySelector("#projects .cine-ascii canvas"))
     assert.match(
       f.w.document.getElementById("projects").textContent,
-      /The cloister portfolio/,
+      /BetaGo[\s\S]*Video to ASCII[\s\S]*Did You Even Listen/,
     )
     assert.equal(
       f.w.document.querySelector("#projects .cine-project-links a").href,
-      "https://github.com/leojhli/portfolio2",
+      "https://github.com/leojhli/BetaGo",
     )
     assert.doesNotMatch(
       f.w.document.getElementById("projects").textContent,
@@ -166,7 +170,7 @@ test("late scene readiness preserves direct chapter navigation and keeps portfol
       "loading cannot restart a visitor who chose a chapter",
     )
     assert.equal(f.props().segment, 1)
-    await f.click("#projects .cine-continue")
+    await f.click(".cine-continue")
     assert.equal(f.phase(), "playing")
     assert.equal(f.props().segment, 2)
     assert.equal(f.w.document.activeElement.textContent, "Pause")
@@ -178,7 +182,14 @@ test("late scene readiness preserves direct chapter navigation and keeps portfol
     )
     await act(async () => f.props().onComplete(2))
     assert.equal(f.phase(), "reading")
-    assert.equal(f.w.document.activeElement.id, "cine-about-heading")
+    assert.equal(f.w.document.activeElement.id, "cine-contact-heading")
+    assert.match(f.w.document.querySelector(".cine-continue").textContent, /to explore/)
+    assert.doesNotMatch(f.w.document.querySelector(".cine-reading").textContent, /Swim/)
+    await f.click("#cine-contact-heading")
+    assert.equal(f.phase(), "reading", "clicking the text does not advance the film")
+    await f.click("[data-controlled-scene]")
+    assert.equal(f.phase(), "playing", "clicking the drawing continues the film")
+    assert.equal(f.props().segment, 3)
   } finally {
     await f.cleanup()
   }
@@ -187,12 +198,27 @@ test("late scene readiness preserves direct chapter navigation and keeps portfol
 test("pause, replay and aerial controls preserve one scene and reject stale completions", async () => {
   const f = await mount()
   try {
+    assert.equal(f.w.document.querySelector(".cine-enter"), null, "no entry before the scene loads")
+    await act(async () => f.props().onProgress(0.4))
+    assert.equal(f.w.document.querySelector(".cine-progress").getAttribute("aria-valuenow"), "40")
     await act(async () => f.props().onReady())
+    assert.equal(f.phase(), "loading", "the film waits for the visitor")
+    assert.equal(f.w.document.querySelector(".cine-gate").dataset.open, "false")
+    await f.click(".cine-enter")
     assert.equal(f.phase(), "playing")
+    assert.equal(f.w.document.querySelector(".cine-gate").dataset.open, "true")
+    const soundSwitch = f.w.document.querySelector(".cine-sound")
+    assert.equal(soundSwitch.getAttribute("aria-pressed"), "true")
+    await f.click(soundSwitch)
+    assert.equal(soundSwitch.getAttribute("aria-pressed"), "false")
+    assert.equal(f.w.localStorage.getItem("pf.sound"), "off")
+    await f.click(soundSwitch)
+    assert.ok([...f.w.document.querySelectorAll(".cine-film-controls button")].some(b => b.textContent.includes("Replay film")))
     const start = f.props()
     const sceneElement = f.w.document.querySelector("[data-controlled-scene]")
     const mounts = scene.state().mounts
     await f.click('.cine-film-controls button[aria-controls="cine-credits"]')
+    assert.match(f.w.document.getElementById("cine-credits").textContent, /Inspired by Assassin’s Creed/)
     assert.match(
       f.w.document.activeElement.getAttribute("aria-label"),
       /Close credits/,
@@ -246,8 +272,8 @@ test("pause, replay and aerial controls preserve one scene and reject stale comp
       "a previous run cannot complete a replay",
     )
     await f.click('.cine-chapters a[href="#contact"]')
-    await f.click("#contact .cine-continue")
-    assert.equal(f.props().segment, 4)
+    await f.click(".cine-continue")
+    assert.equal(f.props().segment, 3)
     await f.click(
       [...f.w.document.querySelectorAll(".cine-film-controls button")].find(
         (b) => b.textContent.includes("Skip scene"),
@@ -268,33 +294,20 @@ test("pause, replay and aerial controls preserve one scene and reject stale comp
   }
 })
 
-test("About retains media and expansion state across chapters, and failed graphics keep all content navigable", async () => {
-  const f = await mount({ hash: "#about" })
+test("the removed About chapter is gone, and failed graphics keep all content navigable", async () => {
+  const f = await mount({ hash: "#projects" })
   try {
     assert.equal(f.phase(), "reading")
-    assert.equal(f.props().segment, 2)
-    assert.equal(f.audios.length, 0)
-    const about = f.w.document.getElementById("about")
-    const folds = [...about.querySelectorAll("details")]
-    assert.equal(folds.length, 5)
-    assert.equal(about.querySelectorAll(".photo img").length, 4)
-    assert.match(about.textContent, /Swimming & coaching/)
-    const music = folds.find(
-      (fold) => fold.querySelector("summary").textContent === "Music",
+    assert.equal(f.props().segment, 1)
+    assert.equal(f.w.document.getElementById("about"), null)
+    assert.deepEqual(
+      [...f.w.document.querySelectorAll(".cine-chapters a")].map((a) => a.textContent),
+      ["Experience", "Projects", "Contact"],
     )
-    music.open = true
-    await f.click(music.querySelector('button[aria-label="Play"]'))
-    assert.equal(f.audios.length, 1)
-    const audio = f.audios[0]
-    audio.currentTime = 47
-    await act(async () => audio.dispatchEvent(new f.w.Event("timeupdate")))
-    assert.equal(audio.paused, false)
     await f.click('.cine-chapters a[href="#experience"]')
-    await f.click('.cine-chapters a[href="#about"]')
-    assert.equal(f.w.document.getElementById("about"), about)
-    assert.equal(music.open, true)
-    assert.equal(audio.currentTime, 47)
-    assert.equal(audio.paused, false)
+    const experience = f.w.document.getElementById("experience").textContent
+    assert.match(experience, /Undergraduate Researcher[\s\S]*UW Reality Labs/)
+    assert.doesNotMatch(f.w.document.querySelector(".cine-reading").textContent, /\[[A-Z]/)
     await act(async () => f.props().onFailure("asset unavailable"))
     assert.equal(f.phase(), "fallback")
     assert.equal(
@@ -307,27 +320,34 @@ test("About retains media and expansion state across chapters, and failed graphi
     assert.equal(f.phase(), "fallback")
     assert.deepEqual(
       [...f.w.document.querySelectorAll(".cine-contact-list a")].map(
-        (a) => a.href,
+        (a) => a.getAttribute("href"),
       ),
-      ["https://github.com/leojhli"],
-      "only verified destinations are shown",
+      [
+        "mailto:l734li@uwaterloo.ca",
+        "/Leo_Li_Resume.pdf",
+        "https://www.linkedin.com/in/leojhli/",
+        "https://github.com/leojhli",
+        "https://x.com/leojhli",
+        "https://www.instagram.com/leojhli/",
+      ],
     )
-    await f.click("#contact .cine-continue")
+    await f.click(".cine-continue")
     assert.equal(f.w.document.activeElement.id, "cine-experience-heading")
     assert.equal(f.phase(), "fallback")
-    assert.equal(f.audios.length, 1)
+    assert.equal(f.audios.length, 0)
   } finally {
     await f.cleanup()
   }
 })
 
-test("arrival autoplays the hero; later preference changes still skip motion", async () => {
+test("entering from the loading screen plays the hero; later preference changes still skip motion", async () => {
   const f = await mount({ reduced: true })
   try {
     assert.equal(f.phase(), "loading")
     assert.match(f.w.document.querySelector(".cine-introduction h1").textContent, /Leo Li/)
     await act(async () => f.props().onReady())
-    assert.equal(f.phase(), "playing", "no logo click is needed")
+    await f.click(".cine-enter")
+    assert.equal(f.phase(), "playing", "one click on the loading screen starts the film")
     await f.changeReducedMotion(false)
     await f.changeReducedMotion(true)
     assert.equal(f.phase(), "reading")
@@ -336,15 +356,14 @@ test("arrival autoplays the hero; later preference changes still skip motion", a
     for (const [index, id] of [
       "experience",
       "projects",
-      "about",
       "contact",
     ].entries()) {
       assert.equal(f.props().segment, index)
       assert.equal(f.phase(), "reading")
-      await f.click(`#${id} .cine-continue`)
+      await f.click(".cine-continue")
     }
     assert.equal(f.phase(), "aerial")
-    assert.equal(f.props().segment, 4)
+    assert.equal(f.props().segment, 3)
     await f.click(
       [...f.w.document.querySelectorAll(".cine-film-controls button")].find(
         (b) => b.textContent.includes("Replay film"),
@@ -352,7 +371,7 @@ test("arrival autoplays the hero; later preference changes still skip motion", a
     )
     assert.equal(f.phase(), "playing")
     await act(async () => f.props().onComplete(0))
-    await f.click("#experience .cine-continue")
+    await f.click(".cine-continue")
     assert.equal(
       f.phase(),
       "playing",
@@ -366,9 +385,10 @@ test("arrival autoplays the hero; later preference changes still skip motion", a
       "reading",
       "the current system choice overrides the earlier opt-in",
     )
-    await f.click("#projects .cine-continue")
+    await f.click(".cine-continue")
     assert.equal(f.phase(), "reading")
     assert.equal(f.props().segment, 2)
+    assert.equal(f.w.location.hash, "#contact")
   } finally {
     await f.cleanup()
   }
