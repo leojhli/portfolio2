@@ -118,8 +118,9 @@ const content = {
       logo: "/logos/uw-reality-labs.webp",
       url: "https://www.linkedin.com/company/uwrealitylabs/",
       dates: "Sep 2026 – Present",
-      summary: "Building data validation and preprocessing for gesture-recognition models.",
+      summary: "Adapting a SLAM system to run on the Qualcomm RB5 for headset head tracking.",
       points: [
+        "Adapting a SLAM system to the Qualcomm RB5 so a standalone headset can track head pose from its cameras and IMU.",
         "Built a Python validation tool for gesture-recognition datasets, auditing 372 recordings across 22 JSON files and reporting data-quality issues with precise source locations.",
         "Implemented 5 dataset validation checks, covering missing sequence and confidence fields, empty recording lists, invalid record types, and empty recording objects.",
         "Implemented sliding-window segmentation, confidence filtering, and sequence padding to prepare gesture data for ML training.",
