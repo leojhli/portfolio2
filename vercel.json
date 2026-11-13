@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/quickview", "destination": "/index.html" },
+    { "source": "/resume", "destination": "/index.html" }
+  ]
+}

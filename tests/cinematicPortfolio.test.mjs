@@ -105,6 +105,9 @@ async function mount({ hash = "", reduced = false } = {}) {
   await act(async () => {
     root.render(React.createElement(App))
   })
+  // Each mode is code-split; wait for the chosen one to arrive.
+  for (let i = 0; i < 200 && !w.document.querySelector(".cine-portfolio, .rs-page"); i++)
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 10)))
   const click = async (selector) => {
     const node =
       typeof selector === "string"
@@ -391,6 +394,60 @@ test("entering from the loading screen plays the hero; later preference changes 
     assert.equal(f.w.location.hash, "#contact")
   } finally {
     await f.cleanup()
+  }
+})
+
+test("experience is one line per role with a logo, and Quickview lists everything without the film", async () => {
+  const f = await mount({ hash: "#experience" })
+  try {
+    const roles = [...f.w.document.querySelectorAll("#experience .cine-roles > li")]
+    assert.deepEqual(
+      roles.map((li) => li.querySelector("h3").textContent.replace(/\s+/g, " ").trim()),
+      [
+        "Undergraduate Researcher @ University of Waterloo",
+        "Software Engineer @ UW Reality Labs",
+        "Software Engineer @ Waterloo Rocketry",
+        "Creator @ Coding In Unity",
+      ],
+    )
+    for (const li of roles) {
+      assert.ok(li.querySelector("img.cine-role-logo").getAttribute("src").startsWith("/logos/"))
+      assert.equal(li.querySelectorAll("p").length, 2, "dates and one summary line only")
+    }
+    const link = f.w.document.querySelector(".cine-mode-link")
+    assert.equal(link.getAttribute("href"), "/quickview")
+    assert.equal(link.textContent.trim(), "Quickview")
+    // Switching modes covers the page with the curtain, then swaps in place.
+    await f.click(link)
+    assert.equal(f.w.document.querySelector(".mode-curtain").dataset.state, "in")
+    assert.ok(f.w.document.querySelector(".cine-portfolio"), "the film stays until it is covered")
+    for (let i = 0; i < 300 && f.w.document.querySelector(".mode-curtain").dataset.state !== "idle"; i++)
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 10)))
+    assert.equal(f.w.location.pathname, "/quickview")
+    assert.ok(f.w.document.querySelector(".rs-page"))
+    assert.equal(f.w.document.querySelector(".cine-portfolio"), null)
+    await f.click('.rs-top nav a[href="/"]')
+    for (let i = 0; i < 300 && !f.w.document.querySelector(".cine-portfolio"); i++)
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 10)))
+    assert.equal(f.w.location.pathname, "/")
+    assert.ok(f.w.document.querySelector(".cine-portfolio"))
+    for (let i = 0; i < 300 && f.w.document.querySelector(".mode-curtain").dataset.state !== "idle"; i++)
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 10)))
+  } finally {
+    await f.cleanup()
+  }
+  const r = await mount({ hash: "quickview" })
+  try {
+    const page = r.w.document.querySelector(".rs-page")
+    assert.ok(page)
+    assert.equal(r.w.document.querySelector(".cine-portfolio"), null)
+    assert.equal(r.w.document.querySelector("[data-controlled-scene]"), null, "no 3D scene in Quickview")
+    for (const text of [/Fast Multipole Attention/, /372 recordings/, /Waterloo Rocketry/, /Orion launch app/, /50 Unity tutorials/, /312 ms to 115 ms/, /Groq Whisper/, /Computer Engineering/, /PyTorch/])
+      assert.match(page.textContent, text)
+    assert.ok(page.querySelector('a[href="/Leo_Li_Resume.pdf"]'))
+    assert.ok(page.querySelector('a[href="/"]'))
+  } finally {
+    await r.cleanup()
   }
 })
 

@@ -1,0 +1,57 @@
+/* The curtain between the film and Quickview. */
+.mode-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: #000;
+  color: #f5f5f2;
+  transform: translateY(101%);
+  visibility: hidden;
+  pointer-events: none;
+}
+.mode-curtain[data-state="in"] {
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition: transform .52s cubic-bezier(.7, 0, .2, 1);
+}
+.mode-curtain[data-state="out"] {
+  visibility: visible;
+  transform: translateY(-101%);
+  transition: transform .52s cubic-bezier(.7, 0, .2, 1);
+}
+.mode-curtain .surname-mark { width: 34px; height: 44px; animation: mode-pulse 1.1s ease-in-out infinite; }
+.mode-curtain .surname-mark path[data-part] { fill: currentColor; filter: none; }
+.mode-curtain p {
+  margin: 0;
+  min-height: 1.4em;
+  font: 10px/1.4 "Geist Mono", monospace;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: #8d8d89;
+}
+.mode-curtain-bar { position: relative; width: 120px; height: 1px; background: #2c2c2c; overflow: hidden; }
+.mode-curtain-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #f5f5f2;
+  transform: translateX(-100%);
+}
+.mode-curtain:not([data-state="idle"]) .mode-curtain-bar::after { animation: mode-sweep .95s ease-in-out infinite; }
+@keyframes mode-sweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+@keyframes mode-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+
+/* With reduced motion the curtain fades in place instead of sliding. */
+@media (prefers-reduced-motion: reduce) {
+  .mode-curtain { transform: none; opacity: 0; }
+  .mode-curtain[data-state="in"] { transform: none; opacity: 1; transition: opacity .4s ease; }
+  .mode-curtain[data-state="out"] { transform: none; opacity: 0; transition: opacity .4s ease; }
+  .mode-curtain .surname-mark, .mode-curtain:not([data-state="idle"]) .mode-curtain-bar::after { animation: none; }
+  .mode-curtain-bar::after { transform: none; }
+}

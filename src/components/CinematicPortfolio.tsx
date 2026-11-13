@@ -417,6 +417,9 @@ export default function CinematicPortfolio() {
             </a>
           ))}
         </nav>
+        <a className="cine-mode-link" href="/quickview">
+          Quickview
+        </a>
         <button
           type="button"
           className="cine-sound"
@@ -533,23 +536,39 @@ export default function CinematicPortfolio() {
             {index === 0 && (
               <>
                 <p className="cine-lead">{c.profile.headline}</p>
-                {isFilled(c.profile.intro) && <p>{c.profile.intro}</p>}
                 {experiences.length > 0 ? (
-                  <ol className="cine-entry-list">
+                  <ol className="cine-entry-list cine-roles">
                     {experiences.map((item) => (
                       <li key={item.id}>
-                        {isFilled(item.dates) && (
+                        {item.logo ? (
+                          <img
+                            className="cine-role-logo"
+                            src={item.logo}
+                            alt=""
+                            width="40"
+                            height="40"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span className="cine-role-logo" aria-hidden="true" />
+                        )}
+                        <div>
+                          <h3>
+                            {item.role}{" "}
+                            <span className="cine-role-at">
+                              @{" "}
+                              {item.url ? (
+                                <a href={item.url} target="_blank" rel="noreferrer">
+                                  {item.organization}
+                                </a>
+                              ) : (
+                                item.organization
+                              )}
+                            </span>
+                          </h3>
                           <p className="cine-entry-meta">{item.dates}</p>
-                        )}
-                        <h3>{item.role}</h3>
-                        {isFilled(item.organization) && (
-                          <p>{item.organization}</p>
-                        )}
-                        <ul>
-                          {item.points.filter(isFilled).map((point) => (
-                            <li key={point}>{point}</li>
-                          ))}
-                        </ul>
+                          <p>{item.summary}</p>
+                        </div>
                       </li>
                     ))}
                   </ol>
