@@ -1,6 +1,7 @@
 import { useEffect } from "react"
 import { getContent, type Experience } from "../content/data"
 import Logo from "./Logo"
+import QuickviewBackdrop from "./QuickviewBackdrop"
 import "../resume.css"
 
 const c = getContent()
@@ -33,6 +34,7 @@ export default function ResumePage() {
 
   return (
     <div className="rs-page">
+      <QuickviewBackdrop />
       <header className="rs-top">
         <a className="rs-brand" href="/" aria-label="Leo Li, watch the film">
           <Logo />

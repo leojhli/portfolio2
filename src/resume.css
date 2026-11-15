@@ -33,7 +33,21 @@
 .rs-page :is(h1, h2, h3, p, ol, ul, dl, dd) { margin: 0; padding: 0; }
 .rs-page :is(a, button):focus-visible { outline: 2px solid var(--rs-fg); outline-offset: 3px; border-radius: 3px; }
 
-.rs-top, .rs-main, .rs-foot { max-width: 640px; margin: 0 auto; }
+.rs-top, .rs-main, .rs-foot { position: relative; z-index: 1; max-width: 640px; margin: 0 auto; }
+.rs-backdrop { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; background: var(--rs-bg); }
+.rs-backdrop canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* The drawing is white ink on black: multiply an inverted copy onto paper,
+   screen the original onto the dark page. The lens cuts a hole in it. */
+.rs-drawing { position: absolute; opacity: 0; transition: opacity 1.2s ease; will-change: transform; mix-blend-mode: multiply;
+  -webkit-mask-image: radial-gradient(circle at var(--lx, -999px) var(--ly, -999px), transparent calc(var(--lr, 0px) * .92), #000 calc(var(--lr, 0px) + 1px));
+  mask-image: radial-gradient(circle at var(--lx, -999px) var(--ly, -999px), transparent calc(var(--lr, 0px) * .92), #000 calc(var(--lr, 0px) + 1px)); }
+.rs-drawing[data-ready="true"] { opacity: .2; }
+.rs-drawing img { display: block; width: 100%; height: 100%; filter: invert(1); }
+@media (prefers-color-scheme: dark) {
+  .rs-drawing[data-ready="true"] { opacity: .3; }
+  .rs-drawing { mix-blend-mode: screen; }
+  .rs-drawing img { filter: none; }
+}
 .rs-top { display: flex; align-items: center; justify-content: space-between; padding: 28px 0 0; }
 .rs-brand { display: inline-flex; color: var(--rs-fg); }
 .rs-brand .surname-mark { width: 22px; height: 29px; }
@@ -89,6 +103,7 @@ a.rs-org:hover { box-shadow: inset 0 0 0 1px var(--rs-muted); }
 .rs-foot a:hover { color: var(--rs-fg); }
 
 @media (max-width: 560px) {
+  .rs-drawing[data-ready="true"] { opacity: .12; }
   .rs-main { padding-top: 40px; }
   .rs-main h1 { font-size: 28px; }
   .rs-entry-head { flex-direction: column; gap: 2px; }
@@ -96,7 +111,7 @@ a.rs-org:hover { box-shadow: inset 0 0 0 1px var(--rs-muted); }
   .rs-org { white-space: normal; }
 }
 @media print {
-  .rs-top nav, .rs-foot a { display: none; }
+  .rs-top nav, .rs-foot a, .rs-backdrop { display: none; }
   .rs-page { background: #fff; color: #000; }
   .rs-main { padding-top: 16px; }
 }
