@@ -294,3 +294,32 @@
   .cine-chapters { gap: 9px; padding-inline: 8px; }
   .cine-mode-link { padding: 0 7px; }
 }
+
+/* Eagle Vision: the interface dims, and everything you can act on turns gold. */
+.cine-portfolio { --vision-gold: #f5c25a; }
+.cine-portfolio :is(.cine-reading, .cine-header, .cine-footer, .cine-introduction) { transition: color .45s ease, opacity .45s ease, filter .45s ease; }
+.cine-portfolio[data-vision="true"] .cine-reading :is(p, li, h2, h3, .cine-chapter-number) { color: #7c889c; }
+.cine-portfolio[data-vision="true"] .cine-introduction { opacity: .35; }
+.cine-portfolio[data-vision="true"] :is(.cine-reading a, .cine-chapters a, .cine-continue, .cine-mode-link, .cine-project-links a, .cine-roles h3 a) {
+  color: var(--vision-gold) !important;
+  text-decoration-color: color-mix(in srgb, var(--vision-gold) 60%, transparent);
+  text-shadow: 0 0 12px rgb(245 194 90 / 55%), 0 0 2px rgb(245 194 90 / 80%);
+}
+.cine-portfolio[data-vision="true"] .cine-reading .cine-roles h3 { color: #8a96aa; }
+.cine-portfolio[data-vision="true"] .cine-role-logo,
+.cine-portfolio[data-vision="true"] .cine-reading :is(video, canvas, img:not(.cine-role-logo)) { filter: grayscale(1) brightness(.55) sepia(.2) hue-rotate(185deg); }
+.cine-portfolio[data-vision="true"] .cine-brand { color: var(--vision-gold); filter: drop-shadow(0 0 8px rgb(245 194 90 / 60%)); }
+.cine-portfolio[data-vision="true"] .cine-vignette { background: radial-gradient(ellipse at 50% 50%, transparent 40%, rgb(4 10 24 / 70%) 100%) !important; }
+
+.cine-vision-switch { display: inline-flex; align-items: center; gap: 8px; }
+.cine-vision-switch kbd { min-width: 18px; padding: 1px 5px; border: 1px solid #555; border-radius: 4px; font: 10px/1.4 "Geist Mono", monospace; color: #999; }
+.cine-vision-eye { width: 12px; height: 7px; border: 1px solid currentColor; border-radius: 50% / 70%; position: relative; }
+.cine-vision-eye::after { content: ""; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; border-radius: 50%; background: currentColor; }
+.cine-film-controls > .cine-vision-switch[aria-pressed="true"] { color: var(--vision-gold); text-shadow: 0 0 10px rgb(245 194 90 / 60%); }
+.cine-vision-switch[aria-pressed="true"] kbd { border-color: var(--vision-gold); color: var(--vision-gold); }
+@media (hover: none) and (pointer: coarse) { .cine-vision-switch kbd { display: none; } }
+@media (max-width: 800px) { .cine-vision-switch { font-size: 10px; } .cine-vision-switch kbd { display: none; } }
+
+.cine-gate .cine-loading-mark { display: block; color: #f5f5f2; margin-bottom: 26px; }
+.cine-gate .cine-loading-mark .surname-mark { width: 74px; height: 96px; }
+.cine-gate .cine-loading-mark .surname-mark path[data-part] { fill: currentColor; filter: none; }

@@ -5,6 +5,10 @@ export type CloisterFilmFrame = {
   motionBlur: number
   deltaSeconds: number
   reset: boolean
+  /** Eagle Vision, 0 to 1. Grey ink sinks to blue; gold ink glows. */
+  vision?: number
+  /** Seconds since Eagle Vision switched on; drives the expanding pulse. */
+  pulse?: number
 }
 
 /** One current-frame resolve: a short camera shutter in motion, crisp ink at rest. */
@@ -29,6 +33,8 @@ export function createCloisterInk(renderer: THREE.WebGLRenderer) {
       viewport: { value: viewport },
       inverseViewProjection: { value: new THREE.Matrix4() },
       previousViewProjection: { value: previousViewProjection },
+      vision: { value: 0 },
+      pulse: { value: 10 },
     },
     depthTest: false,
     depthWrite: false,
@@ -49,6 +55,8 @@ export function createCloisterInk(renderer: THREE.WebGLRenderer) {
       uniform vec2 viewport;
       uniform mat4 inverseViewProjection;
       uniform mat4 previousViewProjection;
+      uniform float vision;
+      uniform float pulse;
       varying vec2 vUv;
       void main() {
         vec3 ink = texture2D(drawing, vUv).rgb;
@@ -79,7 +87,25 @@ export function createCloisterInk(renderer: THREE.WebGLRenderer) {
         float fine = 1.0 - smoothstep(0.02, 0.47, value);
         // Work only on the samples this stroke covers. No neighboring pixels
         // are brightened, and a pixel of pure black remains exactly black.
-        gl_FragColor = vec4(ink * (1.0 + 0.85 * strength * fine), 1.0);
+        ink *= 1.0 + 0.85 * strength * fine;
+        if (vision > 0.0) {
+          // Gold strokes (the runner and his route) carry colour; the rest of
+          // the drawing is neutral grey and sinks into a dim blue.
+          float chroma = max(max(ink.r, ink.g), ink.b) - min(min(ink.r, ink.g), ink.b);
+          float gold = smoothstep(0.08, 0.22, chroma);
+          float lum = dot(ink, vec3(0.299, 0.587, 0.114));
+          vec3 blue = lum * vec3(0.30, 0.46, 0.82) * 0.62;
+          vec3 glow = ink * 1.35 + vec3(0.10, 0.06, 0.0) * gold;
+          vec3 graded = mix(blue, glow, gold);
+          // A ring sweeps out from the centre as the sense switches on.
+          vec2 p = (vUv - 0.5) * vec2(viewport.x / viewport.y, 1.0);
+          float ring = exp(-pow((length(p) - pulse * 1.5) * 9.0, 2.0)) * (1.0 - smoothstep(0.4, 1.1, pulse));
+          graded += lum * vec3(0.55, 0.75, 1.0) * ring * 2.2 + vec3(0.04, 0.07, 0.12) * ring;
+          // A soft vignette pulls the eye to the centre.
+          graded *= 1.0 - 0.45 * smoothstep(0.35, 0.95, length(p));
+          ink = mix(ink, graded, vision);
+        }
+        gl_FragColor = vec4(ink, 1.0);
         #include <colorspace_fragment>
       }
     `,
@@ -114,7 +140,10 @@ export function createCloisterInk(renderer: THREE.WebGLRenderer) {
         previousCamera = camera
         hasPrevious = true
       }
-      if (!(strength > 0) && !requestedBlur) {
+      const vision = Number.isFinite(frame?.vision) ? THREE.MathUtils.clamp(frame!.vision!, 0, 1) : 0
+      material.uniforms.vision.value = vision
+      material.uniforms.pulse.value = Number.isFinite(frame?.pulse) ? frame!.pulse! : 10
+      if (!(strength > 0) && !requestedBlur && !(vision > 0)) {
         if (target) releaseTarget()
         renderer.render(scene, camera)
         rememberCamera()

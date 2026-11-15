@@ -168,5 +168,5 @@ export async function loadCloisterRunner(
   }
   sample("run", 0)
   parent.add(root)
-  return { root, clips, actionDurations, footfalls, sample, dispose }
+  return { root, clips, actionDurations, footfalls, sample, setVision: silhouette.setVision, dispose }
 }

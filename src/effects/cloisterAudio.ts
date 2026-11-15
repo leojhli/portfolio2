@@ -33,6 +33,7 @@ export function createCloisterAudio(
   let element: HTMLAudioElement | undefined
   let enabled = true,
     reading = false,
+    sensing = false,
     disposed = false,
     timer = 0,
     nextBar = 0,
@@ -249,7 +250,8 @@ export function createCloisterAudio(
     master.gain.setTargetAtTime(enabled ? .85 : 0, now, enabled ? .5 : .08)
     // While the film is stopped the score sits back, as if heard through a wall.
     // A recorded track is softened less, since most of a visit is spent reading.
-    tone.frequency.setTargetAtTime(reading ? (element ? 3400 : 1100) : 16000, now, .25)
+    const open = reading ? (element ? 3400 : 1100) : 16000
+    tone.frequency.setTargetAtTime(sensing ? Math.min(open, 900) : open, now, sensing ? .08 : .25)
     music.gain.setTargetAtTime(reading ? .38 : .55, now, .3)
     breathe()
     if (enabled) {
@@ -276,6 +278,47 @@ export function createCloisterAudio(
     setEnabled(next: boolean) {
       enabled = next
       apply()
+    },
+    /** Eagle Vision: the score sinks, and a deep pulse rings out once. */
+    setVision(next: boolean) {
+      if (next === sensing) return
+      sensing = next
+      apply()
+      if (!context || !enabled || !noise || context.state !== "running") return
+      const c = context
+      const at = c.currentTime + .01
+      if (next) {
+        // A low boom with a shimmer that rises behind it.
+        const osc = c.createOscillator()
+        osc.type = "sine"
+        osc.frequency.setValueAtTime(92, at)
+        osc.frequency.exponentialRampToValueAtTime(38, at + .9)
+        const body = c.createGain()
+        body.gain.setValueAtTime(0, at)
+        body.gain.linearRampToValueAtTime(.2, at + .03)
+        body.gain.exponentialRampToValueAtTime(.001, at + 1.1)
+        osc.connect(body)
+        body.connect(master)
+        osc.start(at)
+        osc.stop(at + 1.15)
+        burst(at + .02, 1.2, "bandpass", 1800, 5200, .035, .5)
+        for (const [note, delay] of [[81, .05], [88, .14]] as const) {
+          const bell = c.createOscillator()
+          bell.type = "sine"
+          bell.frequency.value = midi(note)
+          const ring = c.createGain()
+          ring.gain.setValueAtTime(0, at + delay)
+          ring.gain.linearRampToValueAtTime(.018, at + delay + .02)
+          ring.gain.exponentialRampToValueAtTime(.0005, at + delay + 1.6)
+          bell.connect(ring)
+          ring.connect(master)
+          ring.connect(echo)
+          bell.start(at + delay)
+          bell.stop(at + delay + 1.7)
+        }
+      } else {
+        burst(at, .35, "bandpass", 3600, 900, .025, .02)
+      }
     },
     /** The film is either moving or stopped at a chapter. */
     setReading(next: boolean) {

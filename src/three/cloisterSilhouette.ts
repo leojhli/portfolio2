@@ -137,7 +137,13 @@ export function applyCloisterSilhouette(root: THREE.Object3D) {
   }
 
   let disposed = false
+  const pale = ink.color.clone()
+  const gold = new THREE.Color("#ffc24a")
   return {
+    /** Eagle Vision: the runner's contour turns gold. */
+    setVision(amount: number) {
+      ink.color.copy(pale).lerp(gold, THREE.MathUtils.clamp(amount, 0, 1))
+    },
     dispose() {
       if (disposed) return
       disposed = true

@@ -143,7 +143,9 @@ test("late scene readiness preserves direct chapter navigation and keeps portfol
   const f = await mount()
   try {
     assert.equal(f.phase(), "loading")
-    assert.ok(f.w.document.querySelector(".cine-loading-runner"))
+    const mark = f.w.document.querySelector(".cine-loading-mark .surname-mark-write")
+    assert.ok(mark, "the loading screen writes the 李 monogram")
+    assert.equal(mark.querySelectorAll("mask").length, 7, "one stroke per piece of the logo")
     assert.equal(f.audios.length, 0, "arriving creates no audio instance")
     await f.click('.cine-chapters a[href="#projects"]')
     assert.equal(f.phase(), "reading")

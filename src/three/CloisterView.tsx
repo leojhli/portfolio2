@@ -79,6 +79,10 @@ export default function CloisterView(props: CloisterSceneProps) {
         let heard:
           | { action: string; strides: number; y: number; falling: boolean; airborne: boolean }
           | undefined
+        // Eagle Vision eases in and out; the pulse starts each time it opens.
+        let vision = 0,
+          visionAt = -1e9,
+          visionOn = false
         let previousShot = "",
           resetBlur = true
         const draw = (now: number) => {
@@ -194,7 +198,18 @@ export default function CloisterView(props: CloisterSceneProps) {
           fog.near = 9 + 170 * pullback
           fog.far = 83 + 170 * pullback
           stones.setDistanceFade(pullback)
+          const wantVision = !!latest.current.vision
+          if (wantVision && !visionOn) visionAt = now
+          visionOn = wantVision
+          const step = Math.min(dt || 1 / 60, 0.05)
+          vision += ((wantVision ? 1 : 0) - vision) * Math.min(1, step * (wantVision ? 7 : 5))
+          if (Math.abs(vision - (wantVision ? 1 : 0)) < 0.002) vision = wantVision ? 1 : 0
+          const pulse = (now - visionAt) / 1000
+          stones.setVision(vision)
+          runner.setVision(vision)
           ink.render(scene, camera, pullback, {
+            vision,
+            pulse,
             motionBlur: phase === "playing" && done === null ? p.motionBlur : 0,
             deltaSeconds: dt,
             reset: resetBlur || previousShot !== p.shotId,
@@ -203,6 +218,8 @@ export default function CloisterView(props: CloisterSceneProps) {
           resetBlur = false
           if (done !== null) latest.current.onComplete(done)
           else if (phase === "playing") invalidate()
+          // Keep drawing while the sense fades or its pulse is still moving.
+          else if ((vision > 0 && vision < 1) || (wantVision && pulse < 1.2)) invalidate()
         }
         const paint = (now: number) => {
           try {
@@ -244,7 +261,11 @@ export default function CloisterView(props: CloisterSceneProps) {
         const configure = () => {
           const { phase, segment, revision } = latest.current
           const id = [phase, segment, revision].join("/")
-          if (id === stateKey) return
+          if (id === stateKey) {
+            // Eagle Vision changes the image without changing the shot.
+            if (!!latest.current.vision !== visionOn) invalidate()
+            return
+          }
           stateKey = id
           previous = 0
           resetBlur = true

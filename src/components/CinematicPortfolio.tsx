@@ -30,6 +30,8 @@ export type CloisterSceneProps = {
   onReady: () => void
   onProgress?: (fraction: number) => void
   onSound?: (event: SceneSound) => void
+  /** Eagle Vision: hold V, or the switch in the footer. */
+  vision?: boolean
   onComplete: (segment: number) => void
   onFailure: (message: string) => void
 }
@@ -70,23 +72,6 @@ class SceneBoundary extends Component<{
     return this.state.failed ? null : this.props.children
   }
 }
-function RunningSilhouette() {
-  return (
-    <picture className="cine-loading-runner" aria-hidden="true">
-      <source
-        media="(prefers-reduced-motion: reduce)"
-        srcSet="/models/cloister/runner-still.webp"
-      />
-      <img
-        src="/models/cloister/runner-loop.webp"
-        width="175"
-        height="176"
-        alt=""
-        fetchPriority="high"
-      />
-    </picture>
-  )
-}
 
 export default function CinematicPortfolio() {
   const { mode, setMode } = usePrefs()
@@ -117,6 +102,10 @@ export default function CinematicPortfolio() {
     }
   })
   const audio = useRef<CloisterAudio | null>(null)
+  // Eagle Vision: hold V, or latch it with the footer switch.
+  const [visionHeld, setVisionHeld] = useState(false)
+  const [visionLatched, setVisionLatched] = useState(false)
+  const vision = visionHeld || visionLatched
   const [failed, setFailed] = useState(false)
   const [credits, setCredits] = useState(false)
   const hasPlayed = useRef(false)
@@ -198,6 +187,33 @@ export default function CinematicPortfolio() {
       engine.dispose()
     }
   }, [])
+
+  useEffect(() => {
+    const typing = (target: EventTarget | null) =>
+      target instanceof HTMLElement &&
+      (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+    const down = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "v" || event.repeat || event.metaKey || event.ctrlKey || event.altKey || typing(event.target))
+        return
+      setVisionHeld(true)
+    }
+    const up = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === "v") setVisionHeld(false)
+    }
+    const release = () => setVisionHeld(false)
+    window.addEventListener("keydown", down)
+    window.addEventListener("keyup", up)
+    window.addEventListener("blur", release)
+    return () => {
+      window.removeEventListener("keydown", down)
+      window.removeEventListener("keyup", up)
+      window.removeEventListener("blur", release)
+    }
+  }, [])
+
+  useEffect(() => {
+    audio.current?.setVision(vision)
+  }, [vision])
 
   useEffect(() => {
     audio.current?.setEnabled(sound)
@@ -336,6 +352,7 @@ export default function CinematicPortfolio() {
       className="cine-portfolio"
       data-phase={story.phase}
       data-reading={reading}
+      data-vision={vision}
       onClick={(event) => {
         // A click on the drawing continues the film. Text stays selectable,
         // and every control keeps its own behaviour.
@@ -375,6 +392,7 @@ export default function CinematicPortfolio() {
                 onReady={sceneReady}
                 onProgress={sceneProgress}
                 onSound={sceneSound}
+                vision={vision}
                 onComplete={complete}
                 onFailure={sceneFailed}
               />
@@ -443,7 +461,9 @@ export default function CinematicPortfolio() {
       >
         {story.phase === "loading" && !failed && (
           <div className="cine-loading">
-            <RunningSilhouette />
+            <span className="cine-loading-mark">
+              <Logo write pace={1.15} />
+            </span>
             <p className="cine-loading-name">
               Leo Li <span lang="zh">{c.profile.chineseName}</span>
             </p>
@@ -720,6 +740,19 @@ export default function CinematicPortfolio() {
           {!failed && (
             <button type="button" onClick={replay}>
               {hasPlayed.current || story.phase === "playing" || story.phase === "paused" ? "Replay film ↺" : "Play film"}
+            </button>
+          )}
+          {!failed && (
+            <button
+              type="button"
+              className="cine-vision-switch"
+              aria-pressed={vision}
+              title="Eagle Vision (hold V)"
+              onClick={() => setVisionLatched((value) => !value)}
+            >
+              <span aria-hidden="true" className="cine-vision-eye" />
+              Eagle Vision
+              <kbd aria-hidden="true">V</kbd>
             </button>
           )}
           <button

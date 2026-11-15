@@ -75,7 +75,7 @@ export default function App() {
           <View />
         </Suspense>
         <div className="mode-curtain" data-state={curtain} aria-hidden={curtain === 'idle'}>
-          <Logo />
+          {curtain !== 'idle' && <Logo write pace={0.55} />}
           <p role="status">
             {curtain === 'idle' ? '' : heading === 'quick' ? 'Opening Quickview' : 'Entering the film'}
           </p>

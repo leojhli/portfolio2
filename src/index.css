@@ -200,3 +200,10 @@ html[data-mode='ascii'] .planet-label { border-radius: 0; border-style: dashed; 
 }
 html[data-motion='on'] .tv-static { animation: static-shift 0.35s steps(4) infinite; }
 .tv-scan { background: repeating-linear-gradient(transparent 0 2px, rgba(0, 0, 0, 0.18) 2px 3px); }
+
+/* The 李 monogram written stroke by stroke (Logo with write). */
+.surname-mark-write .stroke-wipe { transform: translateX(var(--from)); animation-name: stroke-write; animation-timing-function: cubic-bezier(.55, .05, .35, 1); animation-fill-mode: forwards; }
+@keyframes stroke-write { to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .surname-mark-write .stroke-wipe { animation: none; transform: none; }
+}

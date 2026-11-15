@@ -1,4 +1,7 @@
 import * as THREE from "three"
+
+// Vertex colours are chalk grey; multiplying by this lands on Eagle Vision gold.
+const VISION_GOLD = new THREE.Color(1.55, 1.12, 0.42)
 import { stones } from "./cloisterChoreography"
 
 type Stone = typeof stones["walk"]
@@ -211,6 +214,10 @@ export function buildCloisterStones(parent: THREE.Object3D) {
 
   let disposed = false
   return {
+    /** Eagle Vision: the bench and walls of the route turn gold. */
+    setVision(amount: number) {
+      inkMaterial.color.setRGB(1, 1, 1).lerp(VISION_GOLD, THREE.MathUtils.clamp(amount, 0, 1))
+    },
     setDistanceFade(pullback: number) {
       // Screen-space line segments otherwise keep their full width at any
       // distance, unlike the tapered, physical strokes of the original drawing.
