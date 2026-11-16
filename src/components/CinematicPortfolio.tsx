@@ -13,6 +13,7 @@ import { usePrefs } from "../state/preferences"
 import Logo from "./Logo"
 import AsciiPreview from "./AsciiPreview"
 import PickemBracket from "./PickemBracket"
+import ContactIcon from "./ContactIcon"
 import { createCloisterAudio, type CloisterAudio } from "../effects/cloisterAudio"
 import "../cinematic.css"
 
@@ -677,7 +678,10 @@ export default function CinematicPortfolio() {
                           ? { target: "_blank", rel: "noreferrer" }
                           : {})}
                       >
-                        {contact.label}
+                        <span className="cine-contact-name">
+                          <ContactIcon id={contact.id} />
+                          {contact.label}
+                        </span>
                         <span aria-hidden="true">↗</span>
                       </a>
                     </li>

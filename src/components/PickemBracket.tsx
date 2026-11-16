@@ -22,8 +22,10 @@ const logo = (team: string) => `/teams/${team}.webp`
 export default function PickemBracket({ variant = "page" }: { variant?: "page" | "overlay" }) {
   const p = getContent().pickems
   const host = useRef<HTMLElement>(null)
-  const [shown, setShown] = useState(variant === "overlay")
-  const [score, setScore] = useState(0)
+  // With reduced motion there is nothing to reveal: show the finished bracket.
+  const still = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+  const [shown, setShown] = useState(variant === "overlay" || still)
+  const [score, setScore] = useState(still ? p.score : 0)
   const [hover, setHover] = useState<string | null>(null)
 
   useEffect(() => {
@@ -93,6 +95,9 @@ export default function PickemBracket({ variant = "page" }: { variant?: "page" |
 
   const bet = p.bet
   const roi = bet ? Math.round((bet.profit / (bet.payout - bet.profit)) * 100) : 0
+  // Amounts in Canadian dollars; the market itself settles in US dollars.
+  const cad = (usd: number) =>
+    `C$${(usd * (bet?.usdToCad ?? 1)).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
   return (
     <figure
@@ -236,24 +241,29 @@ export default function PickemBracket({ variant = "page" }: { variant?: "page" |
             <span className="pk-bet-kicker">And I put money on it</span>
             <span className="pk-bet-market">{bet.market}</span>
             <span className="pk-bet-detail">
-              {bet.shares} {bet.outcome} at {bet.price}¢ · stake ${(bet.payout - bet.profit).toFixed(2)} · paid $
-              {bet.payout.toFixed(2)}
+              {bet.shares} {bet.outcome} shares at {bet.price}% odds · stake {cad(bet.payout - bet.profit)} · paid{" "}
+              {cad(bet.payout)}
             </span>
           </div>
           <div className="pk-bet-odds" aria-hidden="true">
-            <span className="pk-odds-from">{bet.price}¢</span>
+            <span className="pk-odds-from">{bet.price}%</span>
             <span className="pk-odds-track">
               <i style={{ left: `${bet.price}%` }} />
             </span>
-            <span className="pk-odds-to">$1</span>
+            <span className="pk-odds-to">Won</span>
           </div>
           <div className="pk-bet-result">
-            <b>+${bet.profit.toFixed(2)}</b>
+            <b>+{cad(bet.profit)}</b>
             <span>+{roi}%</span>
           </div>
         </div>
       )}
 
+      {bet && (
+        <p className="pk-fx">
+          Polymarket pays out in US dollars; converted at 1 USD = {bet.usdToCad} CAD ({bet.rateDate}).
+        </p>
+      )}
       {(p.verifyUrl || bet?.url) && (
         <p className="pk-proof">
           Verify:{" "}

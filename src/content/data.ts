@@ -14,6 +14,8 @@ export type Experience = {
   organization: string
   /** Square logo in public/, shown beside the organization. */
   logo?: string
+  /** Accent colour for this entry in Quickview. */
+  accent?: string
   url?: string
   dates: string
   /** One line for the film's Experience chapter. */
@@ -31,6 +33,8 @@ export type Project = {
   technologies: string[]
   /** Full résumé bullets, listed in résumé mode. */
   points?: string[]
+  /** Accent colour for this entry in Quickview. */
+  accent?: string
   image?: string
   /** A looping, silent clip shown with the project. */
   video?: string
@@ -103,6 +107,7 @@ const content = {
       organization: "University of Waterloo",
       logo: "/logos/uwaterloo.webp",
       url: "https://uwaterloo.ca/",
+      accent: "#d9a400",
       dates: "Nov 2026 – Present",
       summary:
         "Researching Fast Multipole Attention, a cheaper alternative to self-attention, with Prof. Giang Tran.",
@@ -116,6 +121,7 @@ const content = {
       role: "Software Engineer",
       organization: "UW Reality Labs",
       logo: "/logos/uw-reality-labs.webp",
+      accent: "#7c5cff",
       url: "https://www.linkedin.com/company/uwrealitylabs/",
       dates: "Sep 2026 – Present",
       summary: "Adapting a SLAM system to run on the Qualcomm RB5 for headset head tracking.",
@@ -131,6 +137,7 @@ const content = {
       role: "Software Engineer",
       organization: "Waterloo Rocketry",
       logo: "/logos/waterloo-rocketry.webp",
+      accent: "#ff6a2b",
       url: "https://www.waterloorocketry.com/",
       dates: "2026 – Present",
       summary: "Building the Orion launch app for Waterloo's student rocketry team.",
@@ -141,6 +148,7 @@ const content = {
       role: "Creator",
       organization: "Coding In Unity",
       logo: "/logos/coding-in-unity.webp",
+      accent: "#3d7bff",
       url: "https://www.youtube.com/@CodingInUnity",
       dates: "May 2020 – Present",
       summary: "Published 50 Unity tutorials, reaching 2k subscribers and 210k views.",
@@ -179,9 +187,23 @@ const content = {
       price: 24.5,
       payout: 139.16,
       profit: 105.01,
+      // Polymarket settles in US dollars. Shown in Canadian dollars at the
+      // USD/CAD rate on the day the final was played.
+      usdToCad: 1.427,
+      rateDate: "Nov 14, 2026",
       url: "https://polymarket.com/@leojhli",
     } as
-      | { market: string; outcome: string; shares: number; price: number; payout: number; profit: number; url: string }
+      | {
+          market: string
+          outcome: string
+          shares: number
+          price: number
+          payout: number
+          profit: number
+          usdToCad: number
+          rateDate: string
+          url: string
+        }
       | undefined,
     rounds: [
       {
@@ -216,6 +238,7 @@ const content = {
       id: "betago",
       landmark: "lighthouse",
       title: "BetaGo",
+      accent: "#1f9d6b",
       summary:
         "A 9×9 Go engine with capture, suicide, ko, and area scoring rules, an interactive board, and seeded Monte Carlo tree search. A CPU policy/value network guides the neural search and trains through a resumable self-play pipeline. Optimizing liberty checks and board copying made search 2.7× faster (312 ms to 115 ms).",
       technologies: ["C++20", "MCTS", "CNN", "Tk"],
@@ -234,6 +257,7 @@ const content = {
       id: "video-to-ascii",
       landmark: "observatory",
       title: "Video to ASCII",
+      accent: "#0aa3b8",
       summary:
         "A reusable React component that renders video as ASCII in real time. A two-pass WebGL2 pipeline matches glyphs by six regions and draws grids up to 500 columns wide at 30 FPS. It exports video in the browser at up to 1920 px, and 40 unit tests cover playback and export.",
       technologies: ["TypeScript", "React", "WebGL2", "GLSL"],
@@ -250,6 +274,7 @@ const content = {
       id: "did-you-even-listen",
       landmark: "rocket",
       title: "Did You Even Listen",
+      accent: "#e0478f",
       summary:
         "An Obsidian plugin that records a lecture, transcribes it live with Groq Whisper, and compares your notes against AI-generated ones. It points out what is missing, incorrect, vague, or wordy through Socratic questions and quizzes, without handing over the answers.",
       technologies: ["TypeScript", "Obsidian API", "Groq", "esbuild"],
