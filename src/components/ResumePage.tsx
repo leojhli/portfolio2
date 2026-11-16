@@ -5,6 +5,7 @@ import QuickviewBackdrop from "./QuickviewBackdrop"
 import PickemBracket from "./PickemBracket"
 import Rich from "./Rich"
 import ContactIcon from "./ContactIcon"
+import PreviewLink from "./PreviewLink"
 import "../resume.css"
 
 const c = getContent()
@@ -24,7 +25,7 @@ const CONTACT_COLOURS: Record<string, string> = {
   instagram: "#e1306c",
 }
 
-function Org({ item }: { item: Pick<Experience, "organization" | "logo" | "url" | "accent"> }) {
+function Org({ item }: { item: Pick<Experience, "organization" | "logo" | "url" | "accent" | "preview"> }) {
   const body = (
     <>
       {item.logo && <img src={item.logo} alt="" width="16" height="16" />}
@@ -32,9 +33,9 @@ function Org({ item }: { item: Pick<Experience, "organization" | "logo" | "url" 
     </>
   )
   return item.url ? (
-    <a className="rs-org" style={tint(item.accent)} href={item.url} target="_blank" rel="noreferrer">
+    <PreviewLink className="rs-org" style={tint(item.accent)} href={item.url} preview={item.preview}>
       {body}
-    </a>
+    </PreviewLink>
   ) : (
     <span className="rs-org" style={tint(item.accent)}>
       {body}
@@ -72,13 +73,18 @@ export default function ResumePage() {
           <span className="rs-name">{c.profile.displayName}</span> <span lang="zh">{c.profile.chineseName}</span>
         </h1>
         <p className="rs-lead">
-          I study <mark className="rs-hl" style={tint(UW_GOLD)}>computer engineering</mark> at{" "}
+          I study{" "}
+          <PreviewLink className="rs-hl rs-hl-link" style={tint(UW_GOLD)} href={c.education.programUrl} preview={c.education.programPreview}>
+            computer engineering
+          </PreviewLink>{" "}
+          at{" "}
           <Org
             item={{
               organization: c.education.school,
               logo: c.education.logo,
-              url: "https://uwaterloo.ca/",
+              url: c.education.programUrl,
               accent: UW_GOLD,
+              preview: c.education.programPreview,
             }}
           />
           , and I like building things people can see and touch.
@@ -129,9 +135,9 @@ export default function ResumePage() {
                 <div className="rs-entry-head">
                   <h3>
                     {item.repoUrl ? (
-                      <a href={item.repoUrl} target="_blank" rel="noreferrer">
+                      <PreviewLink href={item.repoUrl} preview={item.preview}>
                         {item.title} ↗
-                      </a>
+                      </PreviewLink>
                     ) : (
                       item.title
                     )}

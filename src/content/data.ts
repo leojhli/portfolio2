@@ -8,6 +8,12 @@ export type Contact = {
   label: string
   href?: string
 }
+/** What a link shows when the pointer rests on it in Quickview. */
+export type Preview =
+  | { kind: "image"; src: string; caption?: string }
+  | { kind: "logo"; src: string; caption?: string }
+  | { kind: "video"; src: string; poster?: string; caption?: string }
+  | { kind: "ascii"; src: string; caption?: string }
 export type Experience = {
   id: string
   role: string
@@ -16,6 +22,7 @@ export type Experience = {
   logo?: string
   /** Accent colour for this entry in Quickview. */
   accent?: string
+  preview?: Preview
   url?: string
   dates: string
   /** One line for the film's Experience chapter. */
@@ -35,6 +42,7 @@ export type Project = {
   points?: string[]
   /** Accent colour for this entry in Quickview. */
   accent?: string
+  preview?: Preview
   image?: string
   /** A looping, silent clip shown with the project. */
   video?: string
@@ -108,6 +116,7 @@ const content = {
       logo: "/logos/uwaterloo.webp",
       url: "https://uwaterloo.ca/",
       accent: "#d9a400",
+      preview: { kind: "logo", src: "/logos/uwaterloo-lg.webp", caption: "University of Waterloo" },
       dates: "Nov 2026 – Present",
       summary:
         "Researching Fast Multipole Attention, a cheaper alternative to self-attention, with Prof. Giang Tran.",
@@ -122,7 +131,8 @@ const content = {
       organization: "UW Reality Labs",
       logo: "/logos/uw-reality-labs.webp",
       accent: "#7c5cff",
-      url: "https://www.linkedin.com/company/uwrealitylabs/",
+      url: "https://uwrealitylabs.com/",
+      preview: { kind: "logo", src: "/logos/uw-reality-labs-lg.webp", caption: "uwrealitylabs.com" },
       dates: "Sep 2026 – Present",
       summary: "Adapting a SLAM system to run on the Qualcomm RB5 for headset head tracking.",
       points: [
@@ -137,6 +147,7 @@ const content = {
       role: "Software Engineer",
       organization: "Waterloo Rocketry",
       logo: "/logos/waterloo-rocketry.webp",
+      preview: { kind: "logo", src: "/logos/waterloo-rocketry-lg.webp", caption: "waterloorocketry.com" },
       accent: "#ff6a2b",
       url: "https://www.waterloorocketry.com/",
       dates: "2026 – Present",
@@ -148,6 +159,7 @@ const content = {
       role: "Creator",
       organization: "Coding In Unity",
       logo: "/logos/coding-in-unity.webp",
+      preview: { kind: "image", src: "/previews/coding-in-unity.webp", caption: "youtube.com/@CodingInUnity" },
       accent: "#3d7bff",
       url: "https://www.youtube.com/@CodingInUnity",
       dates: "May 2020 – Present",
@@ -160,6 +172,12 @@ const content = {
   education: {
     school: "University of Waterloo",
     logo: "/logos/uwaterloo.webp",
+    programUrl: "https://uwaterloo.ca/future-students/programs/computer-engineering",
+    programPreview: {
+      kind: "image",
+      src: "/previews/uw-computer-engineering.webp",
+      caption: "uwaterloo.ca · Computer Engineering",
+    } as Preview,
     degree: "Bachelor of Applied Science in Computer Engineering",
     dates: "Sep 2026 – Apr 2031",
     coursework: ["Fundamentals of Programming (C++)", "Linear Algebra", "Calculus I"],
@@ -191,6 +209,11 @@ const content = {
       // USD/CAD rate on the day the final was played.
       usdToCad: 1.427,
       rateDate: "Nov 14, 2026",
+      // Moments on the price chart, in hours from the start of its history.
+      events: [
+        { hour: 570, label: "BLG beat T1" },
+        { hour: 714, label: "BLG win Worlds" },
+      ],
       url: "https://polymarket.com/@leojhli",
     } as
       | {
@@ -202,6 +225,7 @@ const content = {
           profit: number
           usdToCad: number
           rateDate: string
+          events: { hour: number; label: string }[]
           url: string
         }
       | undefined,
@@ -239,6 +263,7 @@ const content = {
       landmark: "lighthouse",
       title: "BetaGo",
       accent: "#1f9d6b",
+      preview: { kind: "video", src: "/projects/betago.mp4", poster: "/projects/betago.jpg", caption: "BetaGo playing itself" },
       summary:
         "A 9×9 Go engine with capture, suicide, ko, and area scoring rules, an interactive board, and seeded Monte Carlo tree search. A CPU policy/value network guides the neural search and trains through a resumable self-play pipeline. Optimizing liberty checks and board copying made search 2.7× faster (312 ms to 115 ms).",
       technologies: ["C++20", "MCTS", "CNN", "Tk"],
@@ -258,6 +283,7 @@ const content = {
       landmark: "observatory",
       title: "Video to ASCII",
       accent: "#0aa3b8",
+      preview: { kind: "ascii", src: "/projects/cloister-clip.mp4", caption: "Live: video → ASCII" },
       summary:
         "A reusable React component that renders video as ASCII in real time. A two-pass WebGL2 pipeline matches glyphs by six regions and draws grids up to 500 columns wide at 30 FPS. It exports video in the browser at up to 1920 px, and 40 unit tests cover playback and export.",
       technologies: ["TypeScript", "React", "WebGL2", "GLSL"],

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { getContent } from "../content/data"
+import OddsChart from "./OddsChart"
 import "../pickems.css"
 
 type Match = { a: string; b: string; sa: number; sb: number; points: number }
@@ -236,32 +237,43 @@ export default function PickemBracket({ variant = "page" }: { variant?: "page" |
       </div>
 
       {bet && (
-        <div className="pk-bet">
-          <div className="pk-bet-copy">
-            <span className="pk-bet-kicker">And I put money on it</span>
-            <span className="pk-bet-market">{bet.market}</span>
-            <span className="pk-bet-detail">
-              {bet.shares} {bet.outcome} shares at {bet.price}% odds · stake {cad(bet.payout - bet.profit)} · paid{" "}
-              {cad(bet.payout)}
-            </span>
-          </div>
-          <div className="pk-bet-odds" aria-hidden="true">
-            <span className="pk-odds-from">{bet.price}%</span>
-            <span className="pk-odds-track">
-              <i style={{ left: `${bet.price}%` }} />
-            </span>
-            <span className="pk-odds-to">Won</span>
-          </div>
-          <div className="pk-bet-result">
-            <b>+{cad(bet.profit)}</b>
-            <span>+{roi}%</span>
+        <div className="pk-story">
+          <OddsChart shares={bet.shares} entry={bet.price / 100} stake={bet.payout - bet.profit} usdToCad={bet.usdToCad} events={bet.events} />
+          <div className="pk-ticket">
+            <div className="pk-ticket-main">
+              <span className="pk-ticket-kicker">Bet slip · Polymarket</span>
+              <span className="pk-ticket-market">{bet.market}</span>
+              <span className="pk-ticket-pick">
+                My pick <b>{bet.outcome.toUpperCase()}</b>
+              </span>
+              <dl>
+                <div>
+                  <dt>Stake</dt>
+                  <dd>{cad(bet.payout - bet.profit)}</dd>
+                </div>
+                <div>
+                  <dt>Odds</dt>
+                  <dd>{bet.price}%</dd>
+                </div>
+                <div>
+                  <dt>Paid</dt>
+                  <dd>{cad(bet.payout)}</dd>
+                </div>
+              </dl>
+            </div>
+            <div className="pk-ticket-stub">
+              <span className="pk-stamp">Won</span>
+              <b>+{cad(bet.profit)}</b>
+              <span>+{roi}% return</span>
+            </div>
           </div>
         </div>
       )}
 
       {bet && (
         <p className="pk-fx">
-          Polymarket pays out in US dollars; converted at 1 USD = {bet.usdToCad} CAD ({bet.rateDate}).
+          Prices are Polymarket's own hourly history. It pays out in US dollars; converted at 1 USD = {bet.usdToCad} CAD (
+          {bet.rateDate}).
         </p>
       )}
       {(p.verifyUrl || bet?.url) && (

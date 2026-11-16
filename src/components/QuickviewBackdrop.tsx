@@ -75,7 +75,9 @@ export default function QuickviewBackdrop() {
       cols = Math.ceil(place.w / CELL_W)
       rows = Math.ceil(place.h / CELL_H)
       light = new Float32Array(cols * rows)
-      if (sample && image.complete && image.naturalWidth) {
+      // A hidden or zero-sized window has nothing to sample; drawing then
+      // would throw and take the whole page down with it.
+      if (sample && image.complete && image.naturalWidth && cols > 0 && rows > 0) {
         sampler.width = cols
         sampler.height = rows
         sample.imageSmoothingQuality = "high"

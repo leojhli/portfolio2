@@ -177,3 +177,25 @@ a.rs-org:hover { box-shadow: inset 0 -2px 0 var(--accent, var(--rs-fg)), inset 0
 @media (prefers-color-scheme: dark) {
   .rs-links .contact-icon { filter: brightness(1.25); }
 }
+
+/* Hover previews: a small card above a link showing where it goes. */
+.pv-wrap { display: inline; }
+.pv-card { position: fixed; z-index: 50; display: block; padding: 5px; border-radius: 10px; pointer-events: none;
+  background: var(--rs-bg); border: 1px solid var(--rs-line); box-shadow: 0 14px 40px rgb(0 0 0 / 28%), 0 2px 8px rgb(0 0 0 / 16%);
+  transform: translate(calc(-50% + var(--lean, 0px)), -100%); transition: transform .45s cubic-bezier(.2, 1.5, .4, 1); animation: pv-in .38s cubic-bezier(.2, 1.55, .35, 1); transform-origin: bottom center; }
+.pv-card[data-below="true"] { transform: translate(calc(-50% + var(--lean, 0px)), 0); animation-name: pv-in-below; }
+.pv-frame { display: block; overflow: hidden; border-radius: 6px; background: #000; }
+.pv-frame > img, .pv-frame > video { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.pv-card[data-kind="logo"] .pv-frame { background: #fff; }
+.pv-card[data-kind="logo"] .pv-frame > img { object-fit: contain; padding: 14px; }
+.pv-caption { display: block; padding: 6px 4px 2px; color: var(--rs-muted); font: 10px/1.3 "Geist Mono", monospace; letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.pv-frame .cine-ascii { position: relative; margin: 0; height: 100%; }
+.pv-frame .cine-ascii video { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.pv-frame .cine-ascii canvas { display: block; width: 100%; height: 100%; }
+.pv-frame .cine-ascii figcaption { display: none; }
+@keyframes pv-in { from { opacity: 0; transform: translate(calc(-50% + var(--lean, 0px)), calc(-100% + 20px)) scale(.6); } }
+@keyframes pv-in-below { from { opacity: 0; transform: translate(calc(-50% + var(--lean, 0px)), -20px) scale(.6); } }
+@media (prefers-reduced-motion: reduce) { .pv-card { animation: none; transition: none; } }
+a.rs-hl-link { text-decoration: none; cursor: pointer; }
+a.rs-hl-link:hover { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+@media print { .pv-card { display: none; } }
