@@ -130,8 +130,9 @@ export default function ResumePage() {
         <section aria-labelledby="rs-pickems">
           <h2 id="rs-pickems">Off the clock</h2>
           <p className="rs-pk-lead">
-            Lifelong BLG fan. This year I called every series at Worlds, including
-            their run to the title.
+            Lifelong BLG fan. At Worlds 2026 I called every knockout series,
+            including their run to the title, and backed the LPL on Polymarket
+            before it happened.
           </p>
           <PickemBracket />
         </section>

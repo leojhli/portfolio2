@@ -456,7 +456,11 @@ test("experience is one line per role with a logo, and Quickview lists everythin
     assert.ok(bracket, "Quickview shows the Pick'em bracket")
     assert.equal(bracket.querySelectorAll(".pk-match").length, 7)
     assert.equal(bracket.querySelectorAll(".pk-row-gold").length, 3, "BLG's three wins are traced in gold")
-    assert.match(bracket.getAttribute("aria-label"), /160 of 160 points/)
+    assert.match(bracket.getAttribute("aria-label"), /160 of 160 knockout points/)
+    assert.equal(bracket.querySelectorAll("image.pk-logo").length, 14, "every team row shows its logo")
+    assert.match(bracket.querySelector(".pk-bet").textContent, /\+\$105\.01[\s\S]*\+307%/)
+    assert.ok(bracket.querySelector('a[href^="https://lolesports.com/en-US/pickems/"]'))
+    assert.ok(bracket.querySelector('a[href="https://polymarket.com/@leojhli"]'))
     assert.ok(page.querySelector('a[href="/Leo_Li_Resume.pdf"]'))
     assert.ok(page.querySelector('a[href="/"]'))
   } finally {

@@ -1,66 +1,106 @@
-/* Pick'em bracket: ink lines, mono type, the favourite's run in gold. */
+/* Pick'em bracket: ink cards with team logos, the favourite's run in gold. */
 .pk {
   --pk-ink: var(--rs-fg, #f5f5f2);
   --pk-muted: var(--rs-muted, #8d8d89);
-  --pk-line: color-mix(in srgb, var(--pk-ink) 32%, transparent);
-  --pk-card: color-mix(in srgb, var(--pk-ink) 4%, transparent);
-  --pk-gold: #d9a53a;
+  --pk-line: color-mix(in srgb, var(--pk-ink) 26%, transparent);
+  --pk-card: color-mix(in srgb, var(--pk-ink) 5%, var(--rs-bg, #0b0b0b));
+  --pk-win: color-mix(in srgb, var(--pk-ink) 7%, transparent);
+  --pk-gold: #c48a12;
   margin: 0;
   font-family: "Geist Mono", ui-monospace, monospace;
 }
 @media (prefers-color-scheme: dark) { .pk { --pk-gold: #f5c25a; } }
-.pk[data-variant="overlay"] { --pk-ink: #f5f5f2; --pk-muted: #8d8d89; --pk-gold: #f5c25a; }
+.pk[data-variant="overlay"] { --pk-ink: #f5f5f2; --pk-muted: #8d8d89; --pk-gold: #f5c25a; --pk-card: #121212; }
 
-.pk-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 12px; color: var(--pk-muted); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
-.pk-score { margin-left: auto; white-space: nowrap; color: var(--pk-ink); font-variant-numeric: tabular-nums; letter-spacing: 0; }
-.pk-score b { font-size: 22px; font-weight: 500; color: var(--pk-gold); }
-.pk-score span { font-size: 12px; color: var(--pk-muted); }
-.pk-badge { min-width: 62px; padding: 2px 8px; border: 1px solid var(--pk-gold); border-radius: 999px; color: var(--pk-gold); text-align: center; font-size: 10px; opacity: 0; transition: opacity .4s ease; }
+.pk-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.pk-title { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pk-event { color: var(--pk-ink); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+.pk-meta { color: var(--pk-muted); font-size: 10.5px; letter-spacing: .04em; }
+.pk-tally { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.pk-score { white-space: nowrap; color: var(--pk-ink); font-variant-numeric: tabular-nums; }
+.pk-score b { font-size: 30px; font-weight: 500; line-height: 1; color: var(--pk-gold); }
+.pk-score span { font-size: 13px; color: var(--pk-muted); }
+.pk-badge { padding: 3px 9px; border: 1px solid var(--pk-gold); border-radius: 999px; color: var(--pk-gold); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; opacity: 0; transition: opacity .4s ease; }
 .pk[data-shown="true"] .pk-badge { opacity: 1; transition-delay: 2.1s; }
 
-.pk-svg { display: block; width: 100%; height: auto; overflow: visible; font-size: 11px; }
-.pk-round { fill: var(--pk-muted); font-size: 8.5px; letter-spacing: .12em; }
+.pk-scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.pk-svg { display: block; width: 100%; height: auto; overflow: visible; font-size: 12px; }
+.pk-round text { fill: var(--pk-ink); font-size: 9px; letter-spacing: .14em; }
+.pk-round .pk-round-pts { fill: var(--pk-muted); }
+
 .pk-card { fill: var(--pk-card); stroke: var(--pk-line); stroke-width: 1; }
 .pk-divider { stroke: var(--pk-line); stroke-width: 1; }
-.pk-row text { fill: var(--pk-muted); }
-.pk-row-win text { fill: var(--pk-ink); }
-.pk-row-gold text { fill: var(--pk-gold); }
-.pk-row-gold .pk-games, .pk-row-win .pk-games { font-weight: 600; }
-.pk-tick { font-size: 10px; }
+.pk-sep { stroke: var(--pk-line); stroke-width: 1; }
+.pk-win-fill { fill: var(--pk-win); }
+.pk-team { fill: var(--pk-muted); font-weight: 500; letter-spacing: .02em; }
+.pk-games { fill: var(--pk-muted); font-size: 13px; }
+.pk-row-win .pk-team, .pk-row-win .pk-games { fill: var(--pk-ink); font-weight: 600; }
+.pk-row-gold .pk-team, .pk-row-gold .pk-games { fill: var(--pk-gold); font-weight: 600; }
+.pk-row-lose .pk-logo { opacity: .62; filter: grayscale(.85); }
+.pk-check circle { fill: color-mix(in srgb, var(--pk-gold) 18%, transparent); stroke: var(--pk-gold); stroke-width: 1; }
+.pk-check path { fill: none; stroke: var(--pk-gold); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.pk-row-win .pk-check circle { fill: color-mix(in srgb, #3fb37f 18%, transparent); stroke: #3fb37f; }
+.pk-row-win .pk-check path { stroke: #3fb37f; }
+.pk-chip rect { fill: color-mix(in srgb, #3fb37f 16%, transparent); stroke: color-mix(in srgb, #3fb37f 55%, transparent); stroke-width: 1; }
+.pk-chip text { fill: #3fb37f; font-size: 9.5px; font-weight: 600; }
+.pk-row-gold .pk-chip rect { fill: color-mix(in srgb, var(--pk-gold) 16%, transparent); stroke: color-mix(in srgb, var(--pk-gold) 60%, transparent); }
+.pk-row-gold .pk-chip text { fill: var(--pk-gold); }
+.pk-halo { fill: none; stroke: var(--pk-gold); stroke-width: 6; opacity: .28; }
+.pk-final .pk-card { stroke: color-mix(in srgb, var(--pk-gold) 70%, transparent); stroke-width: 1.4; }
+
 .pk-line { fill: none; stroke: var(--pk-line); stroke-width: 1; stroke-dasharray: 1; stroke-dashoffset: 1; }
-.pk-gold { stroke: var(--pk-gold); stroke-width: 1.6; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--pk-gold) 70%, transparent)); }
+.pk-gold { stroke: var(--pk-gold); stroke-width: 2; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--pk-gold) 70%, transparent)); }
 .pk-points { fill: var(--pk-gold); font-size: 9px; opacity: 0; transition: opacity .2s ease; pointer-events: none; }
 .pk-points[data-on="true"] { opacity: 1; }
 .pk-match { opacity: 0; cursor: default; }
-.pk-match:hover .pk-card { stroke: color-mix(in srgb, var(--pk-ink) 60%, transparent); }
+.pk-match:hover .pk-card { stroke: color-mix(in srgb, var(--pk-ink) 55%, transparent); }
 .pk-crown { opacity: 0; }
-.pk-crown text { fill: var(--pk-gold); font-size: 9.5px; letter-spacing: .2em; }
+.pk-crown text { fill: var(--pk-gold); font-size: 10px; letter-spacing: .2em; }
+.pk-trophy { fill: var(--pk-gold); }
 
 .pk[data-shown="true"] .pk-match { animation: pk-in .45s ease-out forwards; }
 .pk[data-shown="true"] .pk-line { animation: pk-draw .55s cubic-bezier(.6, .05, .3, 1) forwards; }
 .pk[data-shown="true"] .pk-crown { animation: pk-in .6s ease-out forwards; }
 @keyframes pk-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 @keyframes pk-draw { to { stroke-dashoffset: 0; } }
+
+/* The bet: a stake, the price it was bought at, and what it paid. */
+.pk-bet { display: grid; grid-template-columns: 1fr minmax(120px, 190px) auto; align-items: center; gap: 18px; margin-top: 18px; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--pk-gold) 40%, var(--pk-line)); border-radius: 8px; background: linear-gradient(90deg, color-mix(in srgb, var(--pk-gold) 9%, transparent), transparent 70%); opacity: 0; }
+.pk[data-shown="true"] .pk-bet { animation: pk-in .6s ease-out 2s forwards; }
+.pk-bet-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pk-bet-kicker { color: var(--pk-gold); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; }
+.pk-bet-market { color: var(--pk-ink); font-family: "Hanken Grotesk", sans-serif; font-size: 14px; line-height: 1.35; }
+.pk-bet-detail { color: var(--pk-muted); font-size: 10.5px; }
+.pk-bet-odds { display: flex; align-items: center; gap: 8px; color: var(--pk-muted); font-size: 10px; }
+.pk-odds-track { position: relative; flex: 1; height: 2px; background: linear-gradient(90deg, var(--pk-line), var(--pk-gold)); border-radius: 2px; }
+.pk-odds-track i { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--pk-bg, var(--rs-bg, #0b0b0b)); border: 1.5px solid var(--pk-ink); }
+.pk-odds-to { color: var(--pk-gold); }
+.pk-bet-result { display: flex; flex-direction: column; align-items: flex-end; }
+.pk-bet-result b { color: #3fb37f; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pk-bet-result span { color: #3fb37f; font-size: 11px; }
+
+.pk-proof { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 14px 0 0 !important; padding: 0 !important; color: var(--pk-muted); font-family: "Hanken Grotesk", sans-serif; font-size: 13px; }
+.pk-proof::before { display: none; }
+.pk-proof a { color: var(--pk-ink); text-decoration: underline; text-decoration-color: var(--pk-line); text-underline-offset: 4px; }
+.pk-proof a:hover { text-decoration-color: var(--pk-ink); }
+
 @media (prefers-reduced-motion: reduce) {
-  .pk .pk-match, .pk .pk-crown { animation: none !important; opacity: 1; }
+  .pk .pk-match, .pk .pk-crown, .pk .pk-bet { animation: none !important; opacity: 1; }
   .pk .pk-line { animation: none !important; stroke-dashoffset: 0; }
   .pk .pk-badge { transition: none; }
 }
 
-.pk-verify { display: inline-block; margin-top: 10px; font-family: "Hanken Grotesk", sans-serif; font-size: 13px; color: var(--pk-muted); text-decoration: underline; text-underline-offset: 4px; }
-.pk-verify:hover { color: var(--pk-ink); }
+/* On phones the bracket keeps a readable size and scrolls sideways. */
+@media (max-width: 560px) {
+  .pk-svg { min-width: 600px; }
+  .pk-head { flex-direction: column; align-items: flex-start; }
+  .pk-tally { flex-direction: row; align-items: center; gap: 12px; }
+  .pk-bet { grid-template-columns: 1fr auto; }
+  .pk-bet-odds { grid-column: 1 / -1; grid-row: 2; }
+}
 
 /* The B-L-G easter egg in the film. */
-.pk-egg { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; padding: 24px; background: rgb(0 0 0 / 72%); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: pk-fade .35s ease-out; }
-.pk-egg > div { width: min(720px, 100%); }
-.pk-egg p { margin: 18px 0 0 !important; text-align: center; color: #8d8d89; font: 10px/1.4 "Geist Mono", monospace; letter-spacing: .14em; text-transform: uppercase; }
+.pk-egg { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; padding: 24px; overflow-y: auto; background: rgb(0 0 0 / 76%); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: pk-fade .35s ease-out; }
+.pk-egg > div { width: min(760px, 100%); }
+.pk-egg > div > p { margin: 18px 0 0 !important; text-align: center; color: #8d8d89; font: 10px/1.4 "Geist Mono", monospace; letter-spacing: .14em; text-transform: uppercase; }
 @keyframes pk-fade { from { opacity: 0; } to { opacity: 1; } }
-
-/* On phones the bracket keeps a readable size and scrolls sideways. */
-.pk-scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
-@media (max-width: 560px) {
-  .pk-svg { min-width: 560px; }
-  .pk-head { flex-wrap: wrap; gap: 6px 12px; font-size: 10px; }
-  .pk-event { flex-basis: 100%; }
-  .pk-score { margin-left: 0; }
-}

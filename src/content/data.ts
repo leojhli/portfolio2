@@ -163,9 +163,26 @@ const content = {
     score: 160,
     max: 160,
     favourite: "BLG",
-    // Link to a public view of the bracket on the Pick'em site, when there is one.
-    verifyUrl: undefined as string | undefined,
-    verifyLabel: undefined as string | undefined,
+    handle: "needSEinternship",
+    rank: "Top 1% globally",
+    total: 210,
+    // Public, read-only view of the bracket on the official Pick'em site.
+    verifyUrl:
+      "https://lolesports.com/en-US/pickems/115660540725177488/picks/9145553020626820722/135815152855759183?sv=eFY0Kd0xuO" as
+        | string
+        | undefined,
+    // The Polymarket position on the same run, from the public profile.
+    bet: {
+      market: "Will a team from LPL (China) win LoL Worlds 2026?",
+      outcome: "Yes",
+      shares: 139.2,
+      price: 24.5,
+      payout: 139.16,
+      profit: 105.01,
+      url: "https://polymarket.com/@leojhli",
+    } as
+      | { market: string; outcome: string; shares: number; price: number; payout: number; profit: number; url: string }
+      | undefined,
     rounds: [
       {
         name: "Quarterfinals",
