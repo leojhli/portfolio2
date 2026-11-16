@@ -12,6 +12,7 @@ import { getContent, type Project } from "../content/data"
 import { usePrefs } from "../state/preferences"
 import Logo from "./Logo"
 import AsciiPreview from "./AsciiPreview"
+import PickemBracket from "./PickemBracket"
 import { createCloisterAudio, type CloisterAudio } from "../effects/cloisterAudio"
 import "../cinematic.css"
 
@@ -106,6 +107,8 @@ export default function CinematicPortfolio() {
   const [visionHeld, setVisionHeld] = useState(false)
   const [visionLatched, setVisionLatched] = useState(false)
   const vision = visionHeld || visionLatched
+  // Easter egg: typing B-L-G anywhere shows the Worlds Pick'em bracket.
+  const [egg, setEgg] = useState(false)
   const [failed, setFailed] = useState(false)
   const [credits, setCredits] = useState(false)
   const hasPlayed = useRef(false)
@@ -192,7 +195,16 @@ export default function CinematicPortfolio() {
     const typing = (target: EventTarget | null) =>
       target instanceof HTMLElement &&
       (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+    let typed = ""
     const down = (event: KeyboardEvent) => {
+      if (!typing(event.target) && !event.metaKey && !event.ctrlKey && !event.altKey && event.key.length === 1) {
+        typed = (typed + event.key.toLowerCase()).slice(-3)
+        if (typed === "blg") {
+          typed = ""
+          setEgg(true)
+        }
+      }
+      if (event.key === "Escape") setEgg(false)
       if (event.key.toLowerCase() !== "v" || event.repeat || event.metaKey || event.ctrlKey || event.altKey || typing(event.target))
         return
       setVisionHeld(true)
@@ -766,6 +778,19 @@ export default function CinematicPortfolio() {
           </button>
         </div>
       </footer>
+      {egg && (
+        <div
+          className="pk-egg"
+          role="dialog"
+          aria-label="Worlds 2026 Pick'ems"
+          onClick={() => setEgg(false)}
+        >
+          <div onClick={(event) => event.stopPropagation()}>
+            <PickemBracket variant="overlay" />
+            <p>BLG, world champions · Esc or click outside to close</p>
+          </div>
+        </div>
+      )}
       {credits && (
         <aside
           id="cine-credits"

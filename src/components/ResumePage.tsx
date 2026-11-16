@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { getContent, type Experience } from "../content/data"
 import Logo from "./Logo"
 import QuickviewBackdrop from "./QuickviewBackdrop"
+import PickemBracket from "./PickemBracket"
 import "../resume.css"
 
 const c = getContent()
@@ -124,6 +125,15 @@ export default function ResumePage() {
               </li>
             ))}
           </ol>
+        </section>
+
+        <section aria-labelledby="rs-pickems">
+          <h2 id="rs-pickems">Off the clock</h2>
+          <p className="rs-pk-lead">
+            Lifelong BLG fan. This year I called every series at Worlds, including
+            their run to the title.
+          </p>
+          <PickemBracket />
         </section>
 
         <section aria-labelledby="rs-education">

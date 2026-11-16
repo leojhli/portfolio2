@@ -416,6 +416,12 @@ test("experience is one line per role with a logo, and Quickview lists everythin
       assert.ok(li.querySelector("img.cine-role-logo").getAttribute("src").startsWith("/logos/"))
       assert.equal(li.querySelectorAll("p").length, 2, "dates and one summary line only")
     }
+    // Typing B-L-G opens the Pick'em bracket over the film; Escape closes it.
+    for (const key of "blg")
+      await act(async () => f.w.dispatchEvent(new f.w.KeyboardEvent("keydown", { key })))
+    assert.ok(f.w.document.querySelector(".pk-egg .pk"))
+    await act(async () => f.w.dispatchEvent(new f.w.KeyboardEvent("keydown", { key: "Escape" })))
+    assert.equal(f.w.document.querySelector(".pk-egg"), null)
     const link = f.w.document.querySelector(".cine-mode-link")
     assert.equal(link.getAttribute("href"), "/quickview")
     assert.equal(link.textContent.trim(), "Quickview")
@@ -446,6 +452,11 @@ test("experience is one line per role with a logo, and Quickview lists everythin
     assert.equal(r.w.document.querySelector("[data-controlled-scene]"), null, "no 3D scene in Quickview")
     for (const text of [/Fast Multipole Attention/, /372 recordings/, /Waterloo Rocketry/, /Orion launch app/, /50 Unity tutorials/, /312 ms to 115 ms/, /Groq Whisper/, /Computer Engineering/, /PyTorch/])
       assert.match(page.textContent, text)
+    const bracket = page.querySelector(".pk")
+    assert.ok(bracket, "Quickview shows the Pick'em bracket")
+    assert.equal(bracket.querySelectorAll(".pk-match").length, 7)
+    assert.equal(bracket.querySelectorAll(".pk-row-gold").length, 3, "BLG's three wins are traced in gold")
+    assert.match(bracket.getAttribute("aria-label"), /160 of 160 points/)
     assert.ok(page.querySelector('a[href="/Leo_Li_Resume.pdf"]'))
     assert.ok(page.querySelector('a[href="/"]'))
   } finally {

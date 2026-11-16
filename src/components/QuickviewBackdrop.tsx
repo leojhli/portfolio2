@@ -136,7 +136,9 @@ export default function QuickviewBackdrop() {
           ink.fillText(RAMP[index], x, y)
         }
       }
-      ink.globalAlpha = width < 700 ? 0.18 : 0.35
+      // The rim fades where the lens passes behind the reading column.
+      const rimBehind = Math.max(0, 1 - Math.max(0, now.x - radius * 0.5 - (width / 2 + 330)) / 120)
+      ink.globalAlpha = (width < 700 ? 0.18 : 0.35) * (1 - 0.7 * rimBehind)
       ink.strokeStyle = color
       ink.lineWidth = 1
       ink.beginPath()

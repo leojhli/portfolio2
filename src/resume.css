@@ -115,3 +115,7 @@ a.rs-org:hover { box-shadow: inset 0 0 0 1px var(--rs-muted); }
   .rs-page { background: #fff; color: #000; }
   .rs-main { padding-top: 16px; }
 }
+
+.rs-pk-lead { margin-bottom: 18px !important; }
+.rs-main .pk { padding: 18px; border: 1px solid var(--rs-line); border-radius: 8px; background: color-mix(in srgb, var(--rs-bg) 80%, transparent); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+@media (max-width: 560px) { .rs-main .pk { padding: 12px; } }

@@ -156,6 +156,39 @@ const content = {
     dates: "Sep 2026 – Apr 2031",
     coursework: ["Fundamentals of Programming (C++)", "Linear Algebra", "Calculus I"],
   },
+  // Worlds 2026 Pick'ems, from the scored bracket: 10 / 20 / 80 points per
+  // correct pick in the quarterfinals, semifinals and final.
+  pickems: {
+    event: "Worlds 2026 Pick'ems",
+    score: 160,
+    max: 160,
+    favourite: "BLG",
+    // Link to a public view of the bracket on the Pick'em site, when there is one.
+    verifyUrl: undefined as string | undefined,
+    verifyLabel: undefined as string | undefined,
+    rounds: [
+      {
+        name: "Quarterfinals",
+        matches: [
+          { a: "DK", b: "BLG", sa: 0, sb: 3, points: 10 },
+          { a: "KC", b: "T1", sa: 1, sb: 3, points: 10 },
+          { a: "TES", b: "IG", sa: 1, sb: 3, points: 10 },
+          { a: "GEN", b: "LYON", sa: 3, sb: 0, points: 10 },
+        ],
+      },
+      {
+        name: "Semifinals",
+        matches: [
+          { a: "BLG", b: "T1", sa: 3, sb: 1, points: 20 },
+          { a: "IG", b: "GEN", sa: 0, sb: 3, points: 20 },
+        ],
+      },
+      {
+        name: "Final",
+        matches: [{ a: "BLG", b: "GEN", sa: 3, sb: 1, points: 80 }],
+      },
+    ],
+  },
   skills: [
     { label: "Languages", items: ["C++", "Python", "Java", "TypeScript", "JavaScript", "SQL", "C#", "HTML/CSS"] },
     { label: "Frameworks", items: ["React", "Node.js", "PyTorch", "Jupyter"] },
