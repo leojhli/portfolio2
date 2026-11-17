@@ -93,7 +93,7 @@ const content = {
     displayName: "Leo Li",
     chineseName: "李嘉和",
     intro:
-      "I'm a first-year computer engineering student. I research efficient attention for Transformers and build software for UW Reality Labs and Waterloo Rocketry.",
+      "I'm a first-year computer engineering student. I research efficient attention for Transformers and build software for UW Reality Labs.",
     headline: "Computer Engineering @ University of Waterloo",
     portrait: undefined as string | undefined,
     // A music file in public/ (for example "/music/theme.mp3") replaces the
@@ -141,18 +141,6 @@ const content = {
         "Implemented 5 dataset validation checks, covering missing sequence and confidence fields, empty recording lists, invalid record types, and empty recording objects.",
         "Implemented sliding-window segmentation, confidence filtering, and sequence padding to prepare gesture data for ML training.",
       ],
-    },
-    {
-      id: "waterloo-rocketry",
-      role: "Software Engineer",
-      organization: "Waterloo Rocketry",
-      logo: "/logos/waterloo-rocketry.webp",
-      preview: { kind: "logo", src: "/logos/waterloo-rocketry-lg.webp", caption: "waterloorocketry.com" },
-      accent: "#ff6a2b",
-      url: "https://www.waterloorocketry.com/",
-      dates: "2026 – Present",
-      summary: "Building the Orion launch app for Waterloo's student rocketry team.",
-      points: [],
     },
     {
       id: "coding-in-unity",

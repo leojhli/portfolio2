@@ -408,7 +408,6 @@ test("experience is one line per role with a logo, and Quickview lists everythin
       [
         "Undergraduate Researcher @ University of Waterloo",
         "Software Engineer @ UW Reality Labs",
-        "Software Engineer @ Waterloo Rocketry",
         "Creator @ Coding In Unity",
       ],
     )
@@ -450,7 +449,7 @@ test("experience is one line per role with a logo, and Quickview lists everythin
     assert.ok(page)
     assert.equal(r.w.document.querySelector(".cine-portfolio"), null)
     assert.equal(r.w.document.querySelector("[data-controlled-scene]"), null, "no 3D scene in Quickview")
-    for (const text of [/Fast Multipole Attention/, /372 recordings/, /Waterloo Rocketry/, /Orion launch app/, /50 Unity tutorials/, /312 ms to 115 ms/, /Groq Whisper/, /Computer Engineering/, /PyTorch/])
+    for (const text of [/Fast Multipole Attention/, /372 recordings/, /50 Unity tutorials/, /312 ms to 115 ms/, /Groq Whisper/, /Computer Engineering/, /PyTorch/])
       assert.match(page.textContent, text)
     // Key numbers are highlighted with their meaning, not just the digits.
     const marks = [...page.querySelectorAll("mark.rs-hl")].map((m) => m.textContent)

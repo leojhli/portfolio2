@@ -15,7 +15,6 @@ const TERMS = [
   "Qualcomm RB5",
   "Python validation tool",
   "sliding-window segmentation",
-  "Orion launch app",
   "MCTS",
   "policy/value CNN",
   "self-play pipeline",
